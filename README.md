@@ -1,40 +1,44 @@
 # DuskTranslate
 
-DuskTranslate is a browser-based Japanese-to-English translation tool for working through long-form novel chapters. It provides chapter navigation, glossary support, translation through AI Studio or OpenRouter, EPUB/TXT import and export, and optional developer logging.
+![DuskTranslate interface overview](docs/dusktranslate-overview.svg)
 
-## Running It
+> A focused, chapter-by-chapter workspace for translating Japanese light novels into readable English.
 
-Open `releases/current/DuskTranslate.html` in a modern browser. The app is a self-contained HTML file, so no build system or local server is required.
+[![Latest release](https://img.shields.io/github/v/release/eye9444/dusk-translate?label=latest%20release&color=c64a3c)](https://github.com/eye9444/dusk-translate/releases/latest)
+[![Status](https://img.shields.io/badge/status-personal%20project-29242a)](https://github.com/eye9444/dusk-translate)
 
-Enter an API key in the app when prompted. API keys and translation data are deliberately kept outside Git in the ignored `Important/` and `test files/` directories.
+## What It Does
 
-## Project Layout
+DuskTranslate is a self-contained browser app designed for long-form translation work. It keeps the source text and generated English side by side while making chapter navigation and repeated terminology easier to manage.
 
-```text
-releases/
-  current/       Main build intended for normal use
-  development/  Active experimental and feature-test builds
-  archive/       Older translator and EPUB test releases
-Important/       Local glossary, source data, and secrets (ignored)
-test files/      Local translation samples and generated files (ignored)
-```
+- Chapter-by-chapter source and translation panes
+- Glossary support for names, terms, and preferred wording
+- AI Studio and OpenRouter provider support
+- TXT and EPUB import/export workflows
+- Light and Eclipse themes
+- Optional developer logging for troubleshooting model behavior
+- No build system or local server required
 
-## Build Notes
+## Try It
 
-- `releases/current/` is the preferred starting point.
-- Files in `releases/development/` are snapshots kept for testing or comparison.
-- Files in `releases/archive/` are historical versions and may contain unfinished behavior.
-- The HTML builds are intentionally kept self-contained to make local testing easy.
+Download the [latest release](https://github.com/eye9444/dusk-translate/releases/latest), or open [`releases/current/DuskTranslate.html`](releases/current/DuskTranslate.html) directly from a local checkout.
 
-## Privacy
+The app runs in a modern browser. Enter your own provider API key in the app when prompted.
 
-This repository is private. Do not commit API keys, novel source material, generated translations, or other personal test data. The repository ignores `Important/` and `test files/` for this reason.
+## Release Map
 
-## Git Workflow
+| Directory | Purpose |
+| --- | --- |
+| [`releases/current`](releases/current) | Preferred build for normal use |
+| [`releases/development`](releases/development) | Active experiments and feature-test snapshots |
+| [`releases/archive`](releases/archive) | Older builds kept for comparison and recovery |
 
-```bash
-git status
-git add -A
-git commit -m "Describe the change"
-git push
-```
+Each HTML build is intentionally self-contained, making it easy to test a version without installing dependencies.
+
+## Local Files
+
+The ignored `Important/` and `test files/` directories hold local secrets, glossaries, novel source material, and generated translations. They stay on the local machine and are not part of the repository history.
+
+## Project Status
+
+This is a personal workbench under active iteration. The current release is useful for hands-on translation, while development builds may change behavior or expose diagnostic controls.
