@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LN Translator</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&family=Syne:wght@400;600;700&family=DM+Mono:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1a1410; --paper: #f5f0e8; --aged: #e8dfc8;
+  --accent: #c0392b; --muted: #8a7d6b; --border: #c8bfa8;
+  --success: #2d6a4f; --panel: #ede8dc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--paper); color: var(--ink); font-family: 'Syne', sans-serif; min-height: 100vh; }
+
+.key-bar {
+  background: var(--aged); border-bottom: 2px solid var(--ink);
+  padding: 10px 24px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.key-bar label { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.key-bar select {
+  font-family: 'DM Mono', monospace; font-size: .78rem;
+  padding: 6px 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--ink); border-radius: 4px;
+}
+.key-input-wrap { display: flex; align-items: center; }
+.key-input-wrap input {
+  font-family: 'DM Mono', monospace; font-size: .78rem;
+  padding: 6px 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--ink);
+  border-radius: 4px 0 0 4px; min-width: 210px;
+}
+.key-input-wrap button {
+  padding: 5px 8px; border: 1.5px solid var(--border); border-left: none;
+  background: var(--panel); cursor: pointer; border-radius: 0 4px 4px 0; font-size: .75rem;
+}
+.key-status { font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--muted); }
+.key-status.ok { color: var(--success); }
+.key-status.err { color: var(--accent); }
+
+header { border-bottom: 2px solid var(--ink); padding: 14px 24px; display: flex; align-items: baseline; gap: 14px; background: var(--aged); }
+header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+header .sub { font-family: 'DM Mono', monospace; font-size: .72rem; color: var(--muted); }
+.glossary-toggle { 
+  margin-left: auto; padding: 6px 12px; font-family: 'Syne', sans-serif; 
+  font-size: .68rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink); 
+  cursor: pointer; transition: all .12s; border-radius: 3px;
+}
+.glossary-toggle:hover { background: var(--ink); color: var(--paper); }
+.glossary-toggle.active { background: var(--ink); color: var(--paper); }
+
+.layout { display: grid; grid-template-columns: 230px 1fr; min-height: calc(100vh - 112px); }
+.sidebar { border-right: 2px solid var(--ink); background: var(--aged); overflow-y: auto; max-height: calc(100vh - 112px); position: sticky; top: 0; }
+.sidebar-hdr { padding: 11px 14px; font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+.ch-item { padding: 9px 14px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .12s; }
+.ch-item:hover { background: rgba(192,57,43,.07); }
+.ch-item.active { background: var(--ink); color: var(--paper); }
+.ch-id { font-family: 'DM Mono', monospace; font-size: .65rem; color: var(--muted); margin-bottom: 2px; }
+.ch-item.active .ch-id { color: #c8a87a; }
+.ch-title { font-size: .78rem; font-weight: 600; line-height: 1.35; }
+.ch-meta { font-size: .65rem; color: var(--muted); margin-top: 2px; font-family: 'DM Mono', monospace; }
+.ch-item.active .ch-meta { color: #9a8e7a; }
+.done-mark { color: var(--success); font-weight: 700; }
+.ch-item.active .done-mark { color: #7ec8a0; }
+.partial-mark { color: #b07d00; font-weight: 700; }
+
+.controls { padding: 11px 18px; border-bottom: 1px solid var(--border); background: var(--panel); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.btn { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 7px 14px; border: 2px solid var(--ink); cursor: pointer; transition: all .12s; background: transparent; color: var(--ink); white-space: nowrap; }
+.btn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
+.btn.primary:hover:not(:disabled) { background: #a93226; border-color: #a93226; }
+.btn.danger { background: #fde; border-color: var(--accent); color: var(--accent); }
+.btn.danger:hover:not(:disabled) { background: var(--accent); color: white; }
+.btn.sm { padding: 4px 9px; font-size: .65rem; }
+select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; padding: 7px 10px; border: 2px solid var(--ink); background: var(--paper); color: var(--ink); cursor: pointer; }
+.prog { font-family: 'DM Mono', monospace; font-size: .68rem; color: var(--muted); margin-left: auto; }
+
+.panes { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 165px); }
+.pane { overflow-y: auto; padding: 18px 22px; max-height: calc(100vh - 165px); }
+.pane-left { border-right: 1px solid var(--border); }
+.pane-lbl { font-size: .63rem; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; padding-bottom: 5px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+.pane-lbl .acts { margin-left: auto; display: flex; gap: 4px; }
+.src-txt { font-family: 'Shippori Mincho', serif; font-size: .98rem; line-height: 2; white-space: pre-wrap; word-break: break-word; }
+.tl-out { font-family: 'Shippori Mincho', serif; font-size: .98rem; line-height: 2; white-space: pre-wrap; word-break: break-word; outline: none; min-height: 120px; }
+.tl-out:empty::before { content: 'Translation will appear here…'; color: var(--muted); font-family: 'Syne', sans-serif; font-size: .82rem; font-style: italic; }
+.partial-badge { font-family: 'DM Mono', monospace; font-size: .65rem; background: #fef3cd; color: #7d5a00; border-radius: 3px; padding: 1px 6px; margin-left: 6px; }
+.cursor { display: inline-block; width: 2px; height: 1.1em; background: var(--accent); vertical-align: text-bottom; animation: blink 1s step-end infinite; margin-left: 1px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - 165px); gap: 14px; grid-column: 1 / -1; text-align: center; }
+.empty-state p { font-family: 'DM Mono', monospace; font-size: .8rem; color: var(--muted); line-height: 1.8; max-width: 380px; }
+
+.statusbar { position: fixed; bottom: 0; left: 230px; right: 0; background: var(--ink); color: var(--paper); font-family: 'DM Mono', monospace; font-size: .7rem; padding: 7px 18px; display: flex; align-items: center; gap: 8px; transform: translateY(100%); transition: transform .18s; z-index: 100; }
+.statusbar.show { transform: translateY(0); }
+.spin { width: 11px; height: 11px; border: 2px solid rgba(255,255,255,.25); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; display: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.provider-badge { font-family: 'DM Mono', monospace; font-size: .65rem; padding: 2px 6px; border-radius: 3px; margin-left: auto; }
+.provider-badge.or { background: #7c3aed; color: white; }
+.provider-badge.ai { background: #1a6b3a; color: white; }
+
+.glossary-bar {
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 8px 24px; display: flex; align-items: center; gap: 12px;
+  max-height: 68px; overflow: hidden; transition: max-height .25s ease-in-out, padding .25s ease-in-out;
+}
+.glossary-bar.collapsed {
+  max-height: 0; padding-top: 0; padding-bottom: 0; border-bottom: none;
+}
+.glossary-bar label { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.glossary-bar textarea {
+  flex: 1; font-family: 'DM Mono', monospace; font-size: .72rem; padding: 5px 8px;
+  border: 1.5px solid var(--border); background: var(--paper); color: var(--ink);
+  border-radius: 4px; resize: none; height: 52px; line-height: 1.6;
+}
+.glossary-hint { font-family: 'DM Mono', monospace; font-size: .65rem; color: var(--muted); line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="key-bar">
+  <label>API Key</label>
+  <div class="key-input-wrap">
+    <input type="text" id="api-key" placeholder="AIza… or sk-or-v1-…" oninput="onKeyInput()">
+    <button onclick="toggleVis()" id="vis-btn">👁</button>
+  </div>
+  <label>Model</label>
+  <select id="model-select" onchange="onKeyInput()">
+    <optgroup label="── AI Studio (AIza… key) ──">
+      <option value="ai|gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+      <option value="ai|gemini-2.5-flash">Gemini 2.5 Flash (free)</option>
+      <option value="ai|gemini-2.0-flash">Gemini 2.0 Flash (free)</option>
+      <option value="ai|gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (free)</option>
+      <option value="ai|gemma-3-27b-it">Gemma 3 27B (free)</option>
+    </optgroup>
+    <optgroup label="── OpenRouter (sk-or-… key) ──">
+      <option value="or|google/gemini-2.0-flash-001">OR · Gemini 2.0 Flash (free)</option>
+      <option value="or|deepseek/deepseek-chat">OR · DeepSeek V3 (free)</option>
+      <option value="or|qwen/qwen3-next-80b-a3b-instruct:free">OR · Qwen3 Next 80B A3B Instruct (free)</option>
+      <option value="or|meta-llama/llama-3.3-70b-instruct:free">OR · Meta Llama 3.3 70B Instruct (free)</option>
+    </optgroup>
+  </select>
+  <span class="key-status" id="key-status">Enter your API key</span>
+</div>
+
+<header>
+  <h1>LN Translator</h1>
+  <span class="sub">JP → EN · chapter-by-chapter · AI Studio &amp; OpenRouter</span>
+  <button class="glossary-toggle" onclick="toggleGlossary()">Glossary</button>
+</header>
+
+<div class="glossary-bar collapsed" id="glossary-bar">
+  <label>Glossary</label>
+  <textarea id="glossary" placeholder="シャル = Charlotte&#10;明人 = Akihito&#10;花音 = Kanon&#10;One entry per line, format: Japanese = English"></textarea>
+  <span class="glossary-hint">One entry per line<br>Japanese = English</span>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-hdr">Chapters</div>
+    <div id="ch-list"></div>
+  </aside>
+
+  <div style="display:flex;flex-direction:column;">
+    <div class="controls">
+      <button class="btn primary" id="btn-tl" onclick="translateCurrent()" disabled>Translate chapter</button>
+      <button class="btn danger sm" id="btn-abort" onclick="abortTranslation()" style="display:none">Stop</button>
+      <button class="btn" id="btn-prev" onclick="go(-1)" disabled>← Prev</button>
+      <button class="btn" id="btn-next" onclick="go(1)" disabled>Next →</button>
+      <select id="style-sel">
+        <option value="natural">Natural / localized</option>
+        <option value="faithful">Faithful / literal</option>
+        <option value="liberal">Liberal / creative</option>
+      </select>
+      <button class="btn sm" id="btn-export" onclick="doExport()" disabled>Export all</button>
+      <button class="btn sm" id="btn-import" onclick="document.getElementById('ti').click()" disabled>Import TXT</button>
+      <input type="file" id="ti" accept=".txt" style="display:none" onchange="importTXT(event)">
+      <span class="prog" id="prog">0 / 0</span>
+    </div>
+
+    <div class="empty-state" id="empty-state">
+      <div style="font-size:2rem">📖</div>
+      <p id="empty-text">Enter your API key above, then load your novel_source.json.</p>
+      <button class="btn primary" onclick="document.getElementById('fi').click()" disabled id="load-btn">Load novel_source.json</button>
+      <input type="file" id="fi" accept=".json" style="display:none" onchange="loadFile(event)">
+    </div>
+
+    <div class="panes" id="panes" style="display:none">
+      <div class="pane pane-left">
+        <div class="pane-lbl">
+          🇯🇵 Source
+          <span id="src-cnt" style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)"></span>
+        </div>
+        <div class="src-txt" id="src-txt"></div>
+      </div>
+      <div class="pane">
+        <div class="pane-lbl">
+          🇬🇧 Translation
+          <div class="acts">
+            <button class="btn sm" onclick="retryTranslation()">Retry</button>
+            <button class="btn sm" onclick="copyTl()">Copy</button>
+            <button class="btn sm" onclick="clearTl()">Clear</button>
+          </div>
+        </div>
+        <div class="tl-out" id="tl-out" contenteditable="true" spellcheck="true"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="statusbar" id="statusbar">
+  <div class="spin" id="spin"></div>
+  <span id="status-text"></span>
+  <span class="provider-badge" id="provider-badge" style="display:none"></span>
+</div>
+
+<script>
+let novel = null, cur = 0, translations = {}, busy = false;
+let abortCtrl = null, watchdog = null;
+let hidden = false;
+
+function getKey()      { return document.getElementById('api-key').value.trim(); }
+function getModelVal() { return document.getElementById('model-select').value; }
+function getProvider() { return getModelVal().split('|')[0]; }
+function getModel()    { return getModelVal().split('|')[1]; }
+
+function toggleVis() {
+  const inp = document.getElementById('api-key');
+  const btn = document.getElementById('vis-btn');
+  hidden = !hidden;
+  inp.style.webkitTextSecurity = hidden ? 'disc' : '';
+  inp.style.letterSpacing = hidden ? '2px' : '';
+  btn.textContent = hidden ? '🙈' : '👁';
+}
+
+function isReady() {
+  const k = getKey();
+  const p = getProvider();
+  if (p === 'ai') return k.length > 10;
+  if (p === 'or') return k.startsWith('sk-or-');
+  return false;
+}
+
+function onKeyInput() {
+  const k = getKey();
+  const p = getProvider();
+  const el = document.getElementById('key-status');
+
+  if (k.length === 0) {
+    el.textContent = 'Enter your API key';
+    el.className = 'key-status';
+  } else if (p === 'ai' && k.length > 10) {
+    el.textContent = '✓ AI Studio key set — ready';
+    el.className = 'key-status ok';
+  } else if (p === 'or' && k.startsWith('sk-or-')) {
+    el.textContent = '✓ OpenRouter key set — ready';
+    el.className = 'key-status ok';
+  } else if (p === 'or' && !k.startsWith('sk-or-')) {
+    el.textContent = 'OpenRouter key should start with sk-or-…';
+    el.className = 'key-status err';
+  } else {
+    el.textContent = 'Key looks short, keep typing…';
+    el.className = 'key-status';
+  }
+
+  const ready = isReady();
+  document.getElementById('load-btn').disabled = !ready;
+  if (novel) document.getElementById('btn-tl').disabled = !ready;
+  if (ready) {
+    document.getElementById('empty-text').innerHTML =
+      'Load your novel_source.json to begin.<br>Drag it onto the page or click Load.';
+  }
+}
+
+document.body.addEventListener('dragover', e => e.preventDefault());
+document.body.addEventListener('drop', e => {
+  e.preventDefault();
+  if (!isReady()) { setStatus('Enter your API key first'); return; }
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.json')) readJSON(f);
+});
+
+function loadFile(e) {
+  if (!isReady()) { setStatus('Enter your API key first'); return; }
+  const f = e.target.files[0];
+  if (f) readJSON(f);
+}
+
+function readJSON(f) {
+  const r = new FileReader();
+  r.onload = ev => {
+    try { novel = JSON.parse(ev.target.result); initUI(); }
+    catch(err) { setStatus('Parse error: ' + err.message); }
+  };
+  r.readAsText(f);
+}
+
+function initUI() {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('panes').style.display = 'grid';
+  renderList(); selectCh(0);
+  ['btn-prev','btn-next','btn-export','btn-import'].forEach(id => document.getElementById(id).disabled = false);
+  document.getElementById('btn-tl').disabled = !isReady();
+  updateProg();
+}
+
+function renderList() {
+  const list = document.getElementById('ch-list');
+  list.innerHTML = '';
+  novel.chapters.forEach((ch, i) => {
+    const fl = ch.text.split('\n').find(l => l.trim().length > 2) || ch.id;
+    const title = fl.slice(0, 28) + (fl.length > 28 ? '…' : '');
+    const d = document.createElement('div');
+    d.className = 'ch-item' + (i === 0 ? ' active' : '');
+    d.id = 'ci' + i;
+    d.innerHTML = `<div class="ch-id">${ch.id}</div><div class="ch-title">${title}</div><div class="ch-meta">${(ch.jp_char_count||0).toLocaleString()} chars <span id="ck${i}"></span></div>`;
+    d.onclick = () => selectCh(i);
+    list.appendChild(d);
+  });
+  Object.keys(translations).forEach(id => {
+    const i = novel.chapters.findIndex(c => c.id === id);
+    if (i >= 0) updateMark(i, translations[id]);
+  });
+}
+
+function selectCh(i) {
+  if (!novel) return;
+  cur = i;
+  document.querySelectorAll('.ch-item').forEach((el, j) => el.classList.toggle('active', j === i));
+  document.getElementById('ci' + i)?.scrollIntoView({ block: 'nearest' });
+  const ch = novel.chapters[i];
+  document.getElementById('src-txt').textContent = ch.text;
+  document.getElementById('src-cnt').textContent = `${(ch.jp_char_count||0).toLocaleString()} JP chars`;
+  const out = document.getElementById('tl-out');
+  out.innerHTML = '';
+  if (translations[ch.id]) {
+    const partial = translations[ch.id].endsWith('…PARTIAL');
+    out.textContent = translations[ch.id].replace('…PARTIAL', '');
+    if (partial) { const b = document.createElement('span'); b.className = 'partial-badge'; b.textContent = 'partial — click Retry'; out.appendChild(b); }
+  }
+  if (!busy) document.getElementById('btn-tl').disabled = !isReady();
+}
+
+function go(d) {
+  if (!novel) return;
+  const n = cur + d;
+  if (n >= 0 && n < novel.chapters.length) selectCh(n);
+}
+
+async function translateCurrent() {
+  if (!novel || busy || !isReady()) return;
+
+  const ch = novel.chapters[cur];
+  const style = document.getElementById('style-sel').value;
+  const provider = getProvider();
+  busy = true;
+  document.getElementById('btn-tl').disabled = true;
+  document.getElementById('btn-abort').style.display = '';
+
+  const badge = document.getElementById('provider-badge');
+  badge.textContent = provider === 'or' ? 'OpenRouter' : 'AI Studio';
+  badge.className = 'provider-badge ' + provider;
+  badge.style.display = '';
+  setStatus('Translating ' + ch.id + '…', true);
+
+  const styleMap = {
+    natural:  'Translate naturally into readable English. Adapt idioms. Preserve honorifics (san, kun, chan, sama) as-is.',
+    faithful: 'Translate faithfully and literally, staying close to original structures. Preserve all honorifics. Keep Japanese name order.',
+    liberal:  'Translate with creative liberty into vivid English prose. Prioritize emotional impact. Make it feel written originally in English.'
+  };
+
+  const glossaryRaw = document.getElementById('glossary').value.trim();
+  const glossaryLines = glossaryRaw.split('\n').map(l => l.trim()).filter(l => l.includes('='));
+  const glossarySection = glossaryLines.length > 0
+    ? `\n\nName/term glossary — always use these translations exactly:\n${glossaryLines.map(l => `- ${l}`).join('\n')}`
+    : '';
+
+  const prompt = `You are a professional Japanese-to-English light novel translator.\n\nStyle: ${styleMap[style]}${glossarySection}\n\nRules:\n- Output ONLY the translated text. No notes, no commentary.\n- Preserve paragraph breaks exactly as in the original.\n- Keep 『』「」quote marks or convert consistently to English quotes.\n- Always follow the glossary above for names and terms.\n\nJapanese text:\n${ch.text}`;
+
+  const out = document.getElementById('tl-out');
+  out.innerHTML = '';
+  const cursor = document.createElement('span');
+  cursor.className = 'cursor';
+  out.appendChild(cursor);
+
+  abortCtrl = new AbortController();
+  let lastTok = Date.now();
+  watchdog = setInterval(() => {
+    if (Date.now() - lastTok > 30000) { clearInterval(watchdog); abortCtrl.abort(); }
+  }, 2000);
+
+  const getTextContent = () => {
+    for (const node of out.childNodes) { if (node.nodeType === 3) return node.textContent; }
+    return '';
+  };
+  const savePartial = (full, msg) => {
+    translations[ch.id] = full + '…PARTIAL';
+    out.innerHTML = ''; out.textContent = full;
+    const b = document.createElement('span'); b.className = 'partial-badge'; b.textContent = 'partial — click Retry'; out.appendChild(b);
+    updateMark(cur, translations[ch.id]); updateProg();
+    setStatus(msg);
+  };
+
+  try {
+    let cleanStop;
+    if (provider === 'or') {
+      cleanStop = await translateOpenRouter(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
+    } else {
+      cleanStop = await translateAIStudio(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
+    }
+
+    clearInterval(watchdog);
+    const full = getTextContent();
+    cursor.remove();
+
+    if (!full.trim()) {
+      throw new Error('Empty response — model may be rate limited, try again');
+    } else if (!cleanStop) {
+      // Stream closed without a proper stop signal — silently incomplete
+      savePartial(full, '⚠ Stream ended early — partial saved. Click Retry.');
+    } else {
+      translations[ch.id] = full;
+      updateMark(cur, full); updateProg();
+      setStatus('✓ Done — ' + ch.id);
+      setTimeout(hideStatus, 2500);
+    }
+
+  } catch (err) {
+    clearInterval(watchdog);
+    cursor.remove();
+    const full = getTextContent();
+
+    if (full.length > 80) {
+      savePartial(full, 'Stream interrupted — partial saved. Click Retry to finish.');
+    } else {
+      out.textContent = '[Error: ' + err.message + ']';
+      setStatus('Error: ' + err.message);
+    }
+  }
+
+  busy = false;
+  document.getElementById('btn-tl').disabled = false;
+  document.getElementById('btn-abort').style.display = 'none';
+}
+
+async function translateOpenRouter(prompt, out, cursor, onToken, abortCtrl) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${getKey()}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://ln-translator.local',
+      'X-Title': 'LN Translator'
+    },
+    body: JSON.stringify({ model: getModel(), stream: true, messages: [{ role: 'user', content: prompt }] }),
+    signal: abortCtrl.signal
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', cleanStop = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done || abortCtrl.signal.aborted) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      if (data === '[DONE]') { cleanStop = true; continue; }
+      try {
+        const parsed = JSON.parse(data);
+        const token = parsed?.choices?.[0]?.delta?.content;
+        if (token) { onToken(); appendToken(out, cursor, token); }
+        const finish = parsed?.choices?.[0]?.finish_reason;
+        if (finish === 'stop') cleanStop = true;
+      } catch {}
+    }
+  }
+  return cleanStop;
+}
+
+async function translateAIStudio(prompt, out, cursor, onToken, abortCtrl) {
+  const model = getModel();
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${getKey()}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.7 }
+    }),
+    signal: abortCtrl.signal
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `HTTP ${response.status}`);
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '', cleanStop = false;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done || abortCtrl.signal.aborted) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.slice(6).trim();
+      try {
+        const parsed = JSON.parse(data);
+        const token = parsed?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (token) { onToken(); appendToken(out, cursor, token); }
+        const finish = parsed?.candidates?.[0]?.finishReason;
+        if (finish === 'STOP') cleanStop = true;
+      } catch {}
+    }
+  }
+  return cleanStop;
+}
+
+function appendToken(out, cursor, token) {
+  let textNode = null;
+  for (const node of out.childNodes) { if (node.nodeType === 3) { textNode = node; break; } }
+  if (textNode) textNode.textContent += token;
+  else out.insertBefore(document.createTextNode(token), cursor);
+  out.parentElement.scrollTop = out.parentElement.scrollHeight;
+}
+
+function abortTranslation() {
+  clearInterval(watchdog); abortCtrl?.abort();
+  setStatus('Stopped.');
+  busy = false;
+  document.getElementById('btn-tl').disabled = false;
+  document.getElementById('btn-abort').style.display = 'none';
+}
+
+function retryTranslation() {
+  const ch = novel?.chapters[cur];
+  if (!ch) return;
+  delete translations[ch.id];
+  document.getElementById('tl-out').innerHTML = '';
+  const ck = document.getElementById('ck' + cur);
+  if (ck) { ck.textContent = ''; ck.className = ''; }
+  updateProg();
+  translateCurrent();
+}
+
+function updateMark(i, text) {
+  const ck = document.getElementById('ck' + i);
+  if (!ck) return;
+  const p = text?.endsWith('…PARTIAL');
+  ck.textContent = p ? ' ⚠' : ' ✓';
+  ck.className = p ? 'partial-mark' : 'done-mark';
+}
+
+function copyTl() {
+  const t = (document.getElementById('tl-out')?.textContent || '').replace('partial — click Retry', '').trim();
+  navigator.clipboard.writeText(t).then(() => { setStatus('Copied!'); setTimeout(hideStatus, 1500); });
+}
+
+function clearTl() {
+  const ch = novel?.chapters[cur];
+  if (!ch) return;
+  delete translations[ch.id];
+  document.getElementById('tl-out').innerHTML = '';
+  const ck = document.getElementById('ck' + cur);
+  if (ck) { ck.textContent = ''; ck.className = ''; }
+  updateProg();
+}
+
+function importTXT(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    const text = ev.target.result;
+    const chunkRe = /─{10,}\r?\n\[([^\]]+)\]\r?\n─{10,}\r?\n([\s\S]*?)(?=─{10,}\r?\n\[|$)/g;
+    let match, count = 0;
+    while ((match = chunkRe.exec(text)) !== null) {
+      const id = match[1].trim();
+      const content = match[2].trim();
+      if (id && content) {
+        translations[id] = content;
+        count++;
+        if (novel) {
+          const i = novel.chapters.findIndex(c => c.id === id);
+          if (i >= 0) updateMark(i, content);
+        }
+      }
+    }
+    e.target.value = '';
+    if (count === 0) { setStatus("No chapters found — make sure it's an exported translation.txt"); return; }
+    updateProg();
+    if (novel) {
+      const firstUndone = novel.chapters.findIndex(c => !translations[c.id]);
+      if (firstUndone >= 0) selectCh(firstUndone);
+    }
+    setStatus(`✓ Imported ${count} chapter${count > 1 ? 's' : ''} — resuming from where you left off`);
+    setTimeout(hideStatus, 3000);
+  };
+  r.readAsText(f);
+}
+
+function doExport() {
+  if (!novel) return;
+  let out = '';
+  novel.chapters.forEach(ch => {
+    if (translations[ch.id]) {
+      out += `\n\n${'─'.repeat(60)}\n[${ch.id}]\n${'─'.repeat(60)}\n\n${translations[ch.id].replace('…PARTIAL','').trim()}`;
+    }
+  });
+  out = out.trim();
+  if (!out) { setStatus('Nothing translated yet.'); return; }
+  const blob = new Blob([out], { type: 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'translation.txt';
+  a.click();
+  setStatus('Downloaded translation.txt');
+  setTimeout(hideStatus, 2000);
+}
+
+function updateProg() {
+  if (!novel) return;
+  document.getElementById('prog').textContent = `${Object.keys(translations).length} / ${novel.chapters.length} translated`;
+}
+
+function setStatus(msg, spin = false) {
+  document.getElementById('spin').style.display = spin ? 'block' : 'none';
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('statusbar').classList.add('show');
+}
+
+function hideStatus() {
+  document.getElementById('statusbar').classList.remove('show');
+  document.getElementById('provider-badge').style.display = 'none';
+}
+
+function toggleGlossary() {
+  const bar = document.getElementById('glossary-bar');
+  const btn = document.querySelector('.glossary-toggle');
+  bar.classList.toggle('collapsed');
+  btn.classList.toggle('active');
+}
+</script>
+</body>
+</html>
