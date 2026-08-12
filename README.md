@@ -4,8 +4,8 @@
 
 > A focused, chapter-by-chapter workspace for translating Japanese light novels into readable English.
 
-[![Latest release](https://img.shields.io/github/v/release/eye9444/dusk-translate?display_name=tag&label=latest%20release&color=c64a3c)](https://github.com/eye9444/dusk-translate/releases/latest)
-[![Status](https://img.shields.io/badge/status-personal%20project-29242a)](https://github.com/eye9444/dusk-translate)
+[![Latest release](https://img.shields.io/github/v/release/eye9444/Dusk-Translate?display_name=tag&label=latest%20release&color=c64a3c)](https://github.com/eye9444/Dusk-Translate/releases/latest)
+[![Status](https://img.shields.io/badge/status-personal%20project-29242a)](https://github.com/eye9444/Dusk-Translate)
 
 ## What It Does
 
@@ -21,7 +21,7 @@ DuskTranslate is a self-contained browser app designed for long-form translation
 
 ## Try It
 
-Download the [latest release](https://github.com/eye9444/dusk-translate/releases/latest), or open [`releases/current/DuskTranslate.html`](releases/current/DuskTranslate.html) directly from a local checkout.
+Download the [latest release](https://github.com/eye9444/Dusk-Translate/releases/latest), or open [`releases/current/DuskTranslate.html`](releases/current/DuskTranslate.html) directly from a local checkout.
 
 The app runs in a modern browser. Enter your own provider API key in the app when prompted.
 
