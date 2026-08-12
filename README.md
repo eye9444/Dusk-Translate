@@ -4,7 +4,7 @@
 
 > A focused, chapter-by-chapter workspace for translating Japanese light novels into readable English.
 
-[![Latest release](https://img.shields.io/github/v/release/eye9444/dusk-translate?label=latest%20release&color=c64a3c)](https://github.com/eye9444/dusk-translate/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/eye9444/dusk-translate?display_name=tag&label=latest%20release&color=c64a3c)](https://github.com/eye9444/dusk-translate/releases/latest)
 [![Status](https://img.shields.io/badge/status-personal%20project-29242a)](https://github.com/eye9444/dusk-translate)
 
 ## What It Does
@@ -34,10 +34,6 @@ The app runs in a modern browser. Enter your own provider API key in the app whe
 | [`releases/archive`](releases/archive) | Older builds kept for comparison and recovery |
 
 Each HTML build is intentionally self-contained, making it easy to test a version without installing dependencies.
-
-## Local Files
-
-The ignored `Important/` and `test files/` directories hold local secrets, glossaries, novel source material, and generated translations. They stay on the local machine and are not part of the repository history.
 
 ## Project Status
 
