@@ -21,6 +21,10 @@ DuskTranslate is a self-contained browser app designed for long-form translation
 
 ## Try It
 
+Try the [hosted project library](https://dusk-translate.vercel.app). It saves books, translations, glossary terms, and your current chapter in this browser. You can rename, archive, restore, back up, and resume projects. Provider API keys stay in the editor session.
+
+The hosted application's login and private cloud library use Supabase. They need deployment configuration before accounts can be enabled; see [hosted setup](docs/HOSTED-SETUP.md). Until then, browser-local projects work without an account.
+
 Download the [latest release](https://github.com/eye9444/Dusk-Translate/releases/latest), or open [`releases/current/DuskTranslate.html`](releases/current/DuskTranslate.html) directly from a local checkout.
 
 The app runs in a modern browser. Enter your own provider API key in the app when prompted.

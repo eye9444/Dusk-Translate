@@ -1,0 +1,8 @@
+Important
+test files
+.git
+.env*
+test-results
+playwright-report
+node_modules
+docs

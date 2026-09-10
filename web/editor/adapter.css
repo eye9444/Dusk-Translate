@@ -1,0 +1,8 @@
+/* The host owns book imports and project switching. */
+#empty-state, #fi, #fi-epub { display:none!important; }
+.key-input-wrap input { min-width:170px; }
+#sub-title { user-select:none!important; }
+body.eclipse { --muted:#aaa090; }
+.key-bar::after { content:'API key: session only'; font:10px 'DM Mono',monospace; color:var(--muted); }
+@media(max-width:850px){.layout{grid-template-columns:150px 1fr}.sidebar{max-height:none}.panes{grid-template-columns:1fr}.pane{max-height:55vh;min-height:200px;padding:15px}.pane-left{border-right:0;border-bottom:1px solid var(--border)}.statusbar{left:0}header{flex-wrap:wrap;padding:10px}.key-bar{padding:10px}.ch-item{padding:10px}.controls{padding:10px}header .sub{display:none}}
+@media(max-width:500px){.layout{grid-template-columns:110px 1fr}.key-bar select{max-width:100%}.ch-title{font-size:11px}.controls{gap:5px}.controls .btn{padding:7px;font-size:10px}.pane-lbl{flex-wrap:wrap}.pane-lbl .acts{margin-left:0}.src-txt,.tl-out{font-size:14px}.glossary-bar{padding-left:10px;padding-right:10px}.glossary-hint{display:none}}
