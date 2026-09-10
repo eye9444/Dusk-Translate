@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <title>DuskTranslate: an open book beneath a setting sun</title>
+  <rect width="64" height="64" rx="16" fill="#304C57"/>
+  <circle cx="32" cy="24" r="10" fill="#F0A77B"/>
+  <path d="M12 27c8-1 14 2 20 7 6-5 12-8 20-7v21c-8-1-14 1-20 5-6-4-12-6-20-5V27Z" fill="#FAF5E9"/>
+  <path d="M32 34v19M17 33c4 0 7 1 10 3M17 39c4 0 7 1 10 3M37 36c3-2 6-3 10-3M37 42c3-2 6-3 10-3" stroke="#304C57" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

@@ -38,6 +38,8 @@ See the official [Supabase Google setup guide](https://supabase.com/docs/guides/
 
 The reading-room home page has Library/Archive navigation, project counts, a latest-edited-project resume shortcut, and grid/list layouts. Layout choice is remembered on the device. Press `/` outside forms to focus project search. Search results and empty collections have their own actions; no sample projects are inserted into a user's library. The desktop-style shell adapts to a compact navigation bar on mobile, and supports both light and Eclipse themes.
 
+The home screen uses a wider frosted-glass window with Manrope UI text and Newsreader headings. Eclipse changes the desktop background while retaining a light, readable library surface; the translation editor keeps its own existing Eclipse colors. The original vector logo in `web/public/brand/dusk-mark.svg` combines an open book and a setting sun and is also the favicon. Google credential downloads under `supabase/google cloud/` are excluded from Git and Vercel uploads.
+
 - Local projects and account projects are separate libraries. Logging in does not silently upload local documents. Sign out to return to local projects.
 - Project edits are saved automatically; wait for the save indicator before closing. Manual translations, glossary changes, chapter selection, and interrupted streams are included.
 - The original book is retained, so EPUB export works after reopening a project. TXT and source JSON projects are supported too.

@@ -1,4 +1,6 @@
 Important
+supabase
+**/client_secret_*.json
 test files
 .git
 .env*

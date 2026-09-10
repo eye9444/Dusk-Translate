@@ -5,8 +5,9 @@
   <meta name="theme-color" content="#e8dfc8">
   <meta name="description" content="Your chapter-by-chapter Japanese translation library. Save books, glossary terms, and progress with DuskTranslate.">
   <title>DuskTranslate | Your library</title>
+  <link rel="icon" type="image/svg+xml" href="/brand/dusk-mark.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
   <svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
@@ -20,10 +21,10 @@
   </defs></svg>
   <div class="desktop-caption" aria-hidden="true"><span>D / T</span><span>A LITTLE FURTHER, CHAPTER BY CHAPTER.</span><span>THE READING ROOM</span></div>
   <div class="app-window">
-    <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="#" id="brand">DuskTranslate<span>YOUR PERSONAL READING ROOM</span></a><nav aria-label="Account and appearance"><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
+    <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="#" id="brand" aria-label="DuskTranslate home"><img class="app-logo" src="/brand/dusk-mark.svg" width="38" height="38" alt=""><span class="brand-copy"><strong>DuskTranslate</strong><span>YOUR PERSONAL READING ROOM</span></span></a><nav aria-label="Account and appearance"><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
     <main id="library">
       <aside class="sidebar" aria-label="Library navigation">
-        <div class="sidebar-heading"><span class="app-mark">d.</span><div>Make yourself<br><strong>at home.</strong></div></div>
+        <div class="sidebar-heading"><img class="app-logo" src="/brand/dusk-mark.svg" width="44" height="44" alt=""><div>Make yourself<br><strong>at home.</strong></div></div>
         <p class="eyebrow">COLLECTIONS</p>
         <nav class="collection-nav" aria-label="Collections">
           <button id="nav-active" aria-current="page"><svg class="icon"><use href="#i-library"/></svg>My library<span id="active-count">0</span></button>
@@ -34,7 +35,7 @@
       </aside>
       <div class="reading-room">
         <div class="room-breadcrumb"><span>Workspace <span aria-hidden="true">/</span> <strong id="collection-name">My library</strong></span><span class="language-pair">日本語 <svg class="icon"><use href="#i-arrow"/></svg> English</span></div>
-        <section class="room-heading"><div><p class="eyebrow">LESS FRICTION. MORE READING.</p><h1>Your words.<br>Your <em>own pace.</em></h1><p class="intro">A quiet place for books in between languages.</p></div><button class="primary" id="new-project">+ New project</button></section>
+        <section class="room-heading"><div><p class="eyebrow">LESS FRICTION. MORE READING.</p><h1>Your words. <br>Your <em>own pace.</em></h1><p class="intro">A quiet place for books in between languages.</p></div><button class="primary" id="new-project">+ New project</button></section>
         <section class="resume-strip" id="resume-strip" hidden aria-label="Most recently edited project"><span class="resume-mark" aria-hidden="true">↗</span><div><p class="eyebrow">RIGHT WHERE YOU LEFT IT</p><h2 id="resume-title"></h2><p id="resume-detail"></p></div><button id="resume-project">Resume project <svg class="icon"><use href="#i-arrow"/></svg></button></section>
         <div class="collection-heading"><h2><span id="collection-title">On your desk</span> <span id="count">0</span></h2><span>Recently edited first</span></div>
         <div class="filters"><label class="search-label"><span class="sr-only">Find a project</span><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Find a book or project…"><kbd aria-hidden="true">/</kbd></label><label class="filter-label"><span class="sr-only">Show</span><select id="filter" aria-label="Show projects"><option value="active">Active projects</option><option value="archived">Archived projects</option></select></label><div class="view-switch" role="group" aria-label="Project layout"><button id="view-grid" aria-label="Grid view" aria-pressed="true"><svg class="icon"><use href="#i-grid"/></svg></button><button id="view-list" aria-label="List view" aria-pressed="false"><svg class="icon"><use href="#i-list"/></svg></button></div><button id="refresh">Refresh</button></div>

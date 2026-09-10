@@ -128,3 +128,18 @@ test('desktop, tablet and small-phone controls remain within the window',async({
     }
   }
 });
+
+test('glass surface stays light in Eclipse and the logo loads',async({page})=>{
+  await page.setViewportSize({width:1920,height:1080});await page.goto('/');
+  const bounds=await page.locator('.app-window').boundingBox();expect(bounds.width).toBeGreaterThan(1800);
+  await expect(page.locator('#brand img')).toHaveJSProperty('naturalWidth',64);
+  const favicon=await page.request.get('/brand/dusk-mark.svg');expect(favicon.ok()).toBe(true);
+  const ink=await page.locator('h1').evaluate(el=>getComputedStyle(el).color);
+  const background=await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundImage);
+  await page.screenshot({path:'/tmp/dusk-glass-day.png',fullPage:true,animations:'disabled'});
+  await page.locator('#theme').click();
+  await expect(page.locator('h1')).toHaveCSS('color',ink);
+  expect(await page.locator('body').evaluate(el=>getComputedStyle(el).backgroundImage)).not.toBe(background);
+  await expect(page.locator('.book').first()).toHaveCSS('box-shadow','none');
+  await page.screenshot({path:'/tmp/dusk-glass-night.png',fullPage:true,animations:'disabled'});
+});

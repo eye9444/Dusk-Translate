@@ -1,4 +1,6 @@
 # Local secrets and translation/test data
+supabase/google cloud/
+client_secret_*.json
 Important/
 test files/
 node_modules/

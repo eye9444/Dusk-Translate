@@ -1,0 +1,50 @@
+/* The reading surface stays light; Eclipse changes the desktop behind the glass. */
+:root,body.eclipse{
+  --paper:#f5f4f0;--aged:#eaece8;--panel:#ffffffa6;--ink:#26343b;
+  --muted:#48575e;--border:#637a822b;--accent:#a44f39;--success:#3e6857;
+  --selected:#dce6e4b3;--desktop:#dce4e2;--window-shadow:0 24px 70px #1b344526,inset 0 1px 0 #ffffffd9;
+  color-scheme:light;
+}
+body{
+  padding:0 clamp(12px,1.5vw,32px) 22px;font-family:'Manrope',sans-serif;
+  background:radial-gradient(ellipse at 8% 18%,#bccfc9 0,transparent 46%),radial-gradient(ellipse at 92% 82%,#d9b6a0 0,transparent 45%),radial-gradient(ellipse at 62% 0,#eaf1f7 0,transparent 65%),var(--desktop);
+  background-attachment:fixed;
+}
+body.eclipse{--desktop:#172937;background:radial-gradient(ellipse at 0 10%,#4e6c7b 0,transparent 47%),radial-gradient(ellipse at 96% 90%,#775a51 0,transparent 45%),radial-gradient(ellipse at 65% 5%,#192b40 0,transparent 60%),var(--desktop);background-attachment:fixed}
+.desktop-caption{max-width:none;height:38px;font-family:'IBM Plex Mono',monospace}
+body.eclipse .desktop-caption,body.eclipse .desktop-caption span:first-child{color:#d4e0e7}
+.app-window{max-width:none;border-radius:18px;border:1px solid #ffffff8c;background:linear-gradient(125deg,#ffffffa6,#f3f6f0c9 55%,#f8eee8ad);backdrop-filter:blur(36px) saturate(125%);-webkit-backdrop-filter:blur(36px) saturate(125%)}
+.masthead{background:#ffffff33;min-height:74px;padding:14px 25px;gap:23px;border-bottom-color:#64798124}
+#brand{display:flex;align-items:center;gap:11px;letter-spacing:-.05em;font-family:'Manrope',sans-serif}
+#brand .brand-copy{margin:0;color:var(--ink);font-family:'Manrope',sans-serif;letter-spacing:0}
+#brand strong{font-size:20px;font-weight:800;letter-spacing:-.065em}
+#brand .brand-copy>span{font:7px 'IBM Plex Mono',monospace;letter-spacing:.12em;margin-top:5px;color:var(--muted)}
+.app-logo{display:block;flex-shrink:0;border-radius:25%}
+#library{grid-template-columns:232px minmax(0,1fr);min-height:calc(100dvh - 136px)}
+.sidebar{background:#e5eeeb59;border-right-color:#64798124;padding-top:30px}
+.sidebar-heading{font-size:13px;margin-bottom:37px}.sidebar-edition{padding-top:38px}
+.sidebar-edition>p:last-child,.empty h3,h1 em,.book span{font-family:'Newsreader',serif}
+.eyebrow,.desktop-caption,.storage-badge,.book,.project-card .stamp,.empty small,footer,kbd,#count,.collection-nav button span,#save-status{font-family:'IBM Plex Mono',monospace}
+.reading-room{padding:25px clamp(26px,3vw,62px) 0}
+.room-heading{padding:30px 0 27px}.room-heading .eyebrow{font-size:10px;margin-bottom:12px}
+h1{font-family:'Manrope',sans-serif;font-size:clamp(38px,3.3vw,58px);font-weight:500;letter-spacing:-.07em;line-height:1.12}
+h1 br{display:none}h1 em{font-weight:400;letter-spacing:-.04em}.intro{font-size:14px;margin-top:14px}
+.room-breadcrumb{font-size:12px}.collection-heading h2{font-size:18px}.collection-heading>span{font-size:11px}
+.collection-nav button{font-size:13px}.collection-nav button[aria-current="page"]{background:#ffffff66;border-color:#ffffff9c;box-shadow:0 2px 8px #273f4910}
+.resume-strip{background:#ffffff38;border-color:#ffffff94;box-shadow:inset 0 1px 0 #fff8;margin-bottom:25px}.resume-strip h2{font-size:16px}
+.search-label input{background:#ffffff42;font-size:13px}.filters button,.filter-label select{background:#ffffff3b}.view-switch{background:#ffffff24}
+.project-grid{gap:18px}.project-card{background:linear-gradient(135deg,#ffffff96,#ffffff40);border-color:#ffffffbd;box-shadow:inset 0 1px 0 #fff9;min-height:225px}
+.project-card h3{font-size:20px;font-weight:600}.project-card .muted{font-size:13px}.card-actions button{font-size:12px;padding:8px 11px}
+.empty{background:linear-gradient(130deg,#ffffff4d,#ffffff14);border:1px solid #ffffff9c;box-shadow:inset 0 1px 0 #fff8;min-height:280px;justify-content:center;padding:28px}
+.empty h3{font-size:31px;letter-spacing:-.025em}.empty p{font-size:13px;max-width:410px}.empty-mark{border-color:#6479814d;border-left-color:var(--accent)}
+.privacy-note p{font-size:12px}.privacy-note{margin-top:auto}footer{font-size:9px}.book{box-shadow:none}
+button{font-family:'Manrope',sans-serif}button:not(.primary):hover{background:#ffffffad}.primary,.eclipse .primary{background:var(--accent);color:#fff}
+dialog{background:#f4f5f0ed;backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-color:#ffffffc9;box-shadow:0 25px 90px #152b3f38,inset 0 1px 0 white}
+dialog::backdrop{background:#142e434a}dialog h2{font-family:'Newsreader',serif;font-size:34px;font-weight:400;letter-spacing:-.025em}
+.workspace-open .app-window{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}.workspace-open #brand .brand-copy{display:block}.workspace-open #brand .brand-copy>span{display:none}.workspace-open .app-logo{width:30px;height:30px}
+@supports not (backdrop-filter:blur(1px)){.app-window{background:#edf0e9}dialog{background:#f4f5f0}}
+@media(min-width:1550px){.room-heading{padding-top:34px;padding-bottom:32px}.reading-room{padding-left:52px;padding-right:52px}}
+@media(max-width:1050px){#library{grid-template-columns:190px minmax(0,1fr)}.reading-room{padding:24px 26px 0}h1 br{display:block}.room-heading h1{font-size:43px}.room-heading{padding:25px 0}.card-actions button{font-size:11px}}
+@media(max-width:760px){body{padding:0 12px 16px}.desktop-caption{height:30px;font-size:7px}#library{grid-template-columns:minmax(0,1fr);min-height:0}.masthead{padding:12px 16px;gap:16px}.masthead .app-logo{width:32px;height:32px}#brand strong{font-size:18px}#brand .brand-copy>span{font-size:6px}.sidebar{padding:10px 18px}.reading-room{padding:22px 24px 0}.room-breadcrumb{font-size:10px}.empty{min-height:270px}.empty h3{font-size:28px}.room-heading h1{font-size:40px}.intro{font-size:13px}.card-actions button{min-height:40px}}
+@media(max-width:500px){body{padding:0 8px 12px}.masthead{padding:12px 10px;gap:6px}#brand{gap:7px}#brand strong{font-size:17px}#brand .brand-copy>span{font-size:5px;letter-spacing:.05em}.masthead .app-logo{width:29px;height:29px}.reading-room{padding:20px 18px 0}.room-heading h1{font-size:40px}.room-heading{gap:20px}.room-heading .eyebrow{font-size:8px}.collection-heading>span{font-size:9px}.room-breadcrumb{font-size:10px}.collection-heading h2{font-size:17px}.empty{padding:28px 16px}.empty h3{font-size:27px}.empty p{font-size:12px}.privacy-note p{font-size:11px}footer{font-size:8px}.project-card h3{font-size:18px}.card-actions button{font-size:11px}.collection-nav button{font-size:12px}}
+@media(max-width:360px){#brand strong{font-size:14px}.masthead .app-logo{width:25px;height:25px}#brand .brand-copy>span{font-size:4px}.room-heading h1{font-size:35px}.room-breadcrumb{font-size:9px}.language-pair{font-size:8px}}

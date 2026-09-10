@@ -1,4 +1,5 @@
 import './style.css';
+import './glass.css';
 import { cloud, local, remote, googleAvailable } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 
