@@ -20,7 +20,23 @@
   </main>
   <section id="workspace" hidden><div class="workspace-bar"><button id="back">← Library</button><strong id="project-title"></strong><span id="save-status" role="status">Loading…</span><button id="save-now">Save now</button><button id="backup">Download backup</button></div><iframe id="editor" title="Chapter translation workspace" allow="clipboard-write"></iframe></section>
   <dialog id="project-dialog"><form id="project-form"><p class="eyebrow">A NEW CHAPTER</p><h2>Start a project</h2><label>Project title<input id="new-title" maxlength="120" required placeholder="The book you are working on"></label><label class="upload">Original book or project backup<input id="new-file" type="file" accept=".epub,.json,.txt,.zip" required><small>EPUB, source JSON, TXT, or backup ZIP · up to 20 MB.<br>Your original file is kept for future exports.</small></label><p id="new-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="create-submit">Create project</button></div></form></dialog>
-  <dialog id="auth-dialog"><form id="auth-form"><p class="eyebrow">YOUR PERSONAL LIBRARY</p><h2 id="auth-title">Welcome back.</h2><p id="auth-info">Sign in to save and resume projects across devices.</p><label>Email<input id="email" type="email" autocomplete="email" required></label><label id="password-label">Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label><p id="auth-message" role="status"></p><div class="dialog-actions"><button type="button" data-close>Close</button><button class="primary" id="auth-submit">Sign in</button></div><div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div></form></dialog>
+  <dialog id="auth-dialog" aria-labelledby="auth-title"><form id="auth-form">
+    <p class="eyebrow">YOUR PERSONAL LIBRARY</p><h2 id="auth-title">Welcome back.</h2>
+    <p id="auth-info">Sign in to save and resume projects across devices.</p>
+    <div id="google-option">
+      <button type="button" id="google-auth" class="google-button">
+        <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.71-.06-1.39-.18-2.05H12v3.88h5.38a4.61 4.61 0 0 1-2 3.03v2.52h3.24c1.9-1.75 2.98-4.33 2.98-7.38Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.62-2.39l-3.24-2.52c-.9.6-2.04.96-3.38.96-2.6 0-4.81-1.76-5.6-4.12H3.06v2.6A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.4 13.93A6 6 0 0 1 6.09 12c0-.67.11-1.32.31-1.93v-2.6H3.06A10 10 0 0 0 2 12c0 1.61.38 3.14 1.06 4.53l3.34-2.6Z"/><path fill="#EA4335" d="M12 5.95c1.47 0 2.79.5 3.83 1.49l2.87-2.87A9.6 9.6 0 0 0 12 2a10 10 0 0 0-8.94 5.47l3.34 2.6C7.19 7.71 9.4 5.95 12 5.95Z"/></svg>
+        <span id="google-label">Continue with Google</span>
+      </button>
+      <p class="oauth-note">New here? Google creates your account too.</p>
+      <div class="auth-divider"><span>or use your email</span></div>
+    </div>
+    <label>Email<input id="email" type="email" autocomplete="email" required></label>
+    <label id="password-label">Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+    <p id="auth-message" role="status" aria-live="polite"></p>
+    <div class="dialog-actions"><button type="button" data-close>Close</button><button class="primary" id="auth-submit">Sign in</button></div>
+    <div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div>
+  </form></dialog>
   <dialog id="manage-dialog"><form id="manage-form"><h2 id="manage-title">Rename project</h2><label id="rename-label">New title<input id="rename-title" maxlength="120" required></label><p id="manage-info"></p><p id="manage-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="manage-submit">Save</button></div></form></dialog>
   <script type="module" src="/src/main.js"></script>
 </body></html>

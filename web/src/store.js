@@ -3,7 +3,9 @@ import { cleanSnapshot } from './model.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-export const cloud = url && key ? createClient(url, key) : null;
+export const cloud = url && key ? createClient(url, key, {
+  auth: { flowType: 'pkce', detectSessionInUrl: true }
+}) : null;
 let database;
 function db() {
   return database ||= new Promise((resolve, reject) => {

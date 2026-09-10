@@ -68,7 +68,7 @@ test('mobile library fits the viewport',async({page})=>{
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 test('login honestly reports missing configuration',async({page})=>{
-  await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();
+  await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth')).toBeDisabled();
 });
 test('backup ZIP restores a project with its edited translation',async({page})=>{
   await create(page,'Backup source');const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('Keep this translation.');

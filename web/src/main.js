@@ -3,6 +3,11 @@ import { cloud, local, remote } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 
 const $ = id => document.getElementById(id);
+const authReturn = new URL(location.href);
+const authParams = new URLSearchParams(authReturn.hash.slice(1));
+authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
+const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
+let authBusy = false;
 let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
@@ -193,16 +198,41 @@ $('manage-form').onsubmit=async e=>{
 };
 
 function showAuth(mode='signin') {
+  if(authBusy)return;
   authMode=mode; $('auth-message').textContent=''; $('password').value='';
   $('auth-title').textContent={signin:'Welcome back.',signup:'Make room for your books.',reset:'Reset your password.',update:'Choose a new password.'}[mode];
   $('auth-submit').textContent={signin:'Sign in',signup:'Create account',reset:'Send reset link',update:'Update password'}[mode];
   $('auth-switch').textContent=mode==='signup'?'I already have an account':'Create an account';
   $('password-label').hidden=mode==='reset'; $('password').required=mode!=='reset'; $('password').autocomplete=mode==='signin'?'current-password':'new-password';
   $('email').parentElement.hidden=mode==='update'; $('email').required=mode!=='update';
-  $('auth-info').textContent=cloud?'Use your email and password. Provider API keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
-  $('auth-submit').disabled=!cloud;
+  $('google-option').hidden=mode==='reset'||mode==='update';
+  $('forgot').hidden=mode==='reset'||mode==='update';
+  $('auth-switch').hidden=mode==='update';
+  $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
+  setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
 }
+function setAuthBusy(busy) {
+  authBusy=busy;
+  $('auth-form').setAttribute('aria-busy',String(busy));
+  ['auth-submit','google-auth'].forEach(id=>$(id).disabled=busy||!cloud);
+  ['auth-switch','forgot'].forEach(id=>$(id).disabled=busy);
+  $('google-label').textContent='Continue with Google';
+}
+$('google-auth').onclick=async()=>{
+  if(!cloud||authBusy)return;
+  setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='';
+  try{
+    const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
+      redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
+    }});
+    if(error)throw error;
+    if(!data?.url)throw new Error('Could not start Google sign-in. Please try again.');
+    location.assign(data.url);
+  }catch(err){setAuthBusy(false);$('auth-message').textContent=errorMessage(err);}
+};
+// A browser Back navigation may restore the page while the OAuth button is busy.
+window.addEventListener('pageshow',()=>setAuthBusy(false));
 $('account').onclick=async()=>{
   if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;await refresh();}
   else showAuth();
@@ -210,7 +240,7 @@ $('account').onclick=async()=>{
 $('auth-switch').onclick=()=>showAuth(authMode==='signup'?'signin':'signup');
 $('forgot').onclick=()=>showAuth('reset');
 $('auth-form').onsubmit=async e=>{
-  e.preventDefault();if(!cloud)return;$('auth-submit').disabled=true;$('auth-message').textContent='';
+  e.preventDefault();if(!cloud||authBusy)return;setAuthBusy(true);$('auth-message').textContent='';
   try{
     const email=$('email').value.trim(),password=$('password').value;
     const redirectTo=location.origin+'/'; let result;
@@ -224,8 +254,9 @@ $('auth-form').onsubmit=async e=>{
     else if(authMode==='signup'&&!result.data.session)$('auth-message').textContent='Check your email to confirm your account, then sign in.';
     else{user=result.data.user || user;$('auth-dialog').close();await refresh();}
   }catch(err){$('auth-message').textContent=errorMessage(err);}
-  finally{$('auth-submit').disabled=false;}
+  finally{setAuthBusy(false);}
 };
+let authError='';
 if(cloud){
   cloud.auth.onAuthStateChange((event,session)=>{
     const next=session?.user || null;
@@ -235,7 +266,20 @@ if(cloud){
       user=next;setTimeout(refresh,0);
     }
   });
+  // The SDK exchanges PKCE codes once during initialization, including recovery links.
+  const initialized=await cloud.auth.initialize();
   const {data,error}=await cloud.auth.getSession();
-  if(error)status(error.message);user=data.session?.user || null;
+  authError=initialized.error?.message||error?.message||'';user=data.session?.user || null;
+  if(authParams.has('code')&&!user&&!authError)authError='This sign-in link expired or was opened in a different browser. Start sign-in again here.';
+}
+if(isAuthReturn){
+  if(authParams.get('error')==='access_denied')authError='Sign-in was cancelled or access was denied. You can try Google again or use email.';
+  else if(authParams.has('error')||authParams.has('error_description')||authParams.has('error_code'))authError='Sign-in could not be completed. Please try again, or ask the project owner to check the login configuration.';
+  const clean=new URL(location.href),fragment=new URLSearchParams(clean.hash.slice(1));
+  const fields=['code','sb_flow_id','error','error_code','error_description','access_token','refresh_token','provider_token','provider_refresh_token','expires_in','expires_at','token_type','type'];
+  fields.forEach(key=>{clean.searchParams.delete(key);fragment.delete(key);});
+  if(fields.some(key=>authReturn.hash.includes(key+'=')))clean.hash=fragment.toString();
+  history.replaceState(history.state,'',clean);
 }
 await refresh();
+if(authError){showAuth();$('auth-message').textContent=authError;}
