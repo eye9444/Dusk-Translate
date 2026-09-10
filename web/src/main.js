@@ -1,5 +1,5 @@
 import './style.css';
-import { cloud, local, remote } from './store.js';
+import { cloud, local, remote, googleAvailable } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 
 const $ = id => document.getElementById(id);
@@ -12,6 +12,7 @@ let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
+let renderedOwner = null;
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 function status(message) { $('library-status').textContent = message; }
@@ -28,16 +29,42 @@ document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.close
 async function refresh() {
   const request = ++libraryRequest;
   const libraryOwner = owner();
+  if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
   $('account').textContent = user ? 'Sign out' : 'Sign in';
+  $('storage-caption').textContent=user?'Your personal cloud library':'A library on this device';
   $('storage-info').textContent = user ? `Signed in as ${user.email}. Cloud books and progress are private to your account. Local projects stay in your browser library.` : 'Saved in this browser, including the original EPUB. Clearing site data removes local projects. Sign in for a cloud library.';
   try { const result = user ? await remote.list() : await local.list('guest'); if(request !== libraryRequest || libraryOwner !== owner()) return; projects = result; status(''); render(); }
   catch(e) { if(request === libraryRequest) status(errorMessage(e)); }
 }
 function render() {
-  const view = projects.filter(p => p.archived === ($('filter').value === 'archived') && p.title.toLowerCase().includes($('search').value.toLowerCase())).sort((a,b) => b.updatedAt.localeCompare(a.updatedAt));
+  const archived=$('filter').value==='archived',query=$('search').value.trim().toLowerCase();
+  const sorted=[...projects].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
+  const view = sorted.filter(p => p.archived === archived && p.title.toLowerCase().includes(query));
+  $('active-count').textContent=String(projects.filter(p=>!p.archived).length);
+  $('archive-count').textContent=String(projects.filter(p=>p.archived).length);
+  $('collection-title').textContent=archived?'Set aside for later':'On your desk';
+  $('collection-name').textContent=archived?'Archive':'My library';
+  ['active','archived'].forEach(value=>{
+    const nav=$('nav-'+value);
+    if(value===$('filter').value)nav.setAttribute('aria-current','page');else nav.removeAttribute('aria-current');
+  });
+  const recent=sorted.find(p=>!p.archived);
+  $('resume-strip').hidden=!recent||archived||!!query;
+  if(recent){
+    $('resume-title').textContent=recent.title;
+    $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
+    $('resume-project').onclick=()=>openProject(recent.id);
+  }
   $('count').textContent = String(view.length); $('projects').replaceChildren();
-  if (!view.length) { const box = el('div','empty'); box.append(el('h3','','Your next chapter starts here.'),el('p','','Create a project, add a book, and give your translation a place to live.')); $('projects').append(box); }
+  if (!view.length) {
+    const box=el('div','empty'),mark=el('span','empty-mark',query?'?':'01');mark.setAttribute('aria-hidden','true');
+    box.append(mark,el('h3','',query?'No books by that name.':archived?'Nothing set aside.':'Every book starts somewhere.'),el('p','',query?'Try a different title, or clear your search to see this collection.':archived?'Archived projects will wait here until you are ready to return.':'Bring an EPUB, a text file, or a saved project. We will keep your place from here.'));
+    if(query)box.append(button('Clear search',()=>{$('search').value='';render();$('search').focus();}));
+    else if(archived)box.append(button('Back to my library',()=>setCollection('active')));
+    else {box.append(button('Choose a book',()=>$('new-project').click()),el('small','','EPUB / TXT / JSON / BACKUP ZIP'));}
+    $('projects').append(box);
+  }
   view.forEach(p => {
     const card = el('article','project-card');
     const details = progress(p.snapshot);
@@ -52,6 +79,21 @@ function render() {
   });
 }
 $('filter').onchange = render; $('search').oninput = render; $('refresh').onclick = refresh;
+function setCollection(value){$('filter').value=value;$('search').value='';render();}
+$('nav-active').onclick=()=>setCollection('active');
+$('nav-archived').onclick=()=>setCollection('archived');
+function setLayout(value){
+  $('projects').classList.toggle('list-view',value==='list');
+  ['grid','list'].forEach(mode=>$('view-'+mode).setAttribute('aria-pressed',String(value===mode)));
+  localStorage.setItem('dusk-library-layout',value);
+}
+$('view-grid').onclick=()=>setLayout('grid');$('view-list').onclick=()=>setLayout('list');
+setLayout(localStorage.getItem('dusk-library-layout')==='list'?'list':'grid');
+document.addEventListener('keydown',event=>{
+  if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!$('library').hidden&&!document.querySelector('dialog[open]')&&!event.target.closest('input,textarea,select,[contenteditable]')){
+    event.preventDefault();$('search').focus();
+  }
+});
 $('new-project').onclick = () => { $('project-form').reset(); $('new-error').textContent=''; $('project-dialog').showModal(); };
 $('new-file').onchange = () => { if (!$('new-title').value) $('new-title').value = ($('new-file').files[0]?.name || '').replace(/\.[^.]+$/,'').slice(0,120); };
 $('project-form').onsubmit = async e => {
@@ -223,6 +265,7 @@ $('google-auth').onclick=async()=>{
   if(!cloud||authBusy)return;
   setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='';
   try{
+    if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
     const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
       redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
     }});

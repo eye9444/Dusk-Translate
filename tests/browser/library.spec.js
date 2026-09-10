@@ -39,7 +39,7 @@ test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await page.getByRole('button',{name:'Restore',exact:true}).click();await page.locator('#manage-submit').click();
   await page.locator('#filter').selectOption('active');await expect(page.locator('.project-card')).toHaveCount(2);
   await renamed.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();
-  await expect(page.locator('.project-card')).toHaveCount(1);await expect(page.getByRole('heading',{name:'Second',exact:true})).toBeVisible();
+  await expect(page.locator('.project-card')).toHaveCount(1);await expect(page.getByRole('heading',{name:'Second',exact:true,level:3})).toBeVisible();
 });
 test('untrusted titles render as text',async({page})=>{
   const malicious={chapters:[{id:'<img src=x onerror=alert(1)>',text:'<svg onload=alert(2)> book text'}]};
@@ -91,9 +91,40 @@ test('stream interruptions preserve short partial output and lock navigation',as
   await expect(editor.locator('#tl-out')).toContainText('Short partial output');await expect(editor.locator('.partial-badge')).toBeVisible();
 });
 test('capture library and editor layouts',async({page})=>{
+  await page.goto('/');await page.screenshot({path:'/tmp/dusktranslate-empty.png',fullPage:true,animations:'disabled'});
   await create(page,'A small book of everyday Japanese');await page.frameLocator('#editor').locator('#tl-out').fill('Every day begins with a new sentence.');
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   await page.screenshot({path:'/tmp/dusktranslate-workspace.png',fullPage:true,animations:'disabled'});
   await leave(page);await page.screenshot({path:'/tmp/dusktranslate-library.png',fullPage:true,animations:'disabled'});
+  await page.locator('#theme').click();await page.screenshot({path:'/tmp/dusktranslate-eclipse.png',fullPage:true,animations:'disabled'});await page.locator('#theme').click();
   await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/dusktranslate-mobile.png',fullPage:true,animations:'disabled'});
+});
+
+test('collection navigation, search shortcut and layout preferences work',async({page})=>{
+  await create(page,'A quiet afternoon');await leave(page);
+  await expect(page.locator('#active-count')).toHaveText('1');
+  await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
+  await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No books by that name');
+  await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();
+  await page.locator('#view-list').click();await page.reload();await expect(page.locator('#view-list')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#projects')).toHaveClass(/list-view/);
+  await page.locator('#nav-archived').click();await expect(page.locator('#collection-title')).toHaveText('Set aside for later');
+  await expect(page.locator('#nav-archived')).toHaveAttribute('aria-current','page');
+  await page.getByRole('button',{name:'Back to my library'}).click();await expect(page.locator('.project-card')).toHaveCount(1);
+  await page.locator('#resume-project').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
+});
+
+test('empty import action works and decorative books have no shadow',async({page})=>{
+  await page.goto('/');await expect(page.locator('.book').first()).toHaveCSS('box-shadow','none');
+  await page.getByRole('button',{name:'Choose a book'}).click();await expect(page.locator('#project-dialog')).toBeVisible();
+});
+
+test('desktop, tablet and small-phone controls remain within the window',async({page})=>{
+  for(const width of [320,768,1920]){
+    await page.setViewportSize({width,height:1000});await page.goto('/');
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    for(const id of ['account','theme','new-project','search','refresh','nav-archived']){
+      const bounds=await page.locator('#'+id).boundingBox();expect(bounds.x).toBeGreaterThanOrEqual(0);expect(bounds.x+bounds.width).toBeLessThanOrEqual(width);
+    }
+  }
 });

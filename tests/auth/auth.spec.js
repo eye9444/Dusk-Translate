@@ -1,4 +1,7 @@
 import {test,expect} from '@playwright/test';
+test.beforeEach(async({page})=>{
+  await page.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:true,email:true}}}));
+});
 test('email signup confirmation, login errors, login and logout',async({page})=>{
   const user={id:'11111111-1111-4111-8111-111111111111',email:'reader@example.test',aud:'authenticated',role:'authenticated'};
   let attempts=0;
@@ -45,7 +48,7 @@ for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE without e
   await page.goto('/');await page.locator('#account').click();
   if(mode==='signup')await page.locator('#auth-switch').click();
   await page.getByRole('button',{name:'Continue with Google'}).click();
-  await expect(page.getByRole('heading')).toHaveText('Mock Google authorization');
+  await expect(page.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
   expect(authorization.searchParams.get('provider')).toBe('google');
   expect(authorization.searchParams.get('prompt')).toBe('select_account');
   expect(authorization.searchParams.get('code_challenge_method')).toBe('s256');
@@ -59,6 +62,7 @@ test('Google callback exchanges code once, persists session, and signs out',asyn
   let exchanges=0,callback;
   await page.route('https://dusk-test.supabase.co/**',async route=>{
     const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/settings'))return route.fallback();
     if(url.pathname.endsWith('/authorize')){
       callback=new URL(url.searchParams.get('redirect_to'));callback.searchParams.set('code','test-google-code');
       return route.fulfill({status:302,headers:{location:callback.href}});
@@ -148,4 +152,12 @@ test('account forms fit mobile in both themes',async({page},testInfo)=>{
     await page.screenshot({path:testInfo.outputPath(`account-${theme}.png`)});
     await page.locator('#auth-dialog [data-close]').click();
   }
+});
+
+test('Google disabled on the backend explains setup without redirecting',async({page})=>{
+  await page.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
+  await page.goto('/');await page.locator('#account').click();await page.locator('#google-auth').click();
+  await expect(page.locator('#auth-message')).toContainText('not enabled yet');
+  await expect(page.locator('#auth-submit')).toBeEnabled();
+  await expect(page).toHaveURL('http://127.0.0.1:4174/');
 });

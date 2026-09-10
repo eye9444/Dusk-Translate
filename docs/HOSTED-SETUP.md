@@ -21,7 +21,7 @@ Auth uses the Supabase browser session. This login session is separate from AI-p
 
 ## Enable Google sign-in and sign-up
 
-The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate.
+The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate. Before redirecting, the button checks Supabase's public provider settings and explains if Google still needs enabling.
 
 1. Complete the Supabase account setup above first. Without those environment variables, both email and Google buttons are disabled; the browser-local library still works.
 2. In Google Cloud, configure the OAuth consent screen for your project and create an OAuth client of type **Web application**. If the consent app is in Testing, add your demo users as test users.
@@ -35,6 +35,8 @@ OAuth uses PKCE: the SDK exchanges the returned code using a verifier kept in th
 See the official [Supabase Google setup guide](https://supabase.com/docs/guides/auth/social-login/auth-google) and [redirect URL configuration](https://supabase.com/docs/guides/auth/redirect-urls).
 
 ## Project behavior
+
+The reading-room home page has Library/Archive navigation, project counts, a latest-edited-project resume shortcut, and grid/list layouts. Layout choice is remembered on the device. Press `/` outside forms to focus project search. Search results and empty collections have their own actions; no sample projects are inserted into a user's library. The desktop-style shell adapts to a compact navigation bar on mobile, and supports both light and Eclipse themes.
 
 - Local projects and account projects are separate libraries. Logging in does not silently upload local documents. Sign out to return to local projects.
 - Project edits are saved automatically; wait for the save indicator before closing. Manual translations, glossary changes, chapter selection, and interrupted streams are included.

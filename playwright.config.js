@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
-  testDir:'tests/browser', timeout:30000, fullyParallel:false,
+  testDir:'tests/browser', outputDir:'test-results/browser', timeout:30000, fullyParallel:false,
   use:{baseURL:'http://127.0.0.1:4173',viewport:{width:1440,height:1000},trace:'retain-on-failure'},
   webServer:{command:'npm run build && npm run preview -- --port 4173',url:'http://127.0.0.1:4173',reuseExistingServer:false}
 });

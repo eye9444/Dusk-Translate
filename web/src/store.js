@@ -6,6 +6,15 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const cloud = url && key ? createClient(url, key, {
   auth: { flowType: 'pkce', detectSessionInUrl: true }
 }) : null;
+export async function googleAvailable() {
+  const response = await fetch(`${url}/auth/v1/settings`, {
+    headers: { apikey:key }, signal:AbortSignal.timeout(10000)
+  });
+  if (!response.ok) throw new Error('Could not check Google sign-in. Please try again.');
+  const settings = await response.json();
+  if (typeof settings.external?.google !== 'boolean') throw new Error('Could not check Google sign-in. Please try again.');
+  return settings.external.google;
+}
 let database;
 function db() {
   return database ||= new Promise((resolve, reject) => {
@@ -31,7 +40,12 @@ export const local = {
   put(p) { return transaction('readwrite', s => s.put({ ...p, cacheKey: `${p.owner}:${p.id}`, snapshot: cleanSnapshot(p.snapshot) })); },
   remove(owner, id) { return transaction('readwrite', s => s.delete(`${owner}:${id}`)); }
 };
-function must(result) { if (result.error) throw new Error(result.error.message); return result.data; }
+function must(result) {
+  if (result.error) throw new Error(result.error.code === 'PGRST205'
+    ? 'Your account is connected, but cloud project storage still needs setup by the project owner. Sign out to use your browser library for now.'
+    : result.error.message);
+  return result.data;
+}
 function fromRow(row) {
   return { id:row.id, owner:row.owner_id, title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, archived:row.archived, updatedAt:row.updated_at, createdAt:row.created_at, revision:row.revision, dirty:false };
 }
