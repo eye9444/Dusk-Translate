@@ -6,14 +6,14 @@
   color-scheme:light;
 }
 body{
-  padding:0 clamp(12px,1.5vw,32px) 22px;font-family:'Manrope',sans-serif;
+  padding:12px clamp(12px,1.5vw,32px);font-family:'Manrope',sans-serif;
   background:radial-gradient(ellipse at 8% 18%,#bccfc9 0,transparent 46%),radial-gradient(ellipse at 92% 82%,#d9b6a0 0,transparent 45%),radial-gradient(ellipse at 62% 0,#eaf1f7 0,transparent 65%),var(--desktop);
   background-attachment:fixed;
 }
 body.eclipse{--desktop:#172937;background:radial-gradient(ellipse at 0 10%,#4e6c7b 0,transparent 47%),radial-gradient(ellipse at 96% 90%,#775a51 0,transparent 45%),radial-gradient(ellipse at 65% 5%,#192b40 0,transparent 60%),var(--desktop);background-attachment:fixed}
 .desktop-caption{max-width:none;height:38px;font-family:'IBM Plex Mono',monospace}
 body.eclipse .desktop-caption,body.eclipse .desktop-caption span:first-child{color:#d4e0e7}
-.app-window{max-width:none;border-radius:18px;border:1px solid #ffffff8c;background:linear-gradient(125deg,#ffffffa6,#f3f6f0c9 55%,#f8eee8ad);backdrop-filter:blur(36px) saturate(125%);-webkit-backdrop-filter:blur(36px) saturate(125%)}
+.app-window{max-width:none;min-height:calc(100dvh - 24px);border-radius:18px;border:1px solid #ffffff8c;background:linear-gradient(125deg,#ffffffa6,#f3f6f0c9 55%,#f8eee8ad);backdrop-filter:blur(36px) saturate(125%);-webkit-backdrop-filter:blur(36px) saturate(125%)}
 .masthead{background:#ffffff33;min-height:74px;padding:14px 25px;gap:23px;border-bottom-color:#64798124}
 #brand{display:flex;align-items:center;gap:11px;letter-spacing:-.05em;font-family:'Manrope',sans-serif}
 #brand .brand-copy{margin:0;color:var(--ink);font-family:'Manrope',sans-serif;letter-spacing:0}
