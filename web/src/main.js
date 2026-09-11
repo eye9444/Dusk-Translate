@@ -20,7 +20,10 @@ const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
-function announceSave(message) { $('save-status').textContent = message; }
+function announceSave(message) {
+  $('save-status').textContent = message;
+  if (active) $('editor').contentWindow?.postMessage({type:'host:status',message}, location.origin);
+}
 function el(tag, className, value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = value; return n; }
 function button(label, action) { const n = el('button','',label); n.addEventListener('click', action); return n; }
 function download(name, data) { const url = URL.createObjectURL(data); const a = el('a',''); a.href=url; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); }
@@ -199,9 +202,16 @@ async function flush() {
 let draftQueue = Promise.resolve();
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
+  if (e.data.type === 'editor:action') {
+    if (e.data.action === 'library') leave();
+    if (e.data.action === 'save') saveNow();
+    if (e.data.action === 'backup') downloadBackup();
+    return;
+  }
   if (e.data.type === 'editor:ready') {
     $('editor').contentWindow.postMessage({type:'host:open',project:active}, location.origin);
-    theme(localStorage.getItem('theme') || 'dusk'); return;
+    theme(localStorage.getItem('theme') || 'dusk');
+    announceSave('Opening…'); return;
   }
   if (e.data.projectId !== active.id) return;
   if (e.data.type === 'editor:error') { announceSave(`Could not open book: ${e.data.message}`); return; }
@@ -218,7 +228,8 @@ window.addEventListener('message', e => {
     if (!saveTimer) saveTimer=setTimeout(async()=>{saveTimer=null;await draftQueue;await flush();},1200);
   } catch(err) { announceSave(errorMessage(err)); }
 });
-$('save-now').onclick = async () => { saveError=''; await draftQueue; await flush(); };
+async function saveNow() { saveError=''; await draftQueue; await flush(); }
+$('save-now').onclick = saveNow;
 async function leave() {
   if (!active || streaming || closing) return;
   closing=true; clearTimeout(saveTimer); saveTimer=null;
@@ -228,17 +239,18 @@ async function leave() {
     const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
     if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
   }
-  $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh();
+  $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
 }
 $('back').onclick=leave;
 $('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
-$('backup').onclick=async()=>{
+async function downloadBackup() {
   if (!active) return;
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();
   zip.file(active.fileName.replace(/[\\/]/g,'_'),active.file);
   zip.file('project.json',JSON.stringify({title:active.title,fileName:active.fileName,snapshot:cleanSnapshot(active.snapshot)},null,2));
   download(`${active.title.replace(/[^a-z0-9_-]/gi,'_')}-backup.zip`,await zip.generateAsync({type:'blob'}));
-};
+}
+$('backup').onclick=downloadBackup;
 window.addEventListener('beforeunload',e=>{if(active&&(persisted!==generation||streaming)){e.preventDefault();e.returnValue='';}});
 window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});

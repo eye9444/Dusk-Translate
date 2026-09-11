@@ -11,7 +11,8 @@ async function create(page,name='Test book',file) {
   await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
 }
-async function leave(page) {await page.locator('#back').click();await expect(page.locator('#library')).toBeVisible();}
+async function editorAction(page,id) {const editor=page.frameLocator('#editor');await editor.locator('#host-menu').click();await editor.locator(id).click();}
+async function leave(page) {await editorAction(page,'#host-library');await expect(page.locator('#library')).toBeVisible();}
 test('saves manual edits, glossary, current chapter; keys never persist',async({page})=>{
   await create(page);
   const editor=page.frameLocator('#editor');
@@ -74,7 +75,7 @@ test('login honestly reports missing configuration',async({page})=>{
 test('backup ZIP restores a project with its edited translation',async({page})=>{
   await create(page,'Backup source');const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('Keep this translation.');
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
-  const pending=page.waitForEvent('download');await page.locator('#backup').click();const file=await pending;
+  const pending=page.waitForEvent('download');await editorAction(page,'#host-backup');const file=await pending;
   const {readFile}=await import('node:fs/promises');const buffer=await readFile(await file.path());
   await leave(page);await create(page,'Restored',{name:'backup.zip',mimeType:'application/zip',buffer});
   await expect(editor.locator('#tl-out')).toHaveText('Keep this translation.');
@@ -85,7 +86,7 @@ test('stream interruptions preserve short partial output and lock navigation',as
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#api-key').fill('AIzaFAKE_TEST_KEY_123456789012345');
-  await editor.locator('#btn-tl').click();await expect(page.locator('#back')).toBeDisabled();await editor.locator('#btn-next').click();
+  await editor.locator('#btn-tl').click();await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();

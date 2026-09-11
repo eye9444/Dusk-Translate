@@ -13,6 +13,8 @@ function snapshot() {
   return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value };
 }
 function emit(force = false) {
+  const libraryButton = document.getElementById('host-library');
+  if (libraryButton) libraryButton.disabled = busy;
   if (!readyForSave || !novel) return;
   const state = snapshot();
   const encoded = JSON.stringify(state);
@@ -49,6 +51,33 @@ const keyInput = document.getElementById('api-key');
 keyInput.type = 'password'; keyInput.autocomplete = 'off'; hidden = true;
 toggleVis = function () { hidden = !hidden; keyInput.type = hidden ? 'password' : 'text'; document.getElementById('vis-btn').setAttribute('aria-label', hidden ? 'Show API key' : 'Hide API key'); };
 document.getElementById('vis-btn').setAttribute('aria-label', 'Show API key');
+
+const keyBar = document.querySelector('.key-bar');
+const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
+const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
+for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
+const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
+const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
+menu.append(menuAction('host-library','Back to library','library'),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
+editorMenu.append(menuButton,menu);
+const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
+const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
+const editorTitle = document.createElement('div');
+const editorBrand = document.createElement('span'); editorBrand.textContent='DuskTranslate';
+const projectTitle = document.createElement('strong'); projectTitle.id='host-project-title'; projectTitle.textContent='Opening project';
+editorTitle.append(editorBrand,projectTitle); editorIdentity.append(editorLogo,editorTitle);
+const saveStatus = document.createElement('span'); saveStatus.id='host-save-status'; saveStatus.setAttribute('role','status'); saveStatus.textContent='Opening…';
+keyBar.prepend(editorMenu,editorIdentity);
+const legacyHeader = document.querySelector('header');
+const headerActions = document.createElement('div'); headerActions.className='host-header-actions';
+const glossaryButton = legacyHeader?.querySelector('.glossary-toggle'); const themeButton = document.getElementById('theme-btn');
+headerActions.append(saveStatus);
+if (glossaryButton) headerActions.append(glossaryButton);
+if (themeButton) headerActions.append(themeButton);
+keyBar.append(headerActions);
+menuButton.onclick = e => { e.stopPropagation(); menu.hidden=!menu.hidden; menuButton.setAttribute('aria-expanded',String(!menu.hidden)); };
+document.addEventListener('click',e=>{if(!editorMenu.contains(e.target)){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});
 
 // Imported chapter titles are text, never markup in the hosted application.
 renderList = function () {
@@ -147,10 +176,12 @@ window.addEventListener('message', async e => {
   if (e.origin !== location.origin || e.source !== parent) return;
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
+  if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
   if (e.data.type !== 'host:open' || projectId) return;
   projectId = e.data.project.id;
   try {
     const p = e.data.project;
+    projectTitle.textContent = p.title;
     keyInput.value = ''; translations = {}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
       novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {};
