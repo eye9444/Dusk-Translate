@@ -1,4 +1,6 @@
 /* The host owns book imports and project switching. */
+html,body{scrollbar-width:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #empty-state, #fi, #fi-epub { display:none!important; }
 .key-input-wrap input { min-width:170px; }
 #sub-title { user-select:none!important; }
