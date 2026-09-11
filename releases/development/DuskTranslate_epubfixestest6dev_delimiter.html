@@ -200,16 +200,25 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
   <label>Model</label>
   <select id="model-select" onchange="onKeyInput()">
     <optgroup label="── AI Studio (AIza… key) ──">
-      <option value="ai|gemini-3-flash-preview">Gemini 3 Flash Preview</option>
+      <option value="ai|gemini-3.7-flash">Gemini 3.7 Flash (free)</option>
+      <option value="ai|gemini-3.5-flash">Gemini 3.5 Flash (free)</option>
+      <option value="ai|gemini-3-flash-preview">Gemini 3 Flash Preview (free)</option>
       <option value="ai|gemini-2.5-flash">Gemini 2.5 Flash (free)</option>
-      <option value="ai|gemini-2.0-flash">Gemini 2.0 Flash (free)</option>
-      <option value="ai|gemini-2.0-flash-lite">Gemini 2.0 Flash Lite (free)</option>
+      <option value="ai|gemini-3.5-flash-lite">Gemini 3.5 Flash Lite (free)</option>
+      <option value="ai|gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (free)</option>
+      <option value="ai|gemma-4-26b-a4b-it">Gemma 4 26B A4B (free)</option>
       <option value="ai|gemma-4-31b-it">Gemma 4 31B (free)</option>
       <option value="ai|gemma-3-27b-it">Gemma 3 27B (free)</option>
     </optgroup>
     <optgroup label="── OpenRouter (sk-or-… key) ──">
-      <option value="or|google/gemini-2.0-flash-001">Gemini 2.0 Flash (free)</option>
-      <option value="or|deepseek/deepseek-chat">DeepSeek V3 (free)</option>
+      <option value="or|openrouter/free">OpenRouter Free Router (automatic)</option>
+      <option value="or|google/gemma-4-26b-a4b-it:free">Gemma 4 26B A4B (free)</option>
+      <option value="or|google/gemma-4-31b-it:free">Gemma 4 31B (free)</option>
+      <option value="or|nvidia/nemotron-3-ultra-550b-a55b:free">Nemotron 3 Ultra (free)</option>
+      <option value="or|nvidia/nemotron-3-super-120b-a12b:free">Nemotron 3 Super (free)</option>
+      <option value="or|nex-agi/nex-n2.5-pro:free">Nex-N2.5-Pro (free)</option>
+      <option value="or|nex-agi/nex-n2.5-mini:free">Nex-N2.5-Mini (free)</option>
+      <option value="or|inclusionai/ling-3.0-flash-vl:free">Ling 3.0 Flash VL (free)</option>
     </optgroup>
   </select>
   <span class="key-status" id="key-status">Enter your API key</span>
