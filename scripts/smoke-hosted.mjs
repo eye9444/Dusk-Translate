@@ -5,6 +5,7 @@ try {
   const page=await browser.newPage();
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('https://dusk-translate.vercel.app/');
+  if(await page.locator('#welcome').isVisible())await page.locator('#welcome-guest').click();
   await page.locator('#new-project').click();await page.locator('#new-title').fill('Deployment smoke test');
   await page.locator('#new-file').setInputFiles({name:'smoke.txt',mimeType:'text/plain',buffer:Buffer.from('日本語のテストです。')});
   await page.locator('#create-submit').click();

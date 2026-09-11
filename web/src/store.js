@@ -1,10 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { cleanSnapshot } from './model.js';
+import { createAuthStorage } from './auth-storage.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const authStorage=createAuthStorage(localStorage,sessionStorage);
+if(url)authStorage.setPrefix(`sb-${new URL(url).hostname.split('.')[0]}-auth-token`);
 export const cloud = url && key ? createClient(url, key, {
-  auth: { flowType: 'pkce', detectSessionInUrl: true }
+  auth: { flowType: 'pkce', detectSessionInUrl: true, storage:authStorage }
 }) : null;
 export async function googleAvailable() {
   const response = await fetch(`${url}/auth/v1/settings`, {
@@ -52,10 +55,12 @@ function fromRow(row) {
 export const remote = {
   async list() { return must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,archived,updated_at,created_at,revision').order('updated_at', { ascending:false })).map(fromRow); },
   async create(p) {
+    // Check the project schema before uploading a book to an unconfigured backend.
+    must(await cloud.from('projects').select('id').limit(0));
     const path = `${p.owner}/${p.id}/original`;
     must(await cloud.storage.from('books').upload(path,p.file,{contentType:'application/octet-stream'}));
     const result = await cloud.from('projects').insert({id:p.id,owner_id:p.owner,title:p.title,file_name:p.fileName,file_path:path,snapshot:cleanSnapshot(p.snapshot)}).select().single();
-    if (result.error) { await cloud.storage.from('books').remove([path]); throw new Error(result.error.message); }
+    if (result.error) { await cloud.storage.from('books').remove([path]); must(result); }
     return { ...fromRow(result.data), file:p.file };
   },
   async open(id) {

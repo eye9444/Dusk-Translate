@@ -1,6 +1,7 @@
 import './style.css';
 import './glass.css';
-import { cloud, local, remote, googleAvailable } from './store.js';
+import './welcome.css';
+import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 
 const $ = id => document.getElementById(id);
@@ -14,6 +15,7 @@ let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError 
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let renderedOwner = null;
+let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 function status(message) { $('library-status').textContent = message; }
@@ -30,13 +32,29 @@ document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.close
 async function refresh() {
   const request = ++libraryRequest;
   const libraryOwner = owner();
+  $('welcome').hidden=Boolean(user)||guestMode;
+  $('library').hidden=Boolean(active)||(!user&&!guestMode);
   if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
   $('account').textContent = user ? 'Sign out' : 'Sign in';
   $('storage-caption').textContent=user?'Your personal cloud library':'A library on this device';
   $('storage-info').textContent = user ? `Signed in as ${user.email}. Cloud books and progress are private to your account. Local projects stay in your browser library.` : 'Saved in this browser, including the original EPUB. Clearing site data removes local projects. Sign in for a cloud library.';
-  try { const result = user ? await remote.list() : await local.list('guest'); if(request !== libraryRequest || libraryOwner !== owner()) return; projects = result; status(''); render(); }
-  catch(e) { if(request === libraryRequest) status(errorMessage(e)); }
+  if(user)status('Refreshing your account library...');
+  try {
+    const cached=await local.list(libraryOwner);
+    const result=user?await remote.list():cached;
+    if(request !== libraryRequest || libraryOwner !== owner()) return;
+    projects=user?result.map(p=>{
+      const draft=cached.find(c=>c.id===p.id);
+      return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
+    }):result;
+    status('');render();
+  }catch(e){
+    if(request !== libraryRequest || libraryOwner !== owner())return;
+    projects=await local.list(libraryOwner);
+    if(request !== libraryRequest || libraryOwner !== owner())return;
+    render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
+  }
 }
 function render() {
   const archived=$('filter').value==='archived',query=$('search').value.trim().toLowerCase();
@@ -72,7 +90,7 @@ function render() {
     card.append(el('p','stamp',`${p.fileName.split('.').pop().toUpperCase()} / ${p.owner === 'guest' ? 'ON THIS DEVICE' : 'CLOUD'}`),el('h3','',p.title));
     card.append(el('p','muted',p.snapshot ? `${details.done} of ${details.total} chapters complete` : 'Open to continue your translation'));
     if (p.snapshot) { const bar = document.createElement('progress'); bar.max=100; bar.value=details.percent; bar.setAttribute('aria-label',`${details.percent}% translated`); card.append(bar); }
-    card.append(el('p','stamp',`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
+    card.append(el('p','stamp',p.dirty?'Saved on device / cloud sync pending':`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
     const actions = el('div','card-actions');
     const open = button('Open project',() => openProject(p.id)); open.className='primary';
     actions.append(open,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
@@ -96,6 +114,8 @@ document.addEventListener('keydown',event=>{
   }
 });
 $('new-project').onclick = () => { $('project-form').reset(); $('new-error').textContent=''; $('project-dialog').showModal(); };
+$('welcome-signin').onclick=()=>showAuth('signin');$('welcome-signup').onclick=()=>showAuth('signup');
+$('welcome-guest').onclick=()=>{guestMode=true;sessionStorage.setItem('dusk-guest','true');refresh();};
 $('new-file').onchange = () => { if (!$('new-title').value) $('new-title').value = ($('new-file').files[0]?.name || '').replace(/\.[^.]+$/,'').slice(0,120); };
 $('project-form').onsubmit = async e => {
   e.preventDefault(); if (working) return;
@@ -138,7 +158,10 @@ async function openProject(id) {
     const cached = await local.get(owner(),id);
     if (user) {
       // An un-synced local draft always wins over a network fetch on reopening.
-      active = cached?.dirty ? cached : await remote.open(id);
+      if(cached?.dirty)active=cached;
+      else try{active=await remote.open(id);}catch(error){
+        if(!navigator.onLine&&cached?.snapshot&&cached?.file)active=cached;else throw error;
+      }
     } else active = cached;
     if (!active) throw new Error('Project not found. Refresh your library.');
     generation = active.dirty ? 1 : 0; persisted=0; saveError=''; streaming=false; editorReady=false;
@@ -200,11 +223,15 @@ async function leave() {
   if (!active || streaming || closing) return;
   closing=true; clearTimeout(saveTimer); saveTimer=null;
   await draftQueue; saveError=''; await flush();
-  if (saveError) { closing=false; return; }
+  if (saveError) {
+    const cached=await local.get(active.owner,active.id);
+    const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
+    if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
+  }
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh();
 }
 $('back').onclick=leave;
-$('brand').onclick=e=>{e.preventDefault();if(active)leave();};
+$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
 $('backup').onclick=async()=>{
   if (!active) return;
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();
@@ -251,6 +278,7 @@ function showAuth(mode='signin') {
   $('google-option').hidden=mode==='reset'||mode==='update';
   $('forgot').hidden=mode==='reset'||mode==='update';
   $('auth-switch').hidden=mode==='update';
+  $('remember-row').hidden=mode==='update';$('remember-me').checked=authStorage.remembered();
   $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
   setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
@@ -266,6 +294,7 @@ $('google-auth').onclick=async()=>{
   if(!cloud||authBusy)return;
   setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='';
   try{
+    authStorage.choose($('remember-me').checked);
     if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
     const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
       redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
@@ -278,7 +307,7 @@ $('google-auth').onclick=async()=>{
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
 $('account').onclick=async()=>{
-  if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;await refresh();}
+  if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;guestMode=false;sessionStorage.removeItem('dusk-guest');await refresh();}
   else showAuth();
 };
 $('auth-switch').onclick=()=>showAuth(authMode==='signup'?'signin':'signup');
@@ -286,6 +315,7 @@ $('forgot').onclick=()=>showAuth('reset');
 $('auth-form').onsubmit=async e=>{
   e.preventDefault();if(!cloud||authBusy)return;setAuthBusy(true);$('auth-message').textContent='';
   try{
+    if(authMode!=='update')authStorage.choose($('remember-me').checked);
     const email=$('email').value.trim(),password=$('password').value;
     const redirectTo=location.origin+'/'; let result;
     if(authMode==='signup') result=await cloud.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}});
@@ -304,6 +334,7 @@ let authError='';
 if(cloud){
   cloud.auth.onAuthStateChange((event,session)=>{
     const next=session?.user || null;
+    if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
     if(user?.id!==next?.id){
       if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}

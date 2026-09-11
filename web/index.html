@@ -22,7 +22,12 @@
   <div class="desktop-caption" aria-hidden="true"><span>D / T</span><span>A LITTLE FURTHER, CHAPTER BY CHAPTER.</span><span>THE READING ROOM</span></div>
   <div class="app-window">
     <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="#" id="brand" aria-label="DuskTranslate home"><img class="app-logo" src="/brand/dusk-mark.svg" width="38" height="38" alt=""><span class="brand-copy"><strong>DuskTranslate</strong><span>YOUR PERSONAL READING ROOM</span></span></a><nav aria-label="Account and appearance"><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
-    <main id="library">
+    <section id="welcome" class="welcome" aria-labelledby="welcome-title">
+      <div class="welcome-copy"><p class="eyebrow">DUSKTRANSLATE / A ROOM FOR YOUR WORDS</p><h1 id="welcome-title">A new language.<br>The same <em>great story.</em></h1><p class="welcome-intro">Read between worlds. Translate Japanese books chapter by chapter, shape the words your way, and keep your place for tomorrow.</p><div class="welcome-actions"><button class="primary" id="welcome-signin">Enter the reading room <span aria-hidden="true">↗</span></button><button id="welcome-signup">Create an account</button></div><p class="welcome-private">Your library is personal. Your AI key stays with you.</p><button class="guest-link" id="welcome-guest">Continue on this device without an account</button></div>
+      <div class="welcome-art" aria-label="Illustration of a Japanese sentence and its English translation"><div class="dusk-orbit" aria-hidden="true"></div><div class="specimen source-page"><span>01 / ORIGINAL</span><p lang="ja">物語は、<br>ここから。</p><small>JAPANESE</small></div><div class="specimen translated-page"><img src="/brand/dusk-mark.svg" width="42" height="42" alt="DuskTranslate logo"><span>02 / A NEW PERSPECTIVE</span><p>The story<br>starts <em>here.</em></p><small>ENGLISH</small></div><span class="art-caption">DIFFERENT WORDS. SAME WORLD.</span></div>
+      <div class="welcome-notes"><p><span>01</span>Bring your EPUB or text.</p><p><span>02</span>Translate. Edit. Make it yours.</p><p><span>03</span>Return to your next chapter.</p></div>
+    </section>
+    <main id="library" hidden>
       <aside class="sidebar" aria-label="Library navigation">
         <div class="sidebar-heading"><img class="app-logo" src="/brand/dusk-mark.svg" width="44" height="44" alt=""><div>Make yourself<br><strong>at home.</strong></div></div>
         <p class="eyebrow">COLLECTIONS</p>
@@ -59,6 +64,7 @@
     </div>
     <label>Email<input id="email" type="email" autocomplete="email" required></label>
     <label id="password-label">Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+    <label class="remember-row" id="remember-row"><input id="remember-me" type="checkbox" checked><span>Remember me on this device<small>Leave unchecked on a shared computer.</small></span></label>
     <p id="auth-message" role="status" aria-live="polite"></p>
     <div class="dialog-actions"><button type="button" data-close>Close</button><button class="primary" id="auth-submit">Sign in</button></div>
     <div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div>
