@@ -1,4 +1,6 @@
 // Only Supabase credentials use this storage. Project files stay in IndexedDB.
+// The adapter lets users choose persistent or tab-scoped authentication without
+// changing how the rest of the application reads the Supabase session.
 export function createAuthStorage(local, session) {
   const preference='dusk-remember-me';
   const remembered=()=> (session.getItem(preference) ?? local.getItem(preference)) !== 'false';

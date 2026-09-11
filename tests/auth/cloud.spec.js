@@ -51,6 +51,7 @@ test('cloud saves original, translation, glossary and position across a fresh br
 });
 test('failed cloud sync retains a resumable local draft and can retry',async({page,context})=>{
   const state={source:'Original test chapter'};await backend(context,state);await signin(page);
+  const editor=page.frameLocator('#editor');
   await page.locator('#new-project').click();await page.locator('#new-title').fill('Retry book');await page.locator('#new-file').setInputFiles({name:'retry.txt',mimeType:'text/plain',buffer:Buffer.from(state.source)});await page.locator('#create-submit').click();
   await expect(page.locator('#save-status')).toHaveText('Saved to your account');state.failSave=true;
   await page.frameLocator('#editor').locator('#tl-out').fill('Keep this offline draft.');await expect(page.locator('#save-status')).toContainText('retry');

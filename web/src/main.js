@@ -35,6 +35,7 @@ document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.close
 async function refresh() {
   const request = ++libraryRequest;
   const libraryOwner = owner();
+  let cached = [];
   $('welcome').hidden=Boolean(user)||guestMode;
   $('library').hidden=Boolean(active)||(!user&&!guestMode);
   if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
@@ -44,7 +45,7 @@ async function refresh() {
   $('storage-info').textContent = user ? `Signed in as ${user.email}. Cloud books and progress are private to your account. Local projects stay in your browser library.` : 'Saved in this browser, including the original EPUB. Clearing site data removes local projects. Sign in for a cloud library.';
   if(user)status('Refreshing your account library...');
   try {
-    const cached=await local.list(libraryOwner);
+    cached=await local.list(libraryOwner);
     const result=user?await remote.list():cached;
     if(request !== libraryRequest || libraryOwner !== owner()) return;
     projects=user?result.map(p=>{
@@ -54,8 +55,7 @@ async function refresh() {
     status('');render();
   }catch(e){
     if(request !== libraryRequest || libraryOwner !== owner())return;
-    projects=await local.list(libraryOwner);
-    if(request !== libraryRequest || libraryOwner !== owner())return;
+    projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
   }
 }
@@ -184,13 +184,13 @@ async function flush() {
         const version = generation;
         const copy = { ...project, snapshot:cleanSnapshot(project.snapshot), updatedAt:new Date().toISOString(), dirty:isCloud() };
         announceSave(isCloud() ? 'Saving to cloud…' : 'Saving on device…');
-        await local.put(copy);
+        await local.patch(copy);
         if (isCloud()) {
           const saved = await remote.save(copy);
           project.revision = saved.revision;
           project.updatedAt = saved.updatedAt;
           await draftQueue;
-          await local.put({ ...project, snapshot:cleanSnapshot(project.snapshot), revision:saved.revision, updatedAt:saved.updatedAt, dirty:generation !== version });
+          await local.patch({ ...project, snapshot:cleanSnapshot(project.snapshot), revision:saved.revision, updatedAt:saved.updatedAt, dirty:generation !== version });
         } else project.updatedAt=copy.updatedAt;
         persisted=version; project.dirty=generation !== version; saveError='';
       }
@@ -223,7 +223,7 @@ window.addEventListener('message', e => {
     active.dirty=isCloud();
     const draft={...active,updatedAt:new Date().toISOString()};
     // Preserve edits promptly even if cloud writes fail or the network disappears.
-    draftQueue=draftQueue.catch(()=>{}).then(()=>local.put(draft)).catch(err=>{saveError=errorMessage(err);announceSave(saveError);});
+    draftQueue=draftQueue.catch(()=>{}).then(()=>local.patch(draft)).catch(err=>{saveError=errorMessage(err);announceSave(saveError);});
     announceSave(streaming?'Translating; saving partial progress…':'Unsaved changes…');
     if (!saveTimer) saveTimer=setTimeout(async()=>{saveTimer=null;await draftQueue;await flush();},1200);
   } catch(err) { announceSave(errorMessage(err)); }
@@ -291,6 +291,9 @@ function showAuth(mode='signin') {
   $('forgot').hidden=mode==='reset'||mode==='update';
   $('auth-switch').hidden=mode==='update';
   $('remember-row').hidden=mode==='update';$('remember-me').checked=authStorage.remembered();
+  $('consent-row').hidden=mode==='reset'||mode==='update';
+  $('terms-accept').checked=false;
+  $('terms-accept').required=mode==='signup';
   $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
   setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
@@ -304,6 +307,7 @@ function setAuthBusy(busy) {
 }
 $('google-auth').onclick=async()=>{
   if(!cloud||authBusy)return;
+  if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
   setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='';
   try{
     authStorage.choose($('remember-me').checked);

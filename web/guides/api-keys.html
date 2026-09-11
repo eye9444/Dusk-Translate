@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="How to create a Google AI Studio or OpenRouter API key for DuskTranslate">
+<title>API Key Guide | DuskTranslate</title>
+<link rel="icon" type="image/svg+xml" href="/brand/dusk-mark.svg?v=2">
+<link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+<main class="legal-shell">
+  <nav class="legal-nav" aria-label="Site navigation">
+    <a class="legal-brand" href="/"><img src="/brand/dusk-mark.svg" alt="">DuskTranslate</a>
+    <div class="legal-nav-links"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/cookies.html">Cookies</a></div>
+  </nav>
+
+  <p class="eyebrow">DuskTranslate / Setup</p>
+  <h1 class="legal-title">Bring your own AI key.</h1>
+  <p class="lede">DuskTranslate sends translation requests directly from your browser to the provider you select. Create a key with one of the providers below, then paste it into the editor when you translate.</p>
+  <p class="meta">Last reviewed: September 12, 2026</p>
+
+  <div class="notice"><strong>Keep your key private.</strong> DuskTranslate keeps the key in the current editor session and does not put it in project snapshots. Provider keys can still incur charges or be abused if exposed, so never commit them, share screenshots containing them, or paste them into a public issue.</div>
+
+  <article class="legal-content">
+    <h2>Google AI Studio</h2>
+    <p>Google AI Studio provides Gemini API keys. Availability, model access, quotas, safety restrictions, and billing depend on your Google account and region.</p>
+    <div class="step">
+      <h3>1. Open the key page</h3>
+      <p>Sign in to <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio API keys</a>.</p>
+    </div>
+    <div class="step">
+      <h3>2. Create or select a project</h3>
+      <p>Use the project selector shown by Google AI Studio. If prompted, accept the applicable Google AI terms and configure billing or limits required for the model you want to use.</p>
+    </div>
+    <div class="step">
+      <h3>3. Create and copy the key</h3>
+      <p>Choose <strong>Create API key</strong>, select the intended project, and copy the key once. Treat a key beginning with <code>AIza</code> as a secret.</p>
+    </div>
+    <div class="step">
+      <h3>4. Use it in DuskTranslate</h3>
+      <p>Open a project, choose a Google AI Studio model, paste the key into the API key field, and start a translation. The key is not included in the saved project or cloud snapshot.</p>
+    </div>
+    <p><a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" rel="noopener noreferrer">Read Google's API-key documentation</a> for current key restrictions, quota, and billing details.</p>
+
+    <h2>OpenRouter</h2>
+    <p>OpenRouter provides one API endpoint for models from multiple providers. Model availability, free-tier limits, rate limits, and provider routing can change, so check the current model page before relying on a model.</p>
+    <div class="step">
+      <h3>1. Open your key settings</h3>
+      <p>Sign in to <a href="https://openrouter.ai/settings/keys" target="_blank" rel="noopener noreferrer">OpenRouter key settings</a>.</p>
+    </div>
+    <div class="step">
+      <h3>2. Create a key</h3>
+      <p>Choose <strong>Create key</strong>, give it a recognizable name such as <code>DuskTranslate browser</code>, and set the smallest spending limit that fits your testing.</p>
+    </div>
+    <div class="step">
+      <h3>3. Choose an available model</h3>
+      <p>Review the <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer">OpenRouter models list</a>. DuskTranslate's model menu only includes the models configured by this build; a provider can still reject a model because of quota, eligibility, or safety rules.</p>
+    </div>
+    <div class="step">
+      <h3>4. Use it in DuskTranslate</h3>
+      <p>Select an OpenRouter model, paste the key into the API key field, and translate. The request is sent directly to OpenRouter from the browser.</p>
+    </div>
+    <p><a href="https://openrouter.ai/docs/api-reference/overview" target="_blank" rel="noopener noreferrer">Read OpenRouter's API documentation</a> for current authentication and usage information.</p>
+
+    <h2>Safety checklist</h2>
+    <ul>
+      <li>Use provider-side restrictions and low spending limits where available.</li>
+      <li>Do not put a provider key in HTML, JavaScript, Git, screenshots, or a shared project backup.</li>
+      <li>Revoke or rotate a key immediately if it appears in a public place.</li>
+      <li>Remember that uploaded books and prompts are sent to the provider when you start a translation. Only process content you are authorized to use.</li>
+      <li>For a shared computer, leave "Remember me" unchecked and clear the editor session when finished.</li>
+    </ul>
+
+    <h2>Troubleshooting</h2>
+    <h3>Nothing is returned</h3>
+    <p>Check the selected provider, model availability, key format, browser network access, provider quota, and safety response. Try a shorter chapter or switch to another configured model. DuskTranslate cannot bypass provider limits.</p>
+    <h3>The key works elsewhere but not here</h3>
+    <p>Confirm that the model belongs to the selected provider and that the key is allowed to make browser-originated requests. Rotate the key if it may have been exposed.</p>
+  </article>
+
+  <footer class="legal-footer"><span>Setup guide for the current pre-subscription product.</span><nav class="legal-nav-links" aria-label="Legal"><a href="/">DuskTranslate</a><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/cookies.html">Cookies</a></nav></footer>
+</main>
+</body>
+</html>

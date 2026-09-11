@@ -51,6 +51,15 @@ const keyInput = document.getElementById('api-key');
 keyInput.type = 'password'; keyInput.autocomplete = 'off'; hidden = true;
 toggleVis = function () { hidden = !hidden; keyInput.type = hidden ? 'password' : 'text'; document.getElementById('vis-btn').setAttribute('aria-label', hidden ? 'Show API key' : 'Hide API key'); };
 document.getElementById('vis-btn').setAttribute('aria-label', 'Show API key');
+document.getElementById('api-key').setAttribute('aria-label','AI provider API key');
+document.getElementById('model-select').setAttribute('aria-label','AI provider model');
+document.getElementById('style-sel').setAttribute('aria-label','Translation style');
+document.getElementById('src-txt').setAttribute('aria-label','Source text');
+document.getElementById('tl-out').setAttribute('aria-label','Editable translation');
+document.getElementById('glossary').setAttribute('aria-label','Glossary');
+document.getElementById('btn-tl').setAttribute('aria-label','Translate current chapter');
+document.getElementById('btn-prev').setAttribute('aria-label','Previous chapter');
+document.getElementById('btn-next').setAttribute('aria-label','Next chapter');
 
 const keyBar = document.querySelector('.key-bar');
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
@@ -88,7 +97,7 @@ renderList = function () {
     const title = document.createElement('div'); title.className = 'ch-title'; title.textContent = (ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
-    row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter') selectCh(i); }; list.append(row);
+    row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);
     if (translations[ch.id]) updateMark(i, translations[ch.id]);
   });
 };

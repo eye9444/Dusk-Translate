@@ -1,8 +1,10 @@
 export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Reject unsupported, empty, or oversized files before parsing or upload. */
 export function validateFile(file) {
   if (!file || !/\.(epub|json|txt|zip)$/i.test(file.name)) throw new Error('Choose an EPUB, source JSON, TXT file, or project backup ZIP.');
   if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Choose a nonempty file no larger than 20 MB.');
 }
+/** Validate the minimal trusted shape used by the editor and persistence layer. */
 export function validateNovel(novel) {
   if (!novel || !Array.isArray(novel.chapters) || !novel.chapters.length) throw new Error('No readable chapters found in this book.');
   const ids = new Set();
@@ -13,6 +15,7 @@ export function validateNovel(novel) {
   return novel;
 }
 // Only project content crosses the persistence boundary, never keys or dev logs.
+/** Strip runtime-only state before a snapshot is stored locally or remotely. */
 export function cleanSnapshot(s) {
   if (!s?.novel) return null;
   validateNovel(s.novel);
@@ -25,6 +28,7 @@ export function cleanSnapshot(s) {
     style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural'
   };
 }
+/** Calculate completed chapters without counting interrupted partial output. */
 export function progress(snapshot) {
   const chapters = snapshot?.novel?.chapters || [];
   const done = chapters.filter(ch => snapshot.translations[ch.id]?.trim() && !snapshot.translations[ch.id].endsWith('…PARTIAL')).length;

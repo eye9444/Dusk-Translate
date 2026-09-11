@@ -20,13 +20,23 @@ test('email signup confirmation, login errors, login and logout',async({page})=>
     return route.fulfill({json:{}});
   });
   await page.goto('/');await page.locator('#account').click();await page.locator('#auth-switch').click();
-  await page.locator('#email').fill(user.email);await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
+  await page.locator('#email').fill(user.email);await page.locator('#password').fill('TestPassword123!');await page.locator('#terms-accept').check();await page.locator('#auth-submit').click();
   await expect(page.locator('#auth-message')).toContainText('confirm your account');
   await page.locator('#auth-switch').click();await page.locator('#password').fill('WrongPassword123');await page.locator('#auth-submit').click();
   await expect(page.locator('#auth-message')).toContainText('Invalid login');
   await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
   await expect(page.locator('#account')).toHaveText('Sign out');await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');
   await page.locator('#account').click();await expect(page.locator('#storage-label')).toHaveText('THIS BROWSER');
+});
+test('account creation requires policy consent',async({page})=>{
+  let signupRequests=0;
+  await page.route('https://dusk-test.supabase.co/**',async route=>{
+    if(new URL(route.request().url()).pathname.endsWith('/signup'))signupRequests++;
+    return route.fulfill({json:{}});
+  });
+  await page.goto('/');await page.locator('#account').click();await page.locator('#auth-switch').click();
+  await page.locator('#email').fill('new-reader@example.test');await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
+  await expect(page.locator('#terms-accept')).not.toBeChecked();expect(signupRequests).toBe(0);
 });
 test('forgot password gives neutral confirmation and same-origin redirect',async({page})=>{
   let redirect;
@@ -47,6 +57,7 @@ for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE without e
   });
   await page.goto('/');await page.locator('#account').click();
   if(mode==='signup')await page.locator('#auth-switch').click();
+  await page.locator('#terms-accept').check();
   await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
   expect(authorization.searchParams.get('provider')).toBe('google');
@@ -79,7 +90,7 @@ test('Google callback exchanges code once, persists session, and signs out',asyn
     if(url.pathname.endsWith('/user'))return route.fulfill({json:user});
     return route.fulfill({json:{}});
   });
-  await page.goto('/');await page.locator('#account').click();await page.locator('#google-auth').click();
+  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();await page.locator('#google-auth').click();
   await expect(page.locator('#account')).toHaveText('Sign out');
   await expect(page.locator('#storage-info')).toContainText(user.email);
   await expect(page).toHaveURL('http://127.0.0.1:4174/');expect(exchanges).toBe(1);
@@ -156,7 +167,7 @@ test('account forms fit mobile in both themes',async({page},testInfo)=>{
 
 test('Google disabled on the backend explains setup without redirecting',async({page})=>{
   await page.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
-  await page.goto('/');await page.locator('#account').click();await page.locator('#google-auth').click();
+  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();await page.locator('#google-auth').click();
   await expect(page.locator('#auth-message')).toContainText('not enabled yet');
   await expect(page.locator('#auth-submit')).toBeEnabled();
   await expect(page).toHaveURL('http://127.0.0.1:4174/');
