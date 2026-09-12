@@ -1,8 +1,10 @@
 import './style.css';
 import './glass.css';
 import './welcome.css';
+import './reader.css';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
+import { readEpub } from './epub-reader.js';
 
 const $ = id => document.getElementById(id);
 const authReturn = new URL(location.href);
@@ -14,10 +16,14 @@ let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
+let readerProject = null, readerBook = null, readerChapter = 0;
 let renderedOwner = null;
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
+const READER_FONT_KEY = 'dusk-reader-font-size';
+const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
+const isEpub = project => /\.epub$/i.test(project?.fileName || '');
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
 function announceSave(message) {
@@ -96,7 +102,8 @@ function render() {
     card.append(el('p','stamp',p.dirty?'Saved on device / cloud sync pending':`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
     const actions = el('div','card-actions');
     const open = button('Open project',() => openProject(p.id)); open.className='primary';
-    actions.append(open,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    const read = button('Read',() => openReader(p.id)); read.hidden=!isEpub(p);
+    actions.append(open,read,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     card.append(actions); $('projects').append(card);
   });
 }
@@ -153,19 +160,23 @@ async function acquire(id) {
     }).catch(reject);
   });
 }
+async function loadProject(id) {
+  const cached = await local.get(owner(), id);
+  if (!user) return cached;
+  if (cached?.dirty) return cached;
+  try {
+    return await remote.open(id);
+  } catch (error) {
+    if (!navigator.onLine && cached?.snapshot && cached?.file) return cached;
+    throw error;
+  }
+}
 async function openProject(id) {
-  if (active || closing || opening) return;
+  if (active || readerProject || closing || opening) return;
   opening = true;
   try {
     await acquire(id); status('Opening your book…');
-    const cached = await local.get(owner(),id);
-    if (user) {
-      // An un-synced local draft always wins over a network fetch on reopening.
-      if(cached?.dirty)active=cached;
-      else try{active=await remote.open(id);}catch(error){
-        if(!navigator.onLine&&cached?.snapshot&&cached?.file)active=cached;else throw error;
-      }
-    } else active = cached;
+    active = await loadProject(id);
     if (!active) throw new Error('Project not found. Refresh your library.');
     generation = active.dirty ? 1 : 0; persisted=0; saveError=''; streaming=false; editorReady=false;
     $('library').hidden=true; $('workspace').hidden=false; document.body.classList.add('workspace-open');
@@ -174,6 +185,70 @@ async function openProject(id) {
   } catch(e) { status(errorMessage(e)); active=null; releaseLock?.(); releaseLock=null; }
   finally { opening=false; }
 }
+function readerFontSize() {
+  const stored = Number(localStorage.getItem(READER_FONT_KEY));
+  return Number.isFinite(stored) ? Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, stored)) : READER_FONT_DEFAULT;
+}
+function setReaderFontSize(value) {
+  const size = Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, value));
+  localStorage.setItem(READER_FONT_KEY, String(size));
+  $('reader-page').style.setProperty('--reader-font-size', `${size}px`);
+  $('reader-font-value').textContent = `${size} px`;
+}
+function renderReader() {
+  if (!readerBook) return;
+  const chapter = readerBook.chapters[readerChapter];
+  $('reader-title').textContent = readerBook.title;
+  $('reader-chapter-count').textContent = `Chapter ${readerChapter + 1} of ${readerBook.chapters.length}`;
+  $('reader-chapter-title').textContent = chapter.title;
+  $('reader-content').replaceChildren(...chapter.paragraphs.map(text => el('p', '', text)));
+  $('reader-chapters').replaceChildren(...readerBook.chapters.map((item, index) => {
+    const chapterButton = button(`${String(index + 1).padStart(2, '0')}  ${item.title}`, () => {
+      readerChapter = index;
+      renderReader();
+      $('reader-page').scrollTo({ top: 0, behavior: 'smooth' });
+      $('reader-page').focus({ preventScroll: true });
+    });
+    chapterButton.setAttribute('aria-current', String(index === readerChapter));
+    chapterButton.setAttribute('aria-label', `Read chapter ${index + 1}: ${item.title}`);
+    return chapterButton;
+  }));
+  setReaderFontSize(readerFontSize());
+}
+async function openReader(id) {
+  if (active || readerProject || opening) return;
+  opening = true;
+  $('reader-status').textContent = 'Opening EPUB...';
+  try {
+    const project = await loadProject(id);
+    if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
+    const book = await readEpub(project.file, project.fileName);
+    readerProject = project; readerBook = book; readerChapter = 0;
+    $('library').hidden = true; $('reader').hidden = false; document.body.classList.add('reader-open');
+    renderReader();
+    $('reader-status').textContent = 'Ready to read';
+    $('reader-page').focus({ preventScroll: true });
+  } catch (error) {
+    $('reader-status').textContent = errorMessage(error);
+  } finally { opening = false; }
+}
+function leaveReader() {
+  if (!readerProject) return;
+  readerProject = null; readerBook = null; readerChapter = 0;
+  $('reader').hidden = true; $('library').hidden = false; document.body.classList.remove('reader-open');
+  refresh();
+}
+$('reader-back').onclick = leaveReader;
+$('reader-font-down').onclick = () => setReaderFontSize(readerFontSize() - READER_FONT_STEP);
+$('reader-font-reset').onclick = () => setReaderFontSize(READER_FONT_DEFAULT);
+$('reader-font-up').onclick = () => setReaderFontSize(readerFontSize() + READER_FONT_STEP);
+document.addEventListener('keydown', event => {
+  if (!readerProject || document.querySelector('dialog[open]') || event.target.closest('input,textarea,select,button,[contenteditable]')) return;
+  if (event.key === '-' || event.key === '_') { event.preventDefault(); setReaderFontSize(readerFontSize() - READER_FONT_STEP); }
+  if (event.key === '+' || event.key === '=') { event.preventDefault(); setReaderFontSize(readerFontSize() + READER_FONT_STEP); }
+  if (event.key === '0') { event.preventDefault(); setReaderFontSize(READER_FONT_DEFAULT); }
+  if (event.key === 'Escape') { event.preventDefault(); leaveReader(); }
+});
 async function flush() {
   if (!active || persisted === generation) return;
   if (saveTask) { await saveTask; if (persisted !== generation && !saveError) return flush(); return; }
@@ -242,7 +317,7 @@ async function leave() {
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
 }
 $('back').onclick=leave;
-$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
+$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerProject)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
 async function downloadBackup() {
   if (!active) return;
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();

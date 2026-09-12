@@ -70,6 +70,25 @@
     <div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div>
   </form></dialog>
   <dialog id="manage-dialog"><form id="manage-form"><h2 id="manage-title">Rename project</h2><label id="rename-label">New title<input id="rename-title" maxlength="120" required></label><p id="manage-info"></p><p id="manage-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="manage-submit">Save</button></div></form></dialog>
+  <section id="reader" hidden aria-labelledby="reader-title">
+    <header class="reader-header">
+      <button id="reader-back" class="reader-back" type="button">← Library</button>
+      <div class="reader-heading"><p class="eyebrow">EPUB READER</p><h1 id="reader-title">Opening book</h1></div>
+      <fieldset class="reader-controls" aria-label="Reader text size">
+        <legend class="sr-only">Reader text size</legend>
+        <button id="reader-font-down" type="button" aria-label="Decrease reader text size" aria-keyshortcuts="-">A−</button>
+        <button id="reader-font-reset" type="button" aria-label="Reset reader text size" aria-keyshortcuts="0">Reset</button>
+        <button id="reader-font-up" type="button" aria-label="Increase reader text size" aria-keyshortcuts="+">A+</button>
+        <output id="reader-font-value">20 px</output>
+      </fieldset>
+    </header>
+    <div class="reader-layout">
+      <aside class="reader-sidebar" aria-label="Reader chapters"><h2>Chapters</h2><nav id="reader-chapters" class="reader-chapters"></nav></aside>
+      <main id="reader-page" class="reader-page" tabindex="-1" aria-labelledby="reader-chapter-title">
+        <div class="reader-page-inner"><div class="reader-page-meta"><span id="reader-chapter-count">Chapter 1</span><span id="reader-status" role="status" aria-live="polite"></span></div><h2 id="reader-chapter-title">Loading...</h2><div id="reader-content" class="reader-content"></div></div>
+      </main>
+    </div>
+  </section>
   <script type="module" src="/src/main.js"></script>
   </div>
 </body></html>

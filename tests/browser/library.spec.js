@@ -61,6 +61,22 @@ test('original EPUB survives reload and can export translated chapters',async({p
   const {readFile}=await import('node:fs/promises');const output=await JSZip.loadAsync(await readFile(await download.path()));
   expect(await output.file('OEBPS/one.xhtml').async('string')).toContain('An original test translation.');
 });
+test('built-in EPUB reader opens chapters and supports accessible font controls',async({page})=>{
+  const zip=new JSZip();zip.file('mimetype','application/epub+zip');
+  zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
+  zip.file('OEBPS/book.opf','<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Built-in reader test</dc:title></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>');
+  zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>First chapter</h1><p>Japanese reader text.</p></body></html>');
+  zip.file('OEBPS/two.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>Second chapter</h1><p>Another paragraph.</p></body></html>');
+  await create(page,'Reader test',{name:'reader.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});
+  await leave(page);await page.getByRole('button',{name:'Read',exact:true}).click();
+  await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
+  await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
+  const initial=await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'));
+  await page.locator('#reader-font-up').click();expect(await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'))).not.toBe(initial);
+  await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Another paragraph.');
+  await page.locator('#reader-page').focus();await page.keyboard.press('0');await expect(page.locator('#reader-font-value')).toHaveText('20 px');
+  await page.locator('#reader-back').click();await expect(page.locator('#library')).toBeVisible();
+});
 test('same project cannot be edited in two tabs',async({page,context})=>{
   await create(page);const second=await context.newPage();await second.goto('/');await second.getByRole('button',{name:'Open project',exact:true}).click();
   await expect(second.locator('#library-status')).toContainText('already open in another tab');await second.close();
