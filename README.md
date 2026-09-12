@@ -44,6 +44,14 @@ You can use the local library without an account, or sign in with Google or emai
 
 Need a provider key? The app links directly to its **[API key setup guide](https://dusk-translate.vercel.app/guides/api-keys.html)** from the translation workspace.
 
+## Tech Stack
+
+DuskTranslate is a client-side JavaScript application built with **Vite** and deployed on **Vercel**. It uses **Supabase Auth, PostgreSQL, and Storage** for optional accounts and cloud projects, **IndexedDB** for the device library, and **JSZip** for EPUB and backup processing. Translation requests go directly from the browser to **Google AI Studio** or **OpenRouter** using the key supplied for the current editor session.
+
+Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
+
+See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for the complete architecture, data flow, security boundaries, generated files, and a description of every tracked file.
+
 ## Responsive Interface
 
 The website is available on desktop and mobile. The intended way to use DuskTranslate is on a pc, however it can still be used with all its capabilities on mobile.

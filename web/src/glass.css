@@ -38,7 +38,7 @@ h1 br{display:none}h1 em{font-weight:400;letter-spacing:-.04em}.intro{font-size:
 .empty{background:linear-gradient(130deg,#ffffff4d,#ffffff14);border:1px solid #ffffff9c;box-shadow:inset 0 1px 0 #fff8;min-height:280px;justify-content:center;padding:28px}
 .empty h3{font-size:31px;letter-spacing:-.025em}.empty p{font-size:13px;max-width:410px}.empty-mark{border-color:#6479814d;border-left-color:var(--accent)}
 .privacy-note p{font-size:12px}.privacy-note{margin-top:auto}footer{font-size:9px}.book{box-shadow:none}
-button{font-family:'Manrope',sans-serif}button:not(.primary):hover{background:#ffffffad}.primary,.eclipse .primary{background:var(--accent);color:#fff}
+button{font-family:'Manrope',sans-serif}button:not(.primary):hover{background:#ffffffad}.primary,.eclipse .primary{background:var(--action);border-color:var(--action);color:#fff}.primary:hover,.eclipse .primary:hover{background:var(--action-hover);border-color:var(--action-hover)}
 dialog{background:#f4f5f0ed;backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-color:#ffffffc9;box-shadow:0 25px 90px #152b3f38,inset 0 1px 0 white}
 dialog::backdrop{background:#142e434a}dialog h2{font-family:'Newsreader',serif;font-size:34px;font-weight:400;letter-spacing:-.025em}
 .workspace-open .app-window{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}.workspace-open #brand .brand-copy{display:block}.workspace-open #brand .brand-copy>span{display:none}.workspace-open .app-logo{width:30px;height:30px}

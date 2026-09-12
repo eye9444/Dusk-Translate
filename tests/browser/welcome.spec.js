@@ -18,3 +18,14 @@ test('welcome layout fits desktop and mobile in both themes',async({page})=>{
     }
   }
 });
+test('primary actions use accessible white text on the deeper orange',async({page})=>{
+  await page.goto('/');
+  for(const theme of ['dusk','eclipse']){
+    await page.evaluate(theme=>{localStorage.setItem('theme',theme);location.reload();},theme);
+    await expect(page.locator('#welcome-signin')).toHaveCSS('background-color','rgb(185, 71, 45)');
+    await expect(page.locator('#welcome-signin')).toHaveCSS('color','rgb(255, 255, 255)');
+  }
+  await page.locator('#welcome-guest').click();
+  await expect(page.locator('#new-project')).toHaveCSS('background-color','rgb(185, 71, 45)');
+  await expect(page.locator('#new-project')).toHaveCSS('color','rgb(255, 255, 255)');
+});
