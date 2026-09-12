@@ -106,13 +106,19 @@ const toolDisclosure = makeDisclosure('Translation tools', 'tool-disclosure');
 const controls = document.querySelector('.controls'); controls.before(toolDisclosure.details); toolDisclosure.content.append(controls);
 const chapterDisclosure = makeDisclosure('Chapter list', 'chapter-disclosure');
 const chapterSidebar = document.querySelector('.sidebar'); chapterSidebar.before(chapterDisclosure.details); chapterDisclosure.content.append(chapterSidebar);
-const editorMain = document.querySelector('.layout > div'); editorMain.classList.add('editor-main');
+const editorLayout = document.querySelector('.layout');
+const editorMain = editorLayout.querySelector(':scope > div'); editorMain.classList.add('editor-main');
 const mobileQuery = matchMedia('(max-width: 850px)');
 const disclosures = [providerDisclosure.details, toolDisclosure.details, chapterDisclosure.details];
 const syncDisclosures = event => {
   disclosures.forEach(details => { details.open = !event.matches; });
-  if(event.matches)providerDisclosure.content.append(providerControls);
-  else keyBar.insertBefore(providerControls,providerDisclosure.details);
+  if(event.matches){
+    providerDisclosure.content.append(providerControls);
+    editorLayout.insertBefore(providerDisclosure.details,chapterDisclosure.details);
+  }else{
+    keyBar.insertBefore(providerDisclosure.details,headerActions);
+    keyBar.insertBefore(providerControls,providerDisclosure.details);
+  }
 };
 syncDisclosures(mobileQuery); mobileQuery.addEventListener('change', syncDisclosures);
 disclosures.forEach(details => details.addEventListener('toggle', () => {

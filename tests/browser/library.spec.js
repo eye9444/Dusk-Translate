@@ -97,17 +97,20 @@ test('mobile editor collapses controls and gives source and translation equal sc
   const source=await editor.locator('.pane-left').boundingBox(),translation=await editor.locator('.pane:not(.pane-left)').boundingBox();
   expect(translation.y).toBeGreaterThan(source.y);expect(Math.abs(source.height-translation.height)).toBeLessThanOrEqual(2);
   await expect(editor.locator('#src-txt')).toHaveCSS('overflow-y','auto');await expect(editor.locator('#tl-out')).toHaveCSS('overflow-y','auto');
-  await editor.locator('#tl-out').focus();await expect(editor.locator('#tl-out')).toHaveCSS('outline-width','1px');
+  await editor.locator('#tl-out').focus();await expect(editor.locator('#tl-out')).toHaveCSS('outline-style','none');await expect(editor.locator('.pane:not(.pane-left)')).not.toHaveCSS('box-shadow','none');
   await editor.locator('.provider-disclosure summary').click();await expect(editor.locator('.api-key-guide')).toBeVisible();await expect(editor.locator('.api-key-guide')).toHaveAttribute('target','_blank');
   const provider=await editor.locator('.provider-disclosure .mobile-disclosure-content').boundingBox(),keyField=await editor.locator('.provider-key-field').boundingBox(),modelField=await editor.locator('.provider-model-field').boundingBox();
   expect(modelField.y).toBeGreaterThan(keyField.y+keyField.height);expect(keyField.width).toBeLessThanOrEqual(provider.width);expect(modelField.width).toBeLessThanOrEqual(provider.width);
+  await editor.locator('.provider-disclosure summary').click();
+  const providerSummary=await editor.locator('.provider-disclosure summary').boundingBox(),chapterSummary=await editor.locator('.chapter-disclosure summary').boundingBox(),toolSummary=await editor.locator('.tool-disclosure summary').boundingBox(),keyBar=await editor.locator('.key-bar').boundingBox();
+  expect(providerSummary.x).toBe(chapterSummary.x);expect(providerSummary.width).toBe(chapterSummary.width);expect(providerSummary.width).toBe(toolSummary.width);expect(Math.abs(providerSummary.y-(keyBar.y+keyBar.height))).toBeLessThanOrEqual(1);
   await editor.locator('.tool-disclosure summary').click();await expect(editor.locator('#btn-tl')).toBeVisible();await expect(editor.locator('.provider-disclosure')).not.toHaveAttribute('open','');
   await page.screenshot({path:'/tmp/dusktranslate-mobile-editor.png',fullPage:true,animations:'disabled'});
 });
 test('desktop AI provider bar keeps key, model and help aligned',async({page})=>{
   await page.setViewportSize({width:1600,height:900});await create(page,'Provider layout');const editor=page.frameLocator('#editor');
   const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
-  expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
+  expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
 });
 test('login honestly reports missing configuration',async({page})=>{
