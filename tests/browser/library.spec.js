@@ -106,8 +106,8 @@ test('mobile editor collapses controls and gives source and translation equal sc
 });
 test('desktop AI provider bar keeps key, model and help aligned',async({page})=>{
   await page.setViewportSize({width:1600,height:900});await create(page,'Provider layout');const editor=page.frameLocator('#editor');
-  const bar=await editor.locator('.key-bar').boundingBox(),keyField=await editor.locator('.provider-key-field').boundingBox(),modelField=await editor.locator('.provider-model-field').boundingBox();
-  expect(Math.abs(keyField.y-modelField.y)).toBeLessThanOrEqual(2);expect(keyField.x+keyField.width).toBeLessThanOrEqual(modelField.x);expect(bar.height).toBeLessThan(90);
+  const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
+  expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
 });
 test('login honestly reports missing configuration',async({page})=>{

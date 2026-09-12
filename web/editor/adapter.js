@@ -74,9 +74,11 @@ const providerField = (className, label, control) => {
   const field=document.createElement('div'); field.className=`provider-field ${className}`; field.append(label,control); return field;
 };
 const providerDisclosure = makeDisclosure('AI provider & model', 'provider-disclosure');
-const keyGuide = document.createElement('a'); keyGuide.className='api-key-guide'; keyGuide.href='/guides/api-keys.html'; keyGuide.target='_blank'; keyGuide.rel='noopener'; keyGuide.textContent='Need an API key? Open the setup guide ↗';
+const keyGuide = document.createElement('a'); keyGuide.className='api-key-guide'; keyGuide.href='/guides/api-keys.html'; keyGuide.target='_blank'; keyGuide.rel='noopener'; keyGuide.textContent='Get an API key ↗';
 const providerFeedback=document.createElement('div'); providerFeedback.className='provider-feedback'; providerFeedback.append(keyStatus,keyGuide);
-providerDisclosure.content.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelSelect),providerFeedback);
+const providerControls=document.createElement('div'); providerControls.className='provider-controls';
+providerControls.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelSelect),providerFeedback);
+providerDisclosure.content.append(providerControls);
 keyBar.append(providerDisclosure.details);
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
@@ -107,7 +109,11 @@ const chapterSidebar = document.querySelector('.sidebar'); chapterSidebar.before
 const editorMain = document.querySelector('.layout > div'); editorMain.classList.add('editor-main');
 const mobileQuery = matchMedia('(max-width: 850px)');
 const disclosures = [providerDisclosure.details, toolDisclosure.details, chapterDisclosure.details];
-const syncDisclosures = event => disclosures.forEach(details => { details.open = !event.matches; });
+const syncDisclosures = event => {
+  disclosures.forEach(details => { details.open = !event.matches; });
+  if(event.matches)providerDisclosure.content.append(providerControls);
+  else keyBar.insertBefore(providerControls,providerDisclosure.details);
+};
 syncDisclosures(mobileQuery); mobileQuery.addEventListener('change', syncDisclosures);
 disclosures.forEach(details => details.addEventListener('toggle', () => {
   if (mobileQuery.matches && details.open) disclosures.filter(other => other !== details).forEach(other => { other.open=false; });
