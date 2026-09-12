@@ -60,6 +60,9 @@ test('original EPUB survives reload and can export translated chapters',async({p
   await expect(editor.locator('#btn-epub-export')).toBeEnabled();const pending=page.waitForEvent('download');await editor.locator('#btn-epub-export').click();const download=await pending;
   const {readFile}=await import('node:fs/promises');const output=await JSZip.loadAsync(await readFile(await download.path()));
   expect(await output.file('OEBPS/one.xhtml').async('string')).toContain('An original test translation.');
+  await leave(page);const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'EPUB test',exact:true})});
+  await expect(card.getByRole('button',{name:'Read translation'})).toBeEnabled();await card.getByRole('button',{name:'Read translation'}).click();
+  await expect(page.locator('#reader-edition')).toHaveText('TRANSLATED EDITION');await expect(page.locator('#reader-content')).toContainText('An original test translation.');await page.locator('#reader-back').click();
 });
 test('built-in EPUB reader opens chapters and supports accessible font controls',async({page})=>{
   const zip=new JSZip();zip.file('mimetype','application/epub+zip');
@@ -67,8 +70,11 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   zip.file('OEBPS/book.opf','<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Built-in reader test</dc:title></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>');
   zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>First chapter</h1><p>Japanese reader text.</p></body></html>');
   zip.file('OEBPS/two.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>Second chapter</h1><p>Another paragraph.</p></body></html>');
-  await create(page,'Reader test',{name:'reader.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});
-  await leave(page);await page.getByRole('button',{name:'Read',exact:true}).click();
+  const epubBuffer=await zip.generateAsync({type:'nodebuffer'});
+  await create(page,'Reader test',{name:'reader.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
+  await leave(page);await page.locator('#reader-file').setInputFiles({name:'standalone.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
+  await expect(page.locator('#reader-edition')).toHaveText('STANDALONE EPUB');await page.locator('#reader-back').click();
+  await page.getByRole('button',{name:'Read original',exact:true}).click();
   await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
   await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
   const initial=await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'));
@@ -84,6 +90,17 @@ test('same project cannot be edited in two tabs',async({page,context})=>{
 test('mobile library fits the viewport',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile book');await leave(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+test('mobile editor collapses controls and gives source and translation equal scroll areas',async({page})=>{
+  await page.setViewportSize({width:390,height:844});await create(page,'Mobile editor');const editor=page.frameLocator('#editor');
+  await expect(editor.locator('.provider-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.tool-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.chapter-disclosure')).not.toHaveAttribute('open','');
+  const source=await editor.locator('.pane-left').boundingBox(),translation=await editor.locator('.pane:not(.pane-left)').boundingBox();
+  expect(translation.y).toBeGreaterThan(source.y);expect(Math.abs(source.height-translation.height)).toBeLessThanOrEqual(2);
+  await expect(editor.locator('#src-txt')).toHaveCSS('overflow-y','auto');await expect(editor.locator('#tl-out')).toHaveCSS('overflow-y','auto');
+  await editor.locator('#tl-out').focus();await expect(editor.locator('#tl-out')).toHaveCSS('outline-width','1px');
+  await editor.locator('.provider-disclosure summary').click();await expect(editor.locator('.api-key-guide')).toBeVisible();await expect(editor.locator('.api-key-guide')).toHaveAttribute('target','_blank');
+  await editor.locator('.tool-disclosure summary').click();await expect(editor.locator('#btn-tl')).toBeVisible();await expect(editor.locator('.provider-disclosure')).not.toHaveAttribute('open','');
+  await page.screenshot({path:'/tmp/dusktranslate-mobile-editor.png',fullPage:true,animations:'disabled'});
 });
 test('login honestly reports missing configuration',async({page})=>{
   await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth')).toBeDisabled();
@@ -122,11 +139,11 @@ test('collection navigation, search shortcut and layout preferences work',async(
   await create(page,'A quiet afternoon');await leave(page);
   await expect(page.locator('#active-count')).toHaveText('1');
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
-  await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No books by that name');
+  await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();
   await page.locator('#view-list').click();await page.reload();await expect(page.locator('#view-list')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#projects')).toHaveClass(/list-view/);
-  await page.locator('#nav-archived').click();await expect(page.locator('#collection-title')).toHaveText('Set aside for later');
+  await page.locator('#nav-archived').click();await expect(page.locator('#collection-title')).toHaveText('Archived projects');
   await expect(page.locator('#nav-archived')).toHaveAttribute('aria-current','page');
   await page.getByRole('button',{name:'Back to my library'}).click();await expect(page.locator('.project-card')).toHaveCount(1);
   await page.locator('#resume-project').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
@@ -134,7 +151,7 @@ test('collection navigation, search shortcut and layout preferences work',async(
 
 test('empty import action works and decorative books have no shadow',async({page})=>{
   await page.goto('/');await expect(page.locator('.book').first()).toHaveCSS('box-shadow','none');
-  await page.getByRole('button',{name:'Choose a book'}).click();await expect(page.locator('#project-dialog')).toBeVisible();
+  await page.getByRole('button',{name:'Start translating'}).click();await expect(page.locator('#project-dialog')).toBeVisible();
 });
 
 test('desktop, tablet and small-phone controls remain within the window',async({page})=>{

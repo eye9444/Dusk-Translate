@@ -64,6 +64,22 @@ function textOf(node) {
   return node?.textContent?.trim() || '';
 }
 
+function injectTranslation(markup, translation) {
+  const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
+  const body = doc.querySelector('body');
+  if (!body || doc.querySelector('parsererror')) throw new Error('A translated EPUB chapter contains invalid XHTML.');
+  body.replaceChildren();
+  for (const block of translation.split(/\n\n+/).map(cleanText).filter(Boolean)) {
+    const paragraph = doc.createElementNS('http://www.w3.org/1999/xhtml', 'p');
+    paragraph.textContent = block;
+    body.append(paragraph);
+  }
+  body.setAttribute('style', 'writing-mode:horizontal-tb;direction:ltr');
+  doc.documentElement.setAttribute('xml:lang', 'en');
+  doc.documentElement.setAttribute('lang', 'en');
+  return new XMLSerializer().serializeToString(doc);
+}
+
 export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   if (!file || typeof file.arrayBuffer !== 'function') throw new Error('Choose an EPUB file to open in the reader.');
   const zip = await JSZip.loadAsync(file);
@@ -100,4 +116,31 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   }
   if (!chapters.length) throw new Error('No readable chapters were found in this EPUB.');
   return { title: metadataTitle, chapters };
+}
+
+export async function buildTranslatedEpub(file, snapshot) {
+  const chapters = snapshot?.novel?.chapters || [];
+  const translations = snapshot?.translations || {};
+  if (!chapters.length || chapters.some(chapter => !translations[chapter.id]?.trim() || translations[chapter.id].endsWith('…PARTIAL'))) {
+    throw new Error('Finish every chapter before opening the translated EPUB.');
+  }
+  const zip = await JSZip.loadAsync(file);
+  const expanded = Object.values(zip.files).reduce((total, entry) => total + (entry._data?.uncompressedSize || 0), 0);
+  if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 100 MB.');
+
+  for (const chapter of chapters) {
+    const entry = zip.file(chapter.xhtmlPath);
+    if (!entry) throw new Error(`The original EPUB chapter ${chapter.id} is missing.`);
+    const translation = translations[chapter.id].replace(/…PARTIAL$/, '').trim();
+    zip.file(chapter.xhtmlPath, injectTranslation(await entry.async('string'), translation));
+  }
+  const opfPath = snapshot.novel._epubOpfPath;
+  const opfEntry = opfPath && zip.file(opfPath);
+  if (opfEntry) {
+    const opf = (await opfEntry.async('string'))
+      .replace(/page-progression-direction="rtl"/g, 'page-progression-direction="ltr"')
+      .replace(/\s*properties="page-spread-(left|right)"/g, '');
+    zip.file(opfPath, opf);
+  }
+  return zip.generateAsync({ type:'blob', mimeType:'application/epub+zip', compression:'DEFLATE', compressionOptions:{ level:6 } });
 }

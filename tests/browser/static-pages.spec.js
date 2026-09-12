@@ -15,3 +15,11 @@ test('static policy and setup pages are directly reachable',async({page})=>{
     await expect(page.locator('a[href="/"]').first()).toBeVisible();
   }
 });
+
+test('policy and API guide links open outside the working tab',async({page})=>{
+  await page.goto('/');
+  for(const path of ['/privacy.html','/terms.html','/cookies.html','/guides/api-keys.html']){
+    await expect(page.locator(`.legal-links a[href="${path}"]`)).toHaveAttribute('target','_blank');
+    await expect(page.locator(`.legal-links a[href="${path}"]`)).toHaveAttribute('rel','noopener');
+  }
+});

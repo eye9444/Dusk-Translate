@@ -15,6 +15,7 @@ DuskTranslate is a self-contained browser app designed for long-form translation
 - Glossary support for names, terms, and preferred wording
 - AI Studio and OpenRouter provider support
 - TXT and EPUB import/export workflows
+- Built-in EPUB reader for standalone books, project sources, and completed translations
 - Light and Eclipse themes
 - Optional developer logging for troubleshooting model behavior
 - No build system or local server required

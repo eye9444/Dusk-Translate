@@ -62,6 +62,16 @@ document.getElementById('btn-prev').setAttribute('aria-label','Previous chapter'
 document.getElementById('btn-next').setAttribute('aria-label','Next chapter');
 
 const keyBar = document.querySelector('.key-bar');
+const makeDisclosure = (label, className) => {
+  const details = document.createElement('details'); details.className = `mobile-disclosure ${className}`;
+  const summary = document.createElement('summary'); summary.textContent = label;
+  const content = document.createElement('div'); content.className = 'mobile-disclosure-content';
+  details.append(summary, content); return { details, content };
+};
+const providerDisclosure = makeDisclosure('AI provider and API key', 'provider-disclosure');
+providerDisclosure.content.append(...Array.from(keyBar.children));
+const keyGuide = document.createElement('a'); keyGuide.className='api-key-guide'; keyGuide.href='/guides/api-keys.html'; keyGuide.target='_blank'; keyGuide.rel='noopener'; keyGuide.textContent='Need an API key? Open the setup guide ↗';
+providerDisclosure.content.append(keyGuide); keyBar.append(providerDisclosure.details);
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
 for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
@@ -75,7 +85,7 @@ const editorTitle = document.createElement('div');
 const editorBrand = document.createElement('span'); editorBrand.textContent='DuskTranslate';
 const projectTitle = document.createElement('strong'); projectTitle.id='host-project-title'; projectTitle.textContent='Opening project';
 editorTitle.append(editorBrand,projectTitle); editorIdentity.append(editorLogo,editorTitle);
-const saveStatus = document.createElement('span'); saveStatus.id='host-save-status'; saveStatus.setAttribute('role','status'); saveStatus.textContent='Opening…';
+const saveStatus = document.createElement('span'); saveStatus.id='host-save-status'; saveStatus.className='host-save-status'; saveStatus.setAttribute('role','status'); saveStatus.textContent='Opening…';
 keyBar.prepend(editorMenu,editorIdentity);
 const legacyHeader = document.querySelector('header');
 const headerActions = document.createElement('div'); headerActions.className='host-header-actions';
@@ -84,6 +94,18 @@ headerActions.append(saveStatus);
 if (glossaryButton) headerActions.append(glossaryButton);
 if (themeButton) headerActions.append(themeButton);
 keyBar.append(headerActions);
+const toolDisclosure = makeDisclosure('Translation tools', 'tool-disclosure');
+const controls = document.querySelector('.controls'); controls.before(toolDisclosure.details); toolDisclosure.content.append(controls);
+const chapterDisclosure = makeDisclosure('Chapter list', 'chapter-disclosure');
+const chapterSidebar = document.querySelector('.sidebar'); chapterSidebar.before(chapterDisclosure.details); chapterDisclosure.content.append(chapterSidebar);
+const editorMain = document.querySelector('.layout > div'); editorMain.classList.add('editor-main');
+const mobileQuery = matchMedia('(max-width: 850px)');
+const disclosures = [providerDisclosure.details, toolDisclosure.details, chapterDisclosure.details];
+const syncDisclosures = event => disclosures.forEach(details => { details.open = !event.matches; });
+syncDisclosures(mobileQuery); mobileQuery.addEventListener('change', syncDisclosures);
+disclosures.forEach(details => details.addEventListener('toggle', () => {
+  if (mobileQuery.matches && details.open) disclosures.filter(other => other !== details).forEach(other => { other.open=false; });
+}));
 menuButton.onclick = e => { e.stopPropagation(); menu.hidden=!menu.hidden; menuButton.setAttribute('aria-expanded',String(!menu.hidden)); };
 document.addEventListener('click',e=>{if(!editorMenu.contains(e.target)){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});

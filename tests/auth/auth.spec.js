@@ -1,6 +1,6 @@
 import {test,expect} from '@playwright/test';
-test.beforeEach(async({page})=>{
-  await page.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:true,email:true}}}));
+test.beforeEach(async({context})=>{
+  await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:true,email:true}}}));
 });
 test('email signup confirmation, login errors, login and logout',async({page})=>{
   const user={id:'11111111-1111-4111-8111-111111111111',email:'reader@example.test',aud:'authenticated',role:'authenticated'};
@@ -49,17 +49,18 @@ test('forgot password gives neutral confirmation and same-origin redirect',async
   await expect(page.locator('#google-option')).toBeHidden();
 });
 
-for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE without email or password`,async({page})=>{
+for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE in a new tab without email or password`,async({page,context})=>{
   let authorization;
-  await page.route('https://dusk-test.supabase.co/auth/v1/authorize**',async route=>{
+  await context.route('https://dusk-test.supabase.co/auth/v1/authorize**',async route=>{
     authorization=new URL(route.request().url());
     await route.fulfill({contentType:'text/html',body:'<h1>Mock Google authorization</h1>'});
   });
   await page.goto('/');await page.locator('#account').click();
   if(mode==='signup')await page.locator('#auth-switch').click();
   await page.locator('#terms-accept').check();
-  await page.getByRole('button',{name:'Continue with Google'}).click();
-  await expect(page.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
+  const popupPromise=page.waitForEvent('popup');await page.getByRole('button',{name:'Continue with Google'}).click();const googleTab=await popupPromise;
+  await expect(googleTab.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
+  await expect(page.locator('#auth-message')).toContainText('opened in a new tab');
   expect(authorization.searchParams.get('provider')).toBe('google');
   expect(authorization.searchParams.get('prompt')).toBe('select_account');
   expect(authorization.searchParams.get('code_challenge_method')).toBe('s256');
@@ -68,10 +69,10 @@ for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE without e
   expect(redirect.origin).toBe('http://127.0.0.1:4174');expect(redirect.pathname).toBe('/');
 });
 
-test('Google callback exchanges code once, persists session, and signs out',async({page})=>{
+test('Google callback exchanges code once in its new tab, persists session, and signs out',async({page,context})=>{
   const user={id:'22222222-2222-4222-8222-222222222222',email:'google@example.test',aud:'authenticated',role:'authenticated',app_metadata:{provider:'google'}};
   let exchanges=0,callback;
-  await page.route('https://dusk-test.supabase.co/**',async route=>{
+  await context.route('https://dusk-test.supabase.co/**',async route=>{
     const url=new URL(route.request().url());
     if(url.pathname.endsWith('/settings'))return route.fallback();
     if(url.pathname.endsWith('/authorize')){
@@ -90,12 +91,13 @@ test('Google callback exchanges code once, persists session, and signs out',asyn
     if(url.pathname.endsWith('/user'))return route.fulfill({json:user});
     return route.fulfill({json:{}});
   });
-  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();await page.locator('#google-auth').click();
-  await expect(page.locator('#account')).toHaveText('Sign out');
-  await expect(page.locator('#storage-info')).toContainText(user.email);
-  await expect(page).toHaveURL('http://127.0.0.1:4174/');expect(exchanges).toBe(1);
-  await page.reload();await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);
-  await page.locator('#account').click();await expect(page.locator('#storage-label')).toHaveText('THIS BROWSER');
+  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
+  const popupPromise=page.waitForEvent('popup');await page.locator('#google-auth').click();const googleTab=await popupPromise;
+  await expect(googleTab.locator('#account')).toHaveText('Sign out');
+  await expect(googleTab.locator('#storage-info')).toContainText(user.email);
+  await expect(googleTab).toHaveURL('http://127.0.0.1:4174/');expect(exchanges).toBe(1);
+  await googleTab.reload();await expect(googleTab.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);
+  await googleTab.locator('#account').click();await expect(googleTab.locator('#storage-label')).toHaveText('THIS BROWSER');
 });
 
 for(const separator of ['?','#'])test(`cancelled Google callback ${separator} is explained and removed from URL`,async({page})=>{
@@ -165,10 +167,11 @@ test('account forms fit mobile in both themes',async({page},testInfo)=>{
   }
 });
 
-test('Google disabled on the backend explains setup without redirecting',async({page})=>{
-  await page.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
-  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();await page.locator('#google-auth').click();
-  await expect(page.locator('#auth-message')).toContainText('not enabled yet');
-  await expect(page.locator('#auth-submit')).toBeEnabled();
-  await expect(page).toHaveURL('http://127.0.0.1:4174/');
+test('Google disabled on the backend explains setup in the new tab',async({page,context})=>{
+  await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
+  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
+  const popupPromise=page.waitForEvent('popup');await page.locator('#google-auth').click();const googleTab=await popupPromise;
+  await expect(googleTab.locator('#auth-message')).toContainText('not enabled yet');
+  await expect(googleTab.locator('#auth-submit')).toBeEnabled();
+  await expect(googleTab).toHaveURL('http://127.0.0.1:4174/');
 });

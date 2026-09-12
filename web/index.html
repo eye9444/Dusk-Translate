@@ -22,30 +22,30 @@
   <div class="app-window">
     <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="#" id="brand" aria-label="DuskTranslate home"><img class="app-logo" src="/brand/dusk-mark.svg" width="38" height="38" alt=""><span class="brand-copy"><strong>DuskTranslate</strong><span>YOUR PERSONAL READING ROOM</span></span></a><nav aria-label="Account and appearance"><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
     <section id="welcome" class="welcome" aria-labelledby="welcome-title">
-      <div class="welcome-copy"><p class="eyebrow">EPUB TRANSLATION / SAVED PROJECTS / AI PROVIDERS</p><h1 id="welcome-title">Translate books.<br>Keep every <em>chapter organized.</em></h1><p class="welcome-intro">Import EPUB, TXT, or JSON files. Translate chapter by chapter, edit the output, maintain a glossary, and save your progress locally or to your account.</p><div class="welcome-actions"><button class="primary" id="welcome-signin">Sign in to your library <span aria-hidden="true">↗</span></button><button id="welcome-signup">Create an account</button></div><p class="welcome-private">Projects can sync to your account. API keys remain in the current session.</p><button class="guest-link" id="welcome-guest">Use locally without an account</button></div>
+      <div class="welcome-copy"><p class="eyebrow">EPUB TRANSLATION / SAVED PROJECTS / AI PROVIDERS</p><h1 id="welcome-title">Translate books.<br>Keep every <em>chapter organized.</em></h1><p class="welcome-intro">Import EPUB, TXT, or JSON files. Translate chapter by chapter, edit the output, maintain a glossary, and save your progress locally or to your account.</p><div class="welcome-actions"><button class="primary" id="welcome-signin">Sign in to your library <span aria-hidden="true">↗</span></button><button id="welcome-signup">Create an account</button><button id="welcome-reader">Open EPUB reader</button></div><p class="welcome-private">Projects can sync to your account. API keys remain in the current session.</p><button class="guest-link" id="welcome-guest">Use locally without an account</button></div>
       <div class="welcome-art" aria-label="Two translated pages crossing the orbit of an eclipsed sun"><div class="dusk-orbit" aria-hidden="true"><i class="orbit-moon"></i></div><div class="specimen source-page"><span>01 / ORIGINAL</span><p lang="ja">物語は、<br>ここから。</p><small>JAPANESE</small></div><div class="specimen translated-page"><img src="/brand/dusk-mark.svg" width="42" height="42" alt="DuskTranslate logo"><span>02 / A NEW PERSPECTIVE</span><p>The story<br>starts <em>here.</em></p><small>ENGLISH</small></div><span class="art-caption">DIFFERENT WORDS. SAME WORLD.</span></div>
       <div class="welcome-notes"><p><span>01</span>Import EPUB, TXT, or JSON.</p><p><span>02</span>Translate, edit, and export.</p><p><span>03</span>Resume saved projects.</p></div>
     </section>
     <main id="library" hidden>
       <aside class="sidebar" aria-label="Library navigation">
-        <div class="sidebar-heading"><img class="app-logo" src="/brand/dusk-mark.svg" width="44" height="44" alt=""><div>Make yourself<br><strong>at home.</strong></div></div>
+        <div class="sidebar-heading"><img class="app-logo" src="/brand/dusk-mark.svg" width="44" height="44" alt=""><div>Translation projects<br><strong>and EPUB reader.</strong></div></div>
         <p class="eyebrow">COLLECTIONS</p>
         <nav class="collection-nav" aria-label="Collections">
           <button id="nav-active" aria-current="page"><svg class="icon"><use href="#i-library"/></svg>My library<span id="active-count">0</span></button>
           <button id="nav-archived"><svg class="icon"><use href="#i-archive"/></svg>Archive<span id="archive-count">0</span></button>
         </nav>
-        <div class="sidebar-edition"><p class="eyebrow">BETWEEN TWO LANGUAGES</p><div class="book-art" aria-hidden="true"><div class="book b3">READ</div><div class="book b2">TRANSLATE</div><div class="book b1">CONTINUE<span>日 / EN</span></div></div><p>A new perspective.<br>One page at a time.</p></div>
+        <div class="sidebar-edition"><p class="eyebrow">READ OR TRANSLATE</p><div class="book-art" aria-hidden="true"><div class="book b3">READ</div><div class="book b2">TRANSLATE</div><div class="book b1">CONTINUE<span>日 / EN</span></div></div><p>Open any EPUB or<br>continue a project.</p></div>
         <div class="storage-badge"><span class="status-dot" aria-hidden="true"></span><span id="storage-label">THIS BROWSER</span><small id="storage-caption">A library on this device</small></div>
       </aside>
       <div class="reading-room">
         <div class="room-breadcrumb"><span>Workspace <span aria-hidden="true">/</span> <strong id="collection-name">My library</strong></span><span class="language-pair">日本語 <svg class="icon"><use href="#i-arrow"/></svg> English</span></div>
-        <section class="room-heading"><div><p class="eyebrow">LESS FRICTION. MORE READING.</p><h1>Your words. <br>Your <em>own pace.</em></h1><p class="intro">A quiet place for books in between languages.</p></div><button class="primary" id="new-project">+ New project</button></section>
-        <section class="resume-strip" id="resume-strip" hidden aria-label="Most recently edited project"><span class="resume-mark" aria-hidden="true">↗</span><div><p class="eyebrow">RIGHT WHERE YOU LEFT IT</p><h2 id="resume-title"></h2><p id="resume-detail"></p></div><button id="resume-project">Resume project <svg class="icon"><use href="#i-arrow"/></svg></button></section>
+        <section class="room-heading"><div><p class="eyebrow">TRANSLATION PROJECTS</p><h1>Translate and manage <em>your books.</em></h1><p class="intro">Create a project, translate each chapter, then export TXT or EPUB.</p></div><div class="room-actions"><button id="library-reader">Open EPUB reader</button><button class="primary" id="new-project">+ New project</button></div></section>
+        <section class="resume-strip" id="resume-strip" hidden aria-label="Most recently edited project"><span class="resume-mark" aria-hidden="true">↗</span><div><p class="eyebrow">CONTINUE TRANSLATING</p><h2 id="resume-title"></h2><p id="resume-detail"></p></div><button id="resume-project">Resume project <svg class="icon"><use href="#i-arrow"/></svg></button></section>
         <div class="collection-heading"><h2><span id="collection-title">On your desk</span> <span id="count">0</span></h2><span>Recently edited first</span></div>
         <div class="filters"><label class="search-label"><span class="sr-only">Find a project</span><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Find a book or project…"><kbd aria-hidden="true">/</kbd></label><label class="filter-label"><span class="sr-only">Show</span><select id="filter" aria-label="Show projects"><option value="active">Active projects</option><option value="archived">Archived projects</option></select></label><div class="view-switch" role="group" aria-label="Project layout"><button id="view-grid" aria-label="Grid view" aria-pressed="true"><svg class="icon"><use href="#i-grid"/></svg></button><button id="view-list" aria-label="List view" aria-pressed="false"><svg class="icon"><use href="#i-list"/></svg></button></div><button id="refresh">Refresh</button></div>
         <p id="library-status" role="status"></p><section id="projects" class="project-grid" aria-label="Projects"></section>
         <div class="privacy-note"><span class="note-symbol" aria-hidden="true">*</span><p id="storage-info">Projects are saved on this device. Sign in for your cloud library.</p></div>
-        <footer><span>A WORKSPACE, NOT A RACE.</span><nav class="legal-links" aria-label="Legal"><a href="/privacy.html">Privacy</a><a href="/terms.html">Terms</a><a href="/cookies.html">Cookies</a><a href="/guides/api-keys.html">API key guide</a></nav><span>Your AI key stays in this session.</span></footer>
+        <footer><span>DUSKTRANSLATE</span><nav class="legal-links" aria-label="Legal"><a href="/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="/terms.html" target="_blank" rel="noopener">Terms</a><a href="/cookies.html" target="_blank" rel="noopener">Cookies</a><a href="/guides/api-keys.html" target="_blank" rel="noopener">API key guide</a></nav><span>Your AI key stays in this session.</span></footer>
       </div>
     </main>
   <section id="workspace" hidden><div class="workspace-meta" hidden><button id="back">Library</button><strong id="project-title"></strong><span id="save-status" role="status">Loading…</span><button id="save-now">Save now</button><button id="backup">Download backup</button></div><iframe id="editor" title="Chapter translation workspace" allow="clipboard-write"></iframe></section>
@@ -73,7 +73,8 @@
   <section id="reader" hidden aria-labelledby="reader-title">
     <header class="reader-header">
       <button id="reader-back" class="reader-back" type="button">← Library</button>
-      <div class="reader-heading"><p class="eyebrow">EPUB READER</p><h1 id="reader-title">Opening book</h1></div>
+      <div class="reader-heading"><p class="eyebrow">EPUB READER · <span id="reader-edition">ORIGINAL</span></p><h1 id="reader-title">Opening book</h1></div>
+      <button id="reader-open-file" type="button">Open another EPUB</button>
       <fieldset class="reader-controls" aria-label="Reader text size">
         <legend class="sr-only">Reader text size</legend>
         <button id="reader-font-down" type="button" aria-label="Decrease reader text size" aria-keyshortcuts="-">A−</button>
@@ -89,6 +90,7 @@
       </main>
     </div>
   </section>
+  <input id="reader-file" type="file" accept=".epub,application/epub+zip" hidden>
   <script type="module" src="/src/main.js"></script>
   </div>
 </body></html>

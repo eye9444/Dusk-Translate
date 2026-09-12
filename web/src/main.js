@@ -4,19 +4,21 @@ import './welcome.css';
 import './reader.css';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
-import { readEpub } from './epub-reader.js';
+import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 
 const $ = id => document.getElementById(id);
 const authReturn = new URL(location.href);
 const authParams = new URLSearchParams(authReturn.hash.slice(1));
 authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
 const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
+const googleIntent = authReturn.searchParams.get('auth') === 'google';
+const googleRememberIntent = authReturn.searchParams.get('remember') !== 'false';
 let authBusy = false;
 let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
-let readerProject = null, readerBook = null, readerChapter = 0;
+let readerOpen = false, readerProject = null, readerBook = null, readerChapter = 0, readerReturn = 'library';
 let renderedOwner = null;
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
@@ -71,7 +73,7 @@ function render() {
   const view = sorted.filter(p => p.archived === archived && p.title.toLowerCase().includes(query));
   $('active-count').textContent=String(projects.filter(p=>!p.archived).length);
   $('archive-count').textContent=String(projects.filter(p=>p.archived).length);
-  $('collection-title').textContent=archived?'Set aside for later':'On your desk';
+  $('collection-title').textContent=archived?'Archived projects':'Active translation projects';
   $('collection-name').textContent=archived?'Archive':'My library';
   ['active','archived'].forEach(value=>{
     const nav=$('nav-'+value);
@@ -87,10 +89,10 @@ function render() {
   $('count').textContent = String(view.length); $('projects').replaceChildren();
   if (!view.length) {
     const box=el('div','empty'),mark=el('span','empty-mark',query?'?':'01');mark.setAttribute('aria-hidden','true');
-    box.append(mark,el('h3','',query?'No books by that name.':archived?'Nothing set aside.':'Every book starts somewhere.'),el('p','',query?'Try a different title, or clear your search to see this collection.':archived?'Archived projects will wait here until you are ready to return.':'Bring an EPUB, a text file, or a saved project. We will keep your place from here.'));
+    box.append(mark,el('h3','',query?'No projects match that title.':archived?'No archived projects.':'No translation projects yet.'),el('p','',query?'Try a different title, or clear your search.':archived?'Projects you archive will appear here.':'Upload an EPUB, TXT, or JSON file to start translating.'));
     if(query)box.append(button('Clear search',()=>{$('search').value='';render();$('search').focus();}));
     else if(archived)box.append(button('Back to my library',()=>setCollection('active')));
-    else {box.append(button('Choose a book',()=>$('new-project').click()),el('small','','EPUB / TXT / JSON / BACKUP ZIP'));}
+    else {box.append(button('Start translating',()=>$('new-project').click()),el('small','','EPUB / TXT / JSON / BACKUP ZIP'));}
     $('projects').append(box);
   }
   view.forEach(p => {
@@ -102,8 +104,13 @@ function render() {
     card.append(el('p','stamp',p.dirty?'Saved on device / cloud sync pending':`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
     const actions = el('div','card-actions');
     const open = button('Open project',() => openProject(p.id)); open.className='primary';
-    const read = button('Read',() => openReader(p.id)); read.hidden=!isEpub(p);
-    actions.append(open,read,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    const original = button('Read original',() => openReader(p.id, 'original')); original.hidden=!isEpub(p);
+    const completionKnown = details.total > 0;
+    const complete = isEpub(p) && completionKnown && details.done === details.total;
+    const translated = button('Read translation',() => openReader(p.id, 'translated'));
+    translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
+    if (!complete && isEpub(p)) translated.title=completionKnown ? `Translate all ${details.total} chapters to unlock this edition.` : 'Check whether the cloud project has a complete translated edition.';
+    actions.append(open,original,translated,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     card.append(actions); $('projects').append(card);
   });
 }
@@ -172,7 +179,7 @@ async function loadProject(id) {
   }
 }
 async function openProject(id) {
-  if (active || readerProject || closing || opening) return;
+  if (active || readerOpen || closing || opening) return;
   opening = true;
   try {
     await acquire(id); status('Opening your book…');
@@ -215,35 +222,68 @@ function renderReader() {
   }));
   setReaderFontSize(readerFontSize());
 }
-async function openReader(id) {
-  if (active || readerProject || opening) return;
-  opening = true;
-  $('reader-status').textContent = 'Opening EPUB...';
+function prepareReader(title, edition, preserveReturn = false) {
+  if (!preserveReturn) readerReturn = $('welcome').hidden ? 'library' : 'welcome';
+  readerOpen = true; readerBook = null; readerChapter = 0;
+  $('welcome').hidden = true; $('library').hidden = true; $('reader').hidden = false;
+  document.body.classList.add('reader-open');
+  $('reader-title').textContent = title;
+  $('reader-edition').textContent = edition;
+  $('reader-chapter-count').textContent = '';
+  $('reader-chapter-title').textContent = 'Opening EPUB...';
+  $('reader-status').textContent = 'Reading book structure';
+  $('reader-chapters').replaceChildren(); $('reader-content').replaceChildren();
+}
+async function presentReader(file, fileName, edition, project = null, preserveReturn = false) {
+  prepareReader(project?.title || fileName.replace(/\.epub$/i, ''), edition, preserveReturn);
+  readerProject = project;
   try {
-    const project = await loadProject(id);
-    if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
-    const book = await readEpub(project.file, project.fileName);
-    readerProject = project; readerBook = book; readerChapter = 0;
-    $('library').hidden = true; $('reader').hidden = false; document.body.classList.add('reader-open');
-    renderReader();
+    readerBook = await readEpub(file, fileName); renderReader();
     $('reader-status').textContent = 'Ready to read';
     $('reader-page').focus({ preventScroll: true });
   } catch (error) {
-    $('reader-status').textContent = errorMessage(error);
+    $('reader-chapter-title').textContent = 'This EPUB could not be opened.';
+    $('reader-status').textContent = 'Reader error';
+    $('reader-content').append(el('p', '', errorMessage(error)));
+  }
+}
+async function openReader(id, edition = 'original') {
+  if (active || readerOpen || opening) return;
+  opening = true;
+  status('Opening EPUB reader...');
+  try {
+    const project = await loadProject(id);
+    if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
+    const file = edition === 'translated' ? await buildTranslatedEpub(project.file, project.snapshot) : project.file;
+    await presentReader(file, project.fileName, edition === 'translated' ? 'TRANSLATED EDITION' : 'ORIGINAL EDITION', project);
+    status('');
+  } catch (error) {
+    status(errorMessage(error));
   } finally { opening = false; }
 }
 function leaveReader() {
-  if (!readerProject) return;
-  readerProject = null; readerBook = null; readerChapter = 0;
-  $('reader').hidden = true; $('library').hidden = false; document.body.classList.remove('reader-open');
+  if (!readerOpen) return;
+  readerOpen = false; readerProject = null; readerBook = null; readerChapter = 0;
+  $('reader').hidden = true; document.body.classList.remove('reader-open');
   refresh();
+  requestAnimationFrame(() => $(readerReturn === 'welcome' ? 'welcome-reader' : 'library-reader').focus());
 }
+function chooseReaderFile() { $('reader-file').value=''; $('reader-file').click(); }
+$('welcome-reader').onclick = chooseReaderFile;
+$('library-reader').onclick = chooseReaderFile;
+$('reader-open-file').onclick = chooseReaderFile;
+$('reader-file').onchange = async () => {
+  const file = $('reader-file').files[0];
+  if (!file) return;
+  try { validateFile(file); await presentReader(file, file.name, 'STANDALONE EPUB', null, readerOpen); }
+  catch (error) { prepareReader(file.name, 'STANDALONE EPUB', readerOpen); $('reader-chapter-title').textContent='This EPUB could not be opened.'; $('reader-status').textContent='Reader error'; $('reader-content').append(el('p', '', errorMessage(error))); }
+};
 $('reader-back').onclick = leaveReader;
 $('reader-font-down').onclick = () => setReaderFontSize(readerFontSize() - READER_FONT_STEP);
 $('reader-font-reset').onclick = () => setReaderFontSize(READER_FONT_DEFAULT);
 $('reader-font-up').onclick = () => setReaderFontSize(readerFontSize() + READER_FONT_STEP);
 document.addEventListener('keydown', event => {
-  if (!readerProject || document.querySelector('dialog[open]') || event.target.closest('input,textarea,select,button,[contenteditable]')) return;
+  if (!readerOpen || document.querySelector('dialog[open]') || event.target.closest('input,textarea,select,button,[contenteditable]')) return;
   if (event.key === '-' || event.key === '_') { event.preventDefault(); setReaderFontSize(readerFontSize() - READER_FONT_STEP); }
   if (event.key === '+' || event.key === '=') { event.preventDefault(); setReaderFontSize(readerFontSize() + READER_FONT_STEP); }
   if (event.key === '0') { event.preventDefault(); setReaderFontSize(READER_FONT_DEFAULT); }
@@ -317,7 +357,7 @@ async function leave() {
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
 }
 $('back').onclick=leave;
-$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerProject)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
+$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerOpen)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
 async function downloadBackup() {
   if (!active) return;
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();
@@ -380,20 +420,24 @@ function setAuthBusy(busy) {
   ['auth-switch','forgot'].forEach(id=>$(id).disabled=busy);
   $('google-label').textContent='Continue with Google';
 }
-$('google-auth').onclick=async()=>{
+async function startGoogleOAuth(remember) {
+  if(!cloud)throw new Error('Cloud accounts are not configured on this deployment yet.');
+  authStorage.choose(remember);
+  if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
+  const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
+    redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
+  }});
+  if(error)throw error;
+  if(!data?.url)throw new Error('Could not start Google sign-in. Please try again.');
+  location.assign(data.url);
+}
+$('google-auth').onclick=()=>{
   if(!cloud||authBusy)return;
   if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
-  setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='';
-  try{
-    authStorage.choose($('remember-me').checked);
-    if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
-    const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
-      redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
-    }});
-    if(error)throw error;
-    if(!data?.url)throw new Error('Could not start Google sign-in. Please try again.');
-    location.assign(data.url);
-  }catch(err){setAuthBusy(false);$('auth-message').textContent=errorMessage(err);}
+  const launch=new URL('/',location.origin);launch.searchParams.set('auth','google');launch.searchParams.set('remember',String($('remember-me').checked));
+  const tab=window.open(launch,'_blank');
+  if(tab){tab.opener=null;$('auth-message').textContent='Google sign-in opened in a new tab.';}
+  else $('auth-message').textContent='Your browser blocked the sign-in tab. Allow pop-ups for this site and try again.';
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
@@ -448,4 +492,9 @@ if(isAuthReturn){
   history.replaceState(history.state,'',clean);
 }
 await refresh();
-if(authError){showAuth();$('auth-message').textContent=authError;}
+if(googleIntent&&!user){
+  const clean=new URL(location.href);clean.searchParams.delete('auth');clean.searchParams.delete('remember');history.replaceState(history.state,'',clean);
+  showAuth('signin');setAuthBusy(true);$('google-label').textContent='Opening Google...';
+  try{await startGoogleOAuth(googleRememberIntent);}
+  catch(error){setAuthBusy(false);$('auth-message').textContent=errorMessage(error);}
+}else if(authError){showAuth();$('auth-message').textContent=authError;}
