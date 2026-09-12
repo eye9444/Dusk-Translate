@@ -1,6 +1,6 @@
 # Hosted DuskTranslate
 
-The web application wraps the latest standalone development editor. Historical HTML releases stay in `releases/`. The hosted app currently translates Japanese to English.
+The web application packages the editor source from `web/editor/engine.html`. Historical standalone HTML releases remain available on the `legacy-standalone` branch. The hosted app currently translates Japanese to English.
 
 ## Run locally
 
@@ -59,6 +59,6 @@ Cloud writes first retain a local draft. If syncing fails, the library preserves
 
 `npx playwright install chromium` then `npm run test:e2e` verifies real browser project creation, edit persistence, glossary/chapter restoration, original EPUB retention/export, untrusted text rendering, project management, tab locking, and mobile layout. These use synthetic books and do not consume model API credits. Real email delivery and cloud integration require a configured Supabase project.
 
-`npx playwright test --config=playwright.auth.config.js` tests email signup confirmation, rejected credentials, login/logout, password-reset redirects, Google authorization from both account forms, PKCE callback/session restoration, and cancelled or expired callbacks against mocked Supabase responses. These tests do not establish that a live Auth project, Google OAuth client, or mail sender has been configured.
+`npm run test:auth` tests email signup confirmation, rejected credentials, login/logout, password-reset redirects, Google authorization from both account forms, PKCE callback/session restoration, and cancelled or expired callbacks against mocked Supabase responses. These tests do not establish that a live Auth project, Google OAuth client, or mail sender has been configured.
 
 Official setup references: [password authentication](https://supabase.com/docs/guides/auth/passwords), [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security), [storage access control](https://supabase.com/docs/guides/storage/security/access-control).

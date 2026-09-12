@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
-const source = await readFile('releases/development/DuskTranslate_epubfixestest6dev_delimiter.html', 'utf8');
+const source = await readFile('web/editor/engine.html', 'utf8');
 await mkdir('web/public/editor', { recursive: true });
-// Preserve the standalone releases. Ship the latest engine with a project adapter.
+// Generate the hosted editor from its source engine and project adapter.
 const html = source
   .replace('if (!full.length && !plainTextFallback)', 'if (!full.length && !plainTextFallback && !abortCtrl.signal.aborted)')
   .replace('} else if (full.length > 80)', '} else if (full.length > 0)')

@@ -1,6 +1,6 @@
 # DuskTranslate Architecture
 
-This document describes the active hosted application. The historical standalone HTML releases remain under `releases/` for reference and are not the source of truth for the hosted library shell.
+This document describes the active hosted application. Historical standalone HTML releases live on the `legacy-standalone` branch and are not the source of truth for the hosted library shell.
 
 ## Runtime boundaries
 
@@ -10,8 +10,8 @@ This document describes the active hosted application. The historical standalone
 - `web/src/model.js` owns snapshot validation, file validation, progress calculations, and data-shaping helpers shared by the host.
 - `web/src/auth-storage.js` is the storage adapter for the Supabase session. The remember-me choice determines whether auth tokens use persistent or session storage.
 - `web/src/epub-reader.js` parses standalone and project EPUBs into a text-only reader model. It also builds a temporary translated EPUB from a complete project snapshot without storing another copy.
-- `web/editor/adapter.js` bridges the legacy translation engine to the host with same-origin `postMessage` events. It prevents the legacy engine from loading a second book and emits resumable snapshots.
-- `releases/development/DuskTranslate_epubfixestest6dev_delimiter.html` is the currently wrapped legacy engine input. It is copied into `web/public/editor/index.html` by `scripts/prepare-editor.mjs` during development and build.
+- `web/editor/adapter.js` bridges the translation engine to the host with same-origin `postMessage` events. It prevents the engine from loading a second book and emits resumable snapshots.
+- `web/editor/engine.html` is the hosted editor source. It is copied into `web/public/editor/index.html` and augmented with the adapter by `scripts/prepare-editor.mjs` during development and build.
 
 ## Data flow
 
@@ -35,7 +35,7 @@ The privacy, terms, cookie, and API-key guide pages are static HTML pages. They 
 
 ## Cleanup boundaries
 
-Historical HTML files are retained as release archaeology, not loaded by the application. They should only be deleted after confirming that no external bookmarks, release links, or local workflows depend on them. The next safe refactor is to extract the legacy translation engine into a tested module; changing it in place risks EPUB parsing and streaming regressions.
+Historical HTML files are retained as release archaeology on the `legacy-standalone` branch and in the `v0.1.0` release. The next safe refactor is to extract the hosted translation engine into tested modules; changing it in place risks EPUB parsing and streaming regressions.
 
 ## Security and privacy invariants
 

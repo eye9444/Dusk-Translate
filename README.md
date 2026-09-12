@@ -65,6 +65,7 @@ The development server prepares the embedded editor and starts Vite locally. Use
 npm test
 npm run build
 npm run test:e2e
+npm run test:auth
 ```
 
 Account and cloud-project features require Supabase environment variables. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for the deployment configuration.
@@ -72,6 +73,7 @@ Account and cloud-project features require Supabase environment variables. See *
 ## Active Project Structure
 
 - `web/` contains the hosted application, editor integration, EPUB reader, legal pages, and styles.
+- `config/` contains Playwright configuration for browser and mocked-auth verification.
 - `tests/` contains unit, browser, authentication, and row-level-security tests.
 - `supabase/` contains the cloud-project schema and access policies.
 - `scripts/` prepares and validates the web application.
@@ -79,7 +81,7 @@ Account and cloud-project features require Supabase environment variables. See *
 
 ## Legacy Standalone Builds
 
-The files under `releases/` are retained for history, regression comparison, and recovery. They are no longer the primary product or recommended way to use DuskTranslate. New user-facing development targets the hosted web application.
+Historical HTML builds are retained on the **[`legacy-standalone` branch](https://github.com/eye9444/Dusk-Translate/tree/legacy-standalone/releases)** and in the [`v0.1.0` release](https://github.com/eye9444/Dusk-Translate/releases/tag/v0.1.0). They are no longer the primary product or recommended way to use DuskTranslate. The default branch now contains only the hosted application and its supporting files.
 
 ## Privacy and Security
 
