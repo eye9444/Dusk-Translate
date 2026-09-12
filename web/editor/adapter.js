@@ -68,10 +68,16 @@ const makeDisclosure = (label, className) => {
   const content = document.createElement('div'); content.className = 'mobile-disclosure-content';
   details.append(summary, content); return { details, content };
 };
-const providerDisclosure = makeDisclosure('AI provider and API key', 'provider-disclosure');
-providerDisclosure.content.append(...Array.from(keyBar.children));
+const [keyLabel, keyInputWrap, modelLabel, modelSelect, keyStatus] = Array.from(keyBar.children);
+keyLabel.htmlFor='api-key'; modelLabel.htmlFor='model-select'; keyStatus.setAttribute('role','status');
+const providerField = (className, label, control) => {
+  const field=document.createElement('div'); field.className=`provider-field ${className}`; field.append(label,control); return field;
+};
+const providerDisclosure = makeDisclosure('AI provider & model', 'provider-disclosure');
 const keyGuide = document.createElement('a'); keyGuide.className='api-key-guide'; keyGuide.href='/guides/api-keys.html'; keyGuide.target='_blank'; keyGuide.rel='noopener'; keyGuide.textContent='Need an API key? Open the setup guide ↗';
-providerDisclosure.content.append(keyGuide); keyBar.append(providerDisclosure.details);
+const providerFeedback=document.createElement('div'); providerFeedback.className='provider-feedback'; providerFeedback.append(keyStatus,keyGuide);
+providerDisclosure.content.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelSelect),providerFeedback);
+keyBar.append(providerDisclosure.details);
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
 for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
