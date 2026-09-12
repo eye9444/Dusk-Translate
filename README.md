@@ -46,7 +46,7 @@ Need a provider key? The app links directly to its **[API key setup guide](https
 
 ## Responsive Interface
 
-The same signed-out starting page is available on desktop and mobile. These screenshots were captured from the deployed website in a fresh browser session with no account or project data loaded.
+The website is available on desktop and mobile. The intended way to use DuskTranslate is on a pc, however it can still be used with all its capabilities on mobile.
 
 <p align="center">
   <img src="docs/screenshots/welcome-mobile.png" alt="DuskTranslate signed-out welcome screen on mobile" width="320" />
