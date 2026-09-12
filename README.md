@@ -1,45 +1,95 @@
 # DuskTranslate
 
-![DuskTranslate interface overview](docs/dusktranslate-overview.svg)
+<p align="center">
+  <a href="https://dusk-translate.vercel.app">
+    <img src="docs/screenshots/welcome-desktop.png" alt="DuskTranslate signed-out web app welcome screen" width="100%" />
+  </a>
+</p>
 
-> A focused, chapter-by-chapter workspace for translating Japanese light novels into readable English.
+<p align="center">
+  <strong>Translate EPUB books chapter by chapter, edit the result, and keep every project organized.</strong>
+</p>
 
-[![Latest release](https://img.shields.io/github/v/release/eye9444/Dusk-Translate?display_name=tag&label=latest%20release&color=c64a3c)](https://github.com/eye9444/Dusk-Translate/releases/latest)
-[![Status](https://img.shields.io/badge/status-personal%20project-29242a)](https://github.com/eye9444/Dusk-Translate)
+<p align="center">
+  <a href="https://dusk-translate.vercel.app"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
+  <img alt="Web release 0.2.0" src="https://img.shields.io/badge/web_release-v0.2.0-17120f?style=for-the-badge" />
+  <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
+</p>
 
-## What It Does
+## Open the Web App
 
-DuskTranslate is a self-contained browser app designed for long-form translation work. It keeps the source text and generated English side by side while making chapter navigation and repeated terminology easier to manage.
+**[Launch DuskTranslate](https://dusk-translate.vercel.app)** in a modern browser. No installation or downloaded HTML release is required.
 
-- Chapter-by-chapter source and translation panes
-- Glossary support for names, terms, and preferred wording
-- AI Studio and OpenRouter provider support
-- TXT and EPUB import/export workflows
-- Built-in EPUB reader for standalone books, project sources, and completed translations
-- Light and Eclipse themes
-- Optional developer logging for troubleshooting model behavior
-- No build system or local server required
+You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. Your AI-provider key is entered only when translating and remains in the current editor session rather than being stored with your account.
 
-## Try It
+## Current Web Release
 
-Try the [hosted project library](https://dusk-translate.vercel.app). It saves books, translations, glossary terms, and your current chapter in this browser. You can rename, archive, restore, back up, and resume projects. Provider API keys stay in the editor session.
+- Import EPUB, TXT, JSON project, and backup files
+- Translate Japanese source text into English chapter by chapter
+- Compare the source and editable translation side by side
+- Maintain a project glossary for names and preferred terminology
+- Save projects locally or sync them to a private signed-in library
+- Rename, archive, restore, back up, and resume projects
+- Read standalone EPUBs, source books, and completed translated books in the built-in reader
+- Export translated work as TXT or EPUB
+- Use Google AI Studio or OpenRouter models with your own API key
+- Work on desktop or mobile in light or Eclipse themes
 
-The hosted application's login and private cloud library use Supabase. They need deployment configuration before accounts can be enabled; see [hosted setup](docs/HOSTED-SETUP.md). Until then, browser-local projects work without an account.
+## Typical Workflow
 
-Download the [latest release](https://github.com/eye9444/Dusk-Translate/releases/latest), or open [`releases/current/DuskTranslate.html`](releases/current/DuskTranslate.html) directly from a local checkout.
+1. Open the website and create a project from an EPUB, TXT, or saved project file.
+2. Enter a Google AI Studio or OpenRouter API key in the translation workspace.
+3. Translate one chapter at a time, edit the output, and maintain glossary terms as needed.
+4. Return to the saved project later, read it in the built-in reader, or export the completed translation.
 
-The app runs in a modern browser. Enter your own provider API key in the app when prompted.
+Need a provider key? The app links directly to its **[API key setup guide](https://dusk-translate.vercel.app/guides/api-keys.html)** from the translation workspace.
 
-## Release Map
+## Responsive Interface
 
-| Directory | Purpose |
-| --- | --- |
-| [`releases/current`](releases/current) | Preferred build for normal use |
-| [`releases/development`](releases/development) | Active experiments and feature-test snapshots |
-| [`releases/archive`](releases/archive) | Older builds kept for comparison and recovery |
+The same signed-out starting page is available on desktop and mobile. These screenshots were captured from the deployed website in a fresh browser session with no account or project data loaded.
 
-Each HTML build is intentionally self-contained, making it easy to test a version without installing dependencies.
+<p align="center">
+  <img src="docs/screenshots/welcome-mobile.png" alt="DuskTranslate signed-out welcome screen on mobile" width="320" />
+</p>
 
-## Project Status
+## Run the Website Locally
 
-This is a personal workbench under active iteration. The current release is useful for hands-on translation, while development builds may change behavior or expose diagnostic controls.
+```bash
+npm ci
+npm run dev
+```
+
+The development server prepares the embedded editor and starts Vite locally. Use these commands to verify a change before deployment:
+
+```bash
+npm test
+npm run build
+npm run test:e2e
+```
+
+Account and cloud-project features require Supabase environment variables. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for the deployment configuration.
+
+## Active Project Structure
+
+- `web/` contains the hosted application, editor integration, EPUB reader, legal pages, and styles.
+- `tests/` contains unit, browser, authentication, and row-level-security tests.
+- `supabase/` contains the cloud-project schema and access policies.
+- `scripts/` prepares and validates the web application.
+- `docs/` contains architecture and deployment documentation.
+
+## Legacy Standalone Builds
+
+The files under `releases/` are retained for history, regression comparison, and recovery. They are no longer the primary product or recommended way to use DuskTranslate. New user-facing development targets the hosted web application.
+
+## Privacy and Security
+
+DuskTranslate does not include advertising or behavioral analytics. Account storage is optional, cloud projects are protected per user, and provider API keys are not saved with project or account data.
+
+- [Privacy Policy](https://dusk-translate.vercel.app/privacy.html)
+- [Terms and Conditions](https://dusk-translate.vercel.app/terms.html)
+- [Cookie Policy](https://dusk-translate.vercel.app/cookies.html)
+- [Architecture](docs/ARCHITECTURE.md)
+
+## Status
+
+The hosted web release is under active development. The current focus is reliability across project saving, chapter translation, EPUB reading and export, authentication, and responsive use.
