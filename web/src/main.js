@@ -13,7 +13,11 @@ authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
 const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
 const googleIntent = authReturn.searchParams.get('auth') === 'google';
 const googleRememberIntent = authReturn.searchParams.get('remember') !== 'false';
+const oauthPopup = sessionStorage.getItem('dusk-oauth-popup') === 'true';
 let authBusy = false;
+let oauthWindow = null;
+let oauthWatch = null;
+let googleOAuthStarted = false;
 let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
@@ -431,13 +435,58 @@ async function startGoogleOAuth(remember) {
   if(!data?.url)throw new Error('Could not start Google sign-in. Please try again.');
   location.assign(data.url);
 }
+async function runGoogleOAuth() {
+  if(googleOAuthStarted)return;
+  googleOAuthStarted=true;
+  try{await startGoogleOAuth(googleRememberIntent);}
+  catch(error){
+    setAuthBusy(false);$('auth-message').textContent=errorMessage(error);
+    if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'dusk:oauth-error',message:errorMessage(error)},location.origin);
+  }
+}
+window.addEventListener('message',async event=>{
+  if(event.origin!==location.origin)return;
+  if(googleIntent&&event.source===window.opener&&event.data?.type==='dusk:oauth-start'){
+    await runGoogleOAuth();return;
+  }
+  if((oauthPopup||googleIntent)&&event.source===window.opener&&event.data?.type==='dusk:oauth-ack'){
+    sessionStorage.removeItem('dusk-oauth-popup');window.close();return;
+  }
+  if(oauthWindow&&event.source===oauthWindow&&event.data?.type==='dusk:oauth-ready'){
+    event.source.postMessage({type:'dusk:oauth-start'},location.origin);return;
+  }
+  if(!oauthWindow||event.source!==oauthWindow||!['dusk:oauth-complete','dusk:oauth-error'].includes(event.data?.type))return;
+  try{
+    if(event.data.type==='dusk:oauth-error')throw new Error(event.data.message||'Google sign-in could not be completed.');
+    const {data,error}=await cloud.auth.setSession({access_token:event.data.accessToken,refresh_token:event.data.refreshToken});
+    if(error)throw error;
+    user=data.user||data.session?.user||user;
+    if($('auth-dialog').open)$('auth-dialog').close();
+    await refresh();
+    event.source.postMessage({type:'dusk:oauth-ack'},location.origin);
+  }catch(error){
+    $('auth-message').textContent=errorMessage(error);setAuthBusy(false);
+    event.source.postMessage({type:'dusk:oauth-ack'},location.origin);
+  }finally{
+    if(oauthWatch){clearInterval(oauthWatch);oauthWatch=null;}
+    oauthWindow=null;setAuthBusy(false);
+  }
+});
 $('google-auth').onclick=()=>{
   if(!cloud||authBusy)return;
   if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
+  authStorage.choose($('remember-me').checked);
   const launch=new URL('/',location.origin);launch.searchParams.set('auth','google');launch.searchParams.set('remember',String($('remember-me').checked));
-  const tab=window.open(launch,'_blank');
-  if(tab){tab.opener=null;$('auth-message').textContent='Google sign-in opened in a new tab.';}
-  else $('auth-message').textContent='Your browser blocked the sign-in tab. Allow pop-ups for this site and try again.';
+  oauthWindow=window.open(launch,'dusk-google-auth','popup=yes,width=520,height=720,resizable=yes,scrollbars=yes');
+  if(oauthWindow){
+    setAuthBusy(true);$('google-label').textContent='Waiting for Google...';$('auth-message').textContent='Complete sign-in in the Google window. This page will update automatically.';
+    oauthWatch=setInterval(()=>{
+      if(!oauthWindow?.closed)return;
+      clearInterval(oauthWatch);oauthWatch=null;oauthWindow=null;setAuthBusy(false);
+      $('auth-message').textContent='Google sign-in was closed before completion. You can try again.';
+    },500);
+  }
+  else{setAuthBusy(false);$('auth-message').textContent='Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';}
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
@@ -465,7 +514,7 @@ $('auth-form').onsubmit=async e=>{
   }catch(err){$('auth-message').textContent=errorMessage(err);}
   finally{setAuthBusy(false);}
 };
-let authError='';
+let authError='',currentSession=null;
 if(cloud){
   cloud.auth.onAuthStateChange((event,session)=>{
     const next=session?.user || null;
@@ -479,7 +528,7 @@ if(cloud){
   // The SDK exchanges PKCE codes once during initialization, including recovery links.
   const initialized=await cloud.auth.initialize();
   const {data,error}=await cloud.auth.getSession();
-  authError=initialized.error?.message||error?.message||'';user=data.session?.user || null;
+  currentSession=data.session||null;authError=initialized.error?.message||error?.message||'';user=currentSession?.user || null;
   if(authParams.has('code')&&!user&&!authError)authError='This sign-in link expired or was opened in a different browser. Start sign-in again here.';
 }
 if(isAuthReturn){
@@ -492,9 +541,12 @@ if(isAuthReturn){
   history.replaceState(history.state,'',clean);
 }
 await refresh();
-if(googleIntent&&!user){
+if(oauthPopup&&window.opener&&!window.opener.closed&&!googleIntent&&(currentSession||authError)){
+  window.opener.postMessage(currentSession?{type:'dusk:oauth-complete',accessToken:currentSession.access_token,refreshToken:currentSession.refresh_token}:{type:'dusk:oauth-error',message:authError},location.origin);
+}else if(googleIntent&&!user){
   const clean=new URL(location.href);clean.searchParams.delete('auth');clean.searchParams.delete('remember');history.replaceState(history.state,'',clean);
+  sessionStorage.setItem('dusk-oauth-popup','true');
   showAuth('signin');setAuthBusy(true);$('google-label').textContent='Opening Google...';
-  try{await startGoogleOAuth(googleRememberIntent);}
-  catch(error){setAuthBusy(false);$('auth-message').textContent=errorMessage(error);}
+  if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'dusk:oauth-ready'},location.origin);
+  else await runGoogleOAuth();
 }else if(authError){showAuth();$('auth-message').textContent=authError;}
