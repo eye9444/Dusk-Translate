@@ -15,8 +15,8 @@ body.eclipse { --muted:#aaa090; }
 @media(max-width:1320px){.provider-feedback,.key-bar::after{display:none}.host-identity{min-width:160px}}
 @media(max-width:1050px){.provider-key-field .key-input-wrap,.provider-model-field select{width:210px}}
 @media(max-width:850px){.key-bar{padding:8px;flex-wrap:wrap}.host-identity{flex:1;border-right:0}.key-bar>label{margin-left:0}}
-/* Use a high-visibility focus ring over editor light and Eclipse surfaces. */
-:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* Keep controls keyboard-visible without an orange frame that changes shape. */
+:focus-visible,button:focus,input:focus,select:focus,a:focus{outline:1px solid var(--muted);outline-offset:2px}
 .tl-out:focus-visible{outline:none}.pane:has(.tl-out:focus){box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 68%,transparent)}
 .src-txt,.ch-title{user-select:text;-webkit-user-select:text}
 .dictionary-toggle{display:grid;place-items:center;width:34px;height:34px;margin:0;padding:7px;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--ink);cursor:pointer}.dictionary-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.dictionary-toggle:hover{background:var(--ink);color:var(--paper)}

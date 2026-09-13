@@ -113,6 +113,7 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
   expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+  await editor.locator('#api-key').focus();await expect(editor.locator('#api-key')).toHaveCSS('outline-width','1px');
 });
 test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
@@ -123,6 +124,7 @@ test('Japanese source is selectable and includes the Yomitan iframe setup note',
   await expect(page.locator('#dictionary-dialog')).toContainText('hold Shift and hover');
   const popup=await page.locator('#dictionary-dialog').boundingBox();expect(popup.width).toBeLessThanOrEqual(420);expect(popup.x+popup.width).toBeGreaterThan(1200);
   expect(parseFloat(await page.locator('.dictionary-help p').first().evaluate(element=>getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(15);
+  await page.getByRole('button',{name:'Close Japanese lookup'}).focus();await expect(page.getByRole('button',{name:'Close Japanese lookup'})).toHaveCSS('outline-width','1px');
   await page.mouse.click(20,400);await expect(page.locator('#dictionary-dialog')).not.toBeVisible();
   await editor.getByRole('button',{name:'Yomitan dictionary setup',exact:true}).click();
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('href','https://yomitan.wiki/getting-started/');
