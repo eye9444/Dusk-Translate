@@ -315,9 +315,14 @@ async function flush() {
 let draftQueue = Promise.resolve();
 function openDictionary() {
   if (!active) return;
-  if(!$('dictionary-dialog').open)$('dictionary-dialog').showModal();
+  const dialog=$('dictionary-dialog');
+  if(dialog.open)dialog.close();else dialog.showModal();
 }
-$('dictionary-dialog').addEventListener('click',event=>{if(event.target===$('dictionary-dialog'))$('dictionary-dialog').close();});
+const dictionaryDialog=$('dictionary-dialog');
+dictionaryDialog.addEventListener('click',event=>{
+  const box=dictionaryDialog.getBoundingClientRect();
+  if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dictionaryDialog.close();
+});
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
   if (e.data.type === 'editor:action') {
