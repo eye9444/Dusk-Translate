@@ -20,7 +20,7 @@ test('static policy and setup pages use the shared slim scrollbar',async({page})
   for(const [path] of pages){
     await page.goto(path);
     await expect(page.locator('html')).toHaveCSS('scrollbar-width','thin');
-    await expect(page.locator('html')).toHaveCSS('scrollbar-color',/rgba?\(/);
+    await expect(page.locator('html')).toHaveCSS('scrollbar-color',/rgba\(0, 0, 0, 0\)|transparent/);
   }
 });
 
