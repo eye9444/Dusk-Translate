@@ -53,7 +53,9 @@ The home screen uses a wide frosted-glass window with Manrope UI text and Newsre
 
 ## Yomitan dictionary support
 
-The hosted editor keeps Japanese source text selectable and marks it as Japanese so Yomitan can scan it in place. Use the editor's **Dictionary** action for setup instructions. On desktop, the default Yomitan gesture is Shift plus hover; supported mobile browsers use touch. Yomitan still needs to be installed separately with at least one Japanese dictionary. DuskTranslate does not load Yomitan, access its history, or proxy dictionary searches.
+The hosted editor keeps Japanese source text selectable and marks it as Japanese. Use the editor's **Dictionary** action to copy the active chapter into a selectable panel in the top-level DuskTranslate page, where Yomitan can scan without being confined to the editor iframe. On desktop, the default Yomitan gesture is Shift plus hover; supported mobile browsers use touch. Yomitan still needs to be installed separately with at least one Japanese dictionary. DuskTranslate does not load Yomitan, access its history, or proxy dictionary searches.
+
+To scan directly inside the split editor, enable Yomitan's advanced **Show iframe popups in the root frame** setting. Yomitan disables this option by default, which can leave its popup constrained or clipped by the editor iframe.
 
 Use the official [Yomitan getting-started guide](https://yomitan.wiki/getting-started/). Browser support varies, especially on mobile, so do not promise extension support on every browser.
 

@@ -85,20 +85,14 @@ keyBar.append(providerDisclosure.details);
 // Japanese DOM text rather than a canvas or custom rendering surface.
 const sourceText=document.getElementById('src-txt');
 sourceText.lang='ja';sourceText.setAttribute('translate','no');
-const dictionaryDialog=document.createElement('dialog');dictionaryDialog.id='dictionary-dialog';dictionaryDialog.className='dictionary-dialog';dictionaryDialog.setAttribute('aria-labelledby','dictionary-title');
-const dictionaryPanel=document.createElement('div');dictionaryPanel.className='dictionary-panel';
-const dictionaryKicker=document.createElement('p');dictionaryKicker.className='dictionary-kicker';dictionaryKicker.textContent='JAPANESE LOOKUP';
-const dictionaryTitle=document.createElement('h2');dictionaryTitle.id='dictionary-title';dictionaryTitle.textContent='Use Yomitan in the source pane';
-const dictionaryIntro=document.createElement('p');dictionaryIntro.textContent='DuskTranslate keeps Japanese source text selectable so Yomitan can scan it directly without sending the book to another service.';
-const dictionarySteps=document.createElement('ol');
-['Install Yomitan and add a Japanese dictionary.','On desktop, hold Shift and hover a word in the source pane.','On supported mobile browsers, touch Japanese text to open the lookup popup.'].forEach(text=>{const item=document.createElement('li');item.textContent=text;dictionarySteps.append(item);});
-const dictionaryNote=document.createElement('p');dictionaryNote.className='dictionary-note';dictionaryNote.textContent='Yomitan is an independent browser extension. DuskTranslate does not install it, read its dictionary history, or receive data from it.';
-const dictionaryActions=document.createElement('div');dictionaryActions.className='dictionary-actions';
-const dictionaryGuide=document.createElement('a');dictionaryGuide.href='https://yomitan.wiki/getting-started/';dictionaryGuide.target='_blank';dictionaryGuide.rel='noopener';dictionaryGuide.textContent='Open Yomitan setup ↗';
-const dictionaryClose=document.createElement('button');dictionaryClose.type='button';dictionaryClose.textContent='Close';dictionaryClose.onclick=()=>dictionaryDialog.close();
-dictionaryActions.append(dictionaryGuide,dictionaryClose);dictionaryPanel.append(dictionaryKicker,dictionaryTitle,dictionaryIntro,dictionarySteps,dictionaryNote,dictionaryActions);dictionaryDialog.append(dictionaryPanel);document.body.append(dictionaryDialog);
-const showDictionary=()=>{if(!dictionaryDialog.open)dictionaryDialog.showModal();};
-dictionaryDialog.addEventListener('click',event=>{if(event.target===dictionaryDialog)dictionaryDialog.close();});
+// Open a top-level lookup surface. Yomitan otherwise creates its popup inside
+// this iframe by default, where the popup can be clipped by the editor bounds.
+const showDictionary=()=>{
+  const chapter=novel?.chapters?.[cur];
+  if(!chapter)return;
+  const firstLine=chapter.text.split('\n').find(line=>line.trim().length>2)?.trim();
+  send('editor:dictionary',{chapterId:chapter.id,chapterTitle:firstLine||chapter.id,text:chapter.text});
+};
 
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
@@ -106,7 +100,7 @@ for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
 const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
 const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
 const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');action();}; return button; };
-menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Japanese dictionary',showDictionary),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
+menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
 editorMenu.append(menuButton,menu);
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;

@@ -49,6 +49,20 @@
       </div>
     </main>
   <section id="workspace" hidden><div class="workspace-meta" hidden><button id="back">Library</button><strong id="project-title"></strong><span id="save-status" role="status">Loading…</span><button id="save-now">Save now</button><button id="backup">Download backup</button></div><iframe id="editor" title="Chapter translation workspace" allow="clipboard-write"></iframe></section>
+  <dialog id="dictionary-dialog" class="dictionary-dialog" aria-labelledby="dictionary-title">
+    <section class="dictionary-shell">
+      <header class="dictionary-header">
+        <div><p class="eyebrow">YOMITAN LOOKUP · <span id="dictionary-chapter-id"></span></p><h2 id="dictionary-title">Japanese source</h2></div>
+        <button type="button" data-close aria-label="Close Japanese lookup">Close</button>
+      </header>
+      <div class="dictionary-help">
+        <p><strong>Hold Shift and hover over Japanese text below.</strong> This copy is shown in the main page so Yomitan is not confined to the editor iframe.</p>
+        <p>If no popup appears, confirm Yomitan has a dictionary installed and text scanning is enabled. Direct scanning inside the editor also requires Yomitan's advanced <strong>Show iframe popups in the root frame</strong> option.</p>
+      </div>
+      <article id="dictionary-source" class="dictionary-source" lang="ja" translate="no" tabindex="0" aria-label="Japanese chapter text for Yomitan lookup"></article>
+      <footer class="dictionary-footer"><span>DuskTranslate does not receive your lookup history.</span><a href="https://yomitan.wiki/getting-started/" target="_blank" rel="noopener">Open Yomitan setup ↗</a></footer>
+    </section>
+  </dialog>
   <dialog id="project-dialog"><form id="project-form"><p class="eyebrow">A NEW CHAPTER</p><h2>Start a project</h2><label>Project title<input id="new-title" maxlength="120" required placeholder="The book you are working on"></label><label class="upload">Original book or project backup<input id="new-file" type="file" accept=".epub,.json,.txt,.zip" required><small>EPUB, source JSON, TXT, or backup ZIP · up to 20 MB.<br>Your original file is kept for future exports.</small></label><p id="new-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="create-submit">Create project</button></div></form></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title"><form id="auth-form">
     <p class="eyebrow">YOUR PERSONAL LIBRARY</p><h2 id="auth-title">Welcome back.</h2>
