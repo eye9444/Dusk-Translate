@@ -234,7 +234,7 @@ The self-contained translation engine source. It contains the chapter workspace 
 
 #### `web/editor/adapter.js`
 
-The hosted integration layer injected into the engine. It adds the project menu, branded identity, API-key guide, Yomitan-compatible Japanese source metadata and top-level lookup request, desktop/mobile provider layout, control disclosures, safer import checks, host actions, manual-edit tracking, partial-stream handling, and same-origin snapshot messaging.
+The hosted integration layer injected into the engine. It adds the project menu, branded identity, API-key guide, Yomitan-compatible Japanese source metadata and setup action, desktop/mobile provider layout, control disclosures, safer import checks, host actions, manual-edit tracking, partial-stream handling, and same-origin snapshot messaging.
 
 #### `web/editor/adapter.css`
 

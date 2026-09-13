@@ -85,14 +85,7 @@ keyBar.append(providerDisclosure.details);
 // Japanese DOM text rather than a canvas or custom rendering surface.
 const sourceText=document.getElementById('src-txt');
 sourceText.lang='ja';sourceText.setAttribute('translate','no');
-// Open a top-level lookup surface. Yomitan otherwise creates its popup inside
-// this iframe by default, where the popup can be clipped by the editor bounds.
-const showDictionary=()=>{
-  const chapter=novel?.chapters?.[cur];
-  if(!chapter)return;
-  const firstLine=chapter.text.split('\n').find(line=>line.trim().length>2)?.trim();
-  send('editor:dictionary',{chapterId:chapter.id,chapterTitle:firstLine||chapter.id,text:chapter.text});
-};
+const showDictionary=()=>send('editor:dictionary');
 
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
@@ -113,7 +106,7 @@ keyBar.prepend(editorMenu,editorIdentity);
 const legacyHeader = document.querySelector('header');
 const headerActions = document.createElement('div'); headerActions.className='host-header-actions';
 const glossaryButton = legacyHeader?.querySelector('.glossary-toggle'); const themeButton = document.getElementById('theme-btn');
-const dictionaryButton=document.createElement('button');dictionaryButton.type='button';dictionaryButton.className='dictionary-toggle';dictionaryButton.textContent='Dictionary';dictionaryButton.setAttribute('aria-haspopup','dialog');dictionaryButton.onclick=showDictionary;
+const dictionaryButton=document.createElement('button');dictionaryButton.type='button';dictionaryButton.className='dictionary-toggle';dictionaryButton.setAttribute('aria-label','Yomitan dictionary setup');dictionaryButton.title='Yomitan dictionary setup';dictionaryButton.setAttribute('aria-haspopup','dialog');dictionaryButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a3 3 0 0 1 3 3v14a3 3 0 0 0-3-3H4z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H14v17a3 3 0 0 1 3-3h3z"/></svg>';dictionaryButton.onclick=showDictionary;
 headerActions.append(saveStatus);
 headerActions.append(dictionaryButton);
 if (glossaryButton) headerActions.append(glossaryButton);

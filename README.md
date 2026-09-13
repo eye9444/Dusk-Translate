@@ -33,7 +33,7 @@ You can use the local library without an account, or sign in with Google or emai
 - Read standalone EPUBs, source books, and completed translated books in the built-in reader
 - Export translated work as TXT or EPUB
 - Use Google AI Studio or OpenRouter models with your own API key
-- Scan selectable Japanese source text with Yomitan in a top-level chapter lookup panel
+- Scan selectable Japanese source text with Yomitan using the documented iframe setting
 - Work on desktop or mobile in light or Eclipse themes
 
 ## Typical Workflow

@@ -114,15 +114,13 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
 });
-test('Japanese source is selectable and opens a top-level Yomitan lookup surface',async({page})=>{
+test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
   await expect(editor.locator('#src-txt')).toHaveAttribute('lang','ja');await expect(editor.locator('#src-txt')).toHaveAttribute('translate','no');
   await expect(editor.locator('#src-txt')).toHaveCSS('user-select','text');
-  await editor.getByRole('button',{name:'Dictionary',exact:true}).click();await expect(page.locator('#dictionary-dialog')).toBeVisible();
-  await expect(page.locator('#dictionary-dialog')).toContainText('Hold Shift and hover');
-  await expect(page.locator('#dictionary-source')).toContainText('テストの文章です');
-  await expect(page.locator('#dictionary-source')).toHaveAttribute('lang','ja');
-  await expect(page.locator('#dictionary-source')).toHaveCSS('user-select','text');
+  await editor.getByRole('button',{name:'Yomitan dictionary setup',exact:true}).click();await expect(page.locator('#dictionary-dialog')).toBeVisible();
+  await expect(page.locator('#dictionary-dialog')).toContainText('Show iframe popups in the root frame');
+  await expect(page.locator('#dictionary-dialog')).toContainText('hold Shift and hover');
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('href','https://yomitan.wiki/getting-started/');
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('target','_blank');
   await page.getByRole('button',{name:'Close Japanese lookup'}).click();await expect(page.locator('#dictionary-dialog')).not.toBeVisible();

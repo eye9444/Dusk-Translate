@@ -29,7 +29,7 @@ On narrow screens the adapter groups provider settings, chapter navigation, and 
 
 Google OAuth redirects the current tab to Google and returns it to the application. The same browser context therefore creates and exchanges the PKCE verifier. A checked remember-me choice stores the Supabase session in localStorage; an unchecked choice uses sessionStorage for the current tab only.
 
-The source pane and generated chapter titles are ordinary selectable DOM text marked with `lang="ja"`. The Dictionary action sends the active chapter through the existing same-origin host message channel and renders it as selectable text in a top-level dialog. This avoids Yomitan's default behavior of constraining iframe popups to the embedded editor. DuskTranslate does not embed a third-party dictionary script or send lookup text to another API.
+The source pane and generated chapter titles are ordinary selectable DOM text marked with `lang="ja"`. The book-icon Dictionary action opens a top-level setup note explaining that Yomitan's advanced **Show iframe popups in the root frame** option is required for the embedded editor. DuskTranslate does not embed a third-party dictionary script or send lookup text to another API.
 
 ## Static pages
 

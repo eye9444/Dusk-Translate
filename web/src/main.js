@@ -313,13 +313,9 @@ async function flush() {
   await saveTask; saveTask=null;
 }
 let draftQueue = Promise.resolve();
-function openDictionary({chapterId='',chapterTitle='',text=''}) {
-  if (!active || typeof text !== 'string') return;
-  $('dictionary-chapter-id').textContent=chapterId;
-  $('dictionary-title').textContent=chapterTitle || 'Japanese source';
-  $('dictionary-source').textContent=text;
+function openDictionary() {
+  if (!active) return;
   if(!$('dictionary-dialog').open)$('dictionary-dialog').showModal();
-  $('dictionary-source').focus({preventScroll:true});
 }
 $('dictionary-dialog').addEventListener('click',event=>{if(event.target===$('dictionary-dialog'))$('dictionary-dialog').close();});
 window.addEventListener('message', e => {
@@ -331,7 +327,7 @@ window.addEventListener('message', e => {
     return;
   }
   if (e.data.type === 'editor:dictionary') {
-    if (e.data.projectId === active.id) openDictionary(e.data);
+    if (e.data.projectId === active.id) openDictionary();
     return;
   }
   if (e.data.type === 'editor:ready') {
