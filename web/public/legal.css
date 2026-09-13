@@ -1,11 +1,8 @@
 /* Shared layout for the static policy and API-key guide pages. */
 :root{color-scheme:light;--paper:#f7f5ef;--ink:#25231f;--muted:#69665d;--line:#d9d4c8;--accent:#b94e36;--panel:#fffdf8}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;scrollbar-width:thin;scrollbar-color:var(--muted) transparent}
-html::-webkit-scrollbar{width:9px;background:transparent}
-html::-webkit-scrollbar-track,html::-webkit-scrollbar-track-piece,html::-webkit-scrollbar-corner{background:transparent;border:0;box-shadow:none}
-html::-webkit-scrollbar-thumb{background:var(--muted);border:2px solid transparent;border-radius:99px;background-clip:padding-box}
-html::-webkit-scrollbar-thumb:hover{background:var(--accent);background-clip:padding-box}
+html{scroll-behavior:smooth;scrollbar-width:none}
+html::-webkit-scrollbar{display:none}
 body{margin:0;color:var(--ink);background:radial-gradient(circle at 10% 0,#dce8e2 0,transparent 35%),radial-gradient(circle at 90% 100%,#ecd0bd 0,transparent 38%),var(--paper);font:16px/1.7 Manrope,system-ui,sans-serif}
 a{color:var(--accent);text-underline-offset:3px}
 a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
