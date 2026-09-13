@@ -124,7 +124,7 @@ test('Japanese source is selectable and includes the Yomitan iframe setup note',
   await expect(page.locator('#dictionary-dialog')).toContainText('hold Shift and hover');
   const popup=await page.locator('#dictionary-dialog').boundingBox();expect(popup.width).toBeLessThanOrEqual(420);expect(popup.x+popup.width).toBeGreaterThan(1200);
   expect(parseFloat(await page.locator('.dictionary-help p').first().evaluate(element=>getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(15);
-  await page.getByRole('button',{name:'Close Japanese lookup'}).focus();await expect(page.getByRole('button',{name:'Close Japanese lookup'})).toHaveCSS('outline-width','1px');
+  await page.getByRole('button',{name:'Close Japanese lookup'}).focus();await expect(page.getByRole('button',{name:'Close Japanese lookup'})).toHaveCSS('outline-style','none');
   await page.mouse.click(20,400);await expect(page.locator('#dictionary-dialog')).not.toBeVisible();
   await editor.getByRole('button',{name:'Yomitan dictionary setup',exact:true}).click();
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('href','https://yomitan.wiki/getting-started/');
