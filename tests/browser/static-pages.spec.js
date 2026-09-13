@@ -16,11 +16,10 @@ test('static policy and setup pages are directly reachable',async({page})=>{
   }
 });
 
-test('static policy and setup pages use the shared slim scrollbar',async({page})=>{
+test('static policy and setup pages hide the document scrollbar',async({page})=>{
   for(const [path] of pages){
     await page.goto(path);
-    await expect(page.locator('html')).toHaveCSS('scrollbar-width','thin');
-    await expect(page.locator('html')).toHaveCSS('scrollbar-color',/rgba\(0, 0, 0, 0\)|transparent/);
+    await expect(page.locator('html')).toHaveCSS('scrollbar-width','none');
   }
 });
 
