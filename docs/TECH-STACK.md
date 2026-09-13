@@ -176,7 +176,7 @@ A PGlite database test that adapts and runs the migration locally. It verifies o
 
 #### `tests/auth/auth.spec.js`
 
-Playwright scenarios for email signup, consent, rejected credentials, login/logout, password reset, Google popup PKCE, callback errors, session return to the opener, remember-me behavior, and responsive account dialogs.
+Playwright scenarios for email signup, consent, rejected credentials, login/logout, password reset, same-tab Google PKCE, callback errors, remembered-session restoration in a fresh browser context, tab-only sessions, and responsive account dialogs.
 
 #### `tests/auth/cloud.spec.js`
 
@@ -234,7 +234,7 @@ The self-contained translation engine source. It contains the chapter workspace 
 
 #### `web/editor/adapter.js`
 
-The hosted integration layer injected into the engine. It adds the project menu, branded identity, API-key guide, desktop/mobile provider layout, control disclosures, safer import checks, host actions, manual-edit tracking, partial-stream handling, and same-origin snapshot messaging.
+The hosted integration layer injected into the engine. It adds the project menu, branded identity, API-key guide, Yomitan-compatible Japanese source metadata and Dictionary guide, desktop/mobile provider layout, control disclosures, safer import checks, host actions, manual-edit tracking, partial-stream handling, and same-origin snapshot messaging.
 
 #### `web/editor/adapter.css`
 
@@ -244,7 +244,7 @@ The hosted editor override stylesheet. It removes duplicated standalone controls
 
 #### `web/src/main.js`
 
-The application coordinator. It controls themes, welcome/library rendering, filtering and layouts, project CRUD, IndexedDB/cloud selection, autosave and draft recovery, editor messages, backups, EPUB reader state and font controls, authentication dialogs, email flows, Google popup OAuth, and navigation safety.
+The application coordinator. It controls themes, welcome/library rendering, filtering and layouts, project CRUD, IndexedDB/cloud selection, autosave and draft recovery, editor messages, backups, EPUB reader state and font controls, authentication dialogs, email flows, same-tab Google OAuth, and navigation safety.
 
 #### `web/src/store.js`
 

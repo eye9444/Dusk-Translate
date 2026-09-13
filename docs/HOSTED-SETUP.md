@@ -21,7 +21,7 @@ Auth uses the Supabase browser session. This login session is separate from AI-p
 
 ## Enable Google sign-in and sign-up
 
-The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate. Before redirecting, the button checks Supabase's public provider settings and explains if Google still needs enabling.
+The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate. Before redirecting the current tab, the button checks Supabase's public provider settings and explains if Google still needs enabling.
 
 1. Complete the Supabase account setup above first. Without those environment variables, both email and Google buttons are disabled; the browser-local library still works.
 2. In Google Cloud, configure the OAuth consent screen for your project and create an OAuth client of type **Web application**. If the consent app is in Testing, add your demo users as test users.
@@ -30,7 +30,16 @@ The same **Continue with Google** button signs in returning users and creates ac
 5. Set Supabase's Site URL to `https://dusk-translate.vercel.app/` and allow that URL as a redirect. Add your exact localhost URL for local testing. The SDK may attach an `sb_flow_id` query parameter; if needed, allow `https://dusk-translate.vercel.app/?sb_flow_id=*` as well, without wildcarding unrelated hosts.
 6. Redeploy after setting the two Vercel Supabase variables. Verify with a real Google test account: sign up, sign out, sign back in, reload, and confirm its private library returns. Check another account cannot see its projects.
 
-OAuth uses PKCE: the SDK exchanges the returned code using a verifier kept in the initiating browser. Use the same browser for email confirmation and password-reset links too. Cancelled and expired callbacks display a retry message; callback parameters are removed from the address bar after handling. Local projects are not automatically uploaded when you log in.
+OAuth uses PKCE: the current tab goes to Google and returns to DuskTranslate, where the SDK exchanges the returned code using a verifier kept in that browser. Use the same browser for email confirmation and password-reset links too. Cancelled and expired callbacks display a retry message; callback parameters are removed from the address bar after handling. Local projects are not automatically uploaded when you log in.
+
+### Brand the Google sign-in screen
+
+Google shows two different pieces of identity and they are configured separately:
+
+- Configure the app name, logo, home page, privacy policy, terms, and authorized domain in the Google Auth Platform **Branding** section. Complete brand verification when Google requests it. This makes the OAuth application identify itself as DuskTranslate.
+- The line that currently says `continue to <project-ref>.supabase.co` comes from Supabase's OAuth callback hostname. Replacing that hostname requires a Supabase custom domain such as `auth.example.com`. Supabase currently offers custom domains as a paid add-on for projects on a paid plan.
+
+Before activating a custom domain, add both the existing Supabase callback and the new custom-domain callback to the Google OAuth client's authorized redirect URIs. After activation, Supabase Auth advertises the custom hostname; the original project hostname remains available. Follow the official [Supabase custom-domain guide](https://supabase.com/docs/guides/platform/custom-domains) rather than changing only `redirectTo` in frontend code.
 
 See the official [Supabase Google setup guide](https://supabase.com/docs/guides/auth/social-login/auth-google) and [redirect URL configuration](https://supabase.com/docs/guides/auth/redirect-urls).
 
@@ -41,6 +50,12 @@ The reading-room home page has Library/Archive navigation, project counts, a lat
 The home screen uses a wide frosted-glass window with Manrope UI text and Newsreader headings. Eclipse uses black surfaces and fiery orange accents. Signed-out visitors see a welcome page, not the project menu. An explicit device-only option keeps existing local work accessible without an account. The original vector logo in `web/public/brand/dusk-mark.svg` combines an open book and a setting sun and is also the favicon. Google credential downloads under `supabase/google cloud/` are excluded from Git and Vercel uploads.
 
 **Remember me** keeps Supabase authentication in localStorage when checked and in sessionStorage when unchecked. Unchecked sessions normally end with the browser tab, although browser session-restore features can restore them; explicitly sign out on shared devices. This choice never stores AI keys or removes project files. OAuth and email links must still return to the initiating browser for PKCE.
+
+## Yomitan dictionary support
+
+The hosted editor keeps Japanese source text selectable and marks it as Japanese so Yomitan can scan it in place. Use the editor's **Dictionary** action for setup instructions. On desktop, the default Yomitan gesture is Shift plus hover; supported mobile browsers use touch. Yomitan still needs to be installed separately with at least one Japanese dictionary. DuskTranslate does not load Yomitan, access its history, or proxy dictionary searches.
+
+Use the official [Yomitan getting-started guide](https://yomitan.wiki/getting-started/). Browser support varies, especially on mobile, so do not promise extension support on every browser.
 
 Cloud writes first retain a local draft. If syncing fails, the library preserves that draft and shows a pending-sync label. You can return to the library after confirming the draft was saved locally, reopen it, and retry with Save now. A failed library fetch shows locally cached account projects instead of an empty list. Revision conflicts never overwrite a newer remote revision; keep a backup when resolving them.
 

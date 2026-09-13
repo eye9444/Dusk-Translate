@@ -66,3 +66,15 @@ test('unchecked remember me keeps login tokens out of persistent storage',async(
   expect(tokens.persistent).toBeNull();expect(tokens.session).toBeTruthy();await page.reload();await expect(page.locator('#account')).toHaveText('Sign out');
   await page.locator('#account').click();await expect(page.locator('#welcome')).toBeVisible();await expect(page.locator('#library')).toBeHidden();
 });
+test('remembered login restores in a fresh browser session without signing in again',async({page,context,browser})=>{
+  const state={};await backend(context,state);await signin(page,true);
+  const savedBrowserState=await context.storageState();
+  const freshContext=await browser.newContext({baseURL:'http://127.0.0.1:4174',storageState:savedBrowserState});
+  await backend(freshContext,state);
+  try{
+    const freshPage=await freshContext.newPage();await freshPage.goto('/');
+    await expect(freshPage.locator('#account')).toHaveText('Sign out');
+    await expect(freshPage.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');
+    await expect(freshPage.locator('#storage-info')).toContainText(user.email);
+  }finally{await freshContext.close();}
+});

@@ -7,7 +7,7 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const authStorage=createAuthStorage(localStorage,sessionStorage);
 if(url)authStorage.setPrefix(`sb-${new URL(url).hostname.split('.')[0]}-auth-token`);
 export const cloud = url && key ? createClient(url, key, {
-  auth: { flowType: 'pkce', detectSessionInUrl: true, storage:authStorage }
+  auth: { flowType:'pkce', detectSessionInUrl:true, persistSession:true, autoRefreshToken:true, storage:authStorage }
 }) : null;
 export async function googleAvailable() {
   const response = await fetch(`${url}/auth/v1/settings`, {

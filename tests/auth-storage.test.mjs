@@ -10,3 +10,11 @@ test('remember me moves only auth credentials between persistent and session sto
   storage.choose(true);assert.equal(local.getItem('sb-example-auth-token'),'session');assert.equal(session.getItem('sb-example-auth-token'),null);
   assert.equal(createAuthStorage(local,memory()).getItem('sb-example-auth-token'),'session');storage.removeItem('sb-example-auth-token');assert.equal(storage.getItem('sb-example-auth-token'),null);
 });
+test('a stale tab preference cannot hide a remembered login',()=>{
+  const local=memory(),staleSession=memory();
+  local.setItem('dusk-remember-me','true');local.setItem('sb-example-auth-token','persistent-session');
+  staleSession.setItem('dusk-remember-me','false');
+  const storage=createAuthStorage(local,staleSession);storage.setPrefix('sb-example-auth-token');
+  assert.equal(storage.remembered(),true);assert.equal(storage.getItem('sb-example-auth-token'),'persistent-session');
+  storage.choose(true);assert.equal(staleSession.getItem('dusk-remember-me'),null);
+});

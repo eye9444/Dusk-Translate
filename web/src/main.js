@@ -11,13 +11,7 @@ const authReturn = new URL(location.href);
 const authParams = new URLSearchParams(authReturn.hash.slice(1));
 authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
 const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
-const googleIntent = authReturn.searchParams.get('auth') === 'google';
-const googleRememberIntent = authReturn.searchParams.get('remember') !== 'false';
-const oauthPopup = sessionStorage.getItem('dusk-oauth-popup') === 'true';
 let authBusy = false;
-let oauthWindow = null;
-let oauthWatch = null;
-let googleOAuthStarted = false;
 let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
@@ -428,65 +422,20 @@ async function startGoogleOAuth(remember) {
   if(!cloud)throw new Error('Cloud accounts are not configured on this deployment yet.');
   authStorage.choose(remember);
   if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
-  const {data,error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
-    redirectTo:location.origin+'/',skipBrowserRedirect:true,queryParams:{prompt:'select_account'}
+  const {error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
+    redirectTo:new URL('/',location.origin).href
   }});
   if(error)throw error;
-  if(!data?.url)throw new Error('Could not start Google sign-in. Please try again.');
-  location.assign(data.url);
 }
-async function runGoogleOAuth() {
-  if(googleOAuthStarted)return;
-  googleOAuthStarted=true;
-  try{await startGoogleOAuth(googleRememberIntent);}
-  catch(error){
-    setAuthBusy(false);$('auth-message').textContent=errorMessage(error);
-    if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'dusk:oauth-error',message:errorMessage(error)},location.origin);
-  }
-}
-window.addEventListener('message',async event=>{
-  if(event.origin!==location.origin)return;
-  if(googleIntent&&event.source===window.opener&&event.data?.type==='dusk:oauth-start'){
-    await runGoogleOAuth();return;
-  }
-  if((oauthPopup||googleIntent)&&event.source===window.opener&&event.data?.type==='dusk:oauth-ack'){
-    sessionStorage.removeItem('dusk-oauth-popup');window.close();return;
-  }
-  if(oauthWindow&&event.source===oauthWindow&&event.data?.type==='dusk:oauth-ready'){
-    event.source.postMessage({type:'dusk:oauth-start'},location.origin);return;
-  }
-  if(!oauthWindow||event.source!==oauthWindow||!['dusk:oauth-complete','dusk:oauth-error'].includes(event.data?.type))return;
-  try{
-    if(event.data.type==='dusk:oauth-error')throw new Error(event.data.message||'Google sign-in could not be completed.');
-    const {data,error}=await cloud.auth.setSession({access_token:event.data.accessToken,refresh_token:event.data.refreshToken});
-    if(error)throw error;
-    user=data.user||data.session?.user||user;
-    if($('auth-dialog').open)$('auth-dialog').close();
-    await refresh();
-    event.source.postMessage({type:'dusk:oauth-ack'},location.origin);
-  }catch(error){
-    $('auth-message').textContent=errorMessage(error);setAuthBusy(false);
-    event.source.postMessage({type:'dusk:oauth-ack'},location.origin);
-  }finally{
-    if(oauthWatch){clearInterval(oauthWatch);oauthWatch=null;}
-    oauthWindow=null;setAuthBusy(false);
-  }
-});
-$('google-auth').onclick=()=>{
+$('google-auth').onclick=async()=>{
   if(!cloud||authBusy)return;
   if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
-  authStorage.choose($('remember-me').checked);
-  const launch=new URL('/',location.origin);launch.searchParams.set('auth','google');launch.searchParams.set('remember',String($('remember-me').checked));
-  oauthWindow=window.open(launch,'dusk-google-auth','popup=yes,width=520,height=720,resizable=yes,scrollbars=yes');
-  if(oauthWindow){
-    setAuthBusy(true);$('google-label').textContent='Waiting for Google...';$('auth-message').textContent='Complete sign-in in the Google window. This page will update automatically.';
-    oauthWatch=setInterval(()=>{
-      if(!oauthWindow?.closed)return;
-      clearInterval(oauthWatch);oauthWatch=null;oauthWindow=null;setAuthBusy(false);
-      $('auth-message').textContent='Google sign-in was closed before completion. You can try again.';
-    },500);
+  setAuthBusy(true);$('google-label').textContent='Redirecting to Google...';$('auth-message').textContent='Taking you to Google. You will return to this page after signing in.';
+  try{
+    await startGoogleOAuth($('remember-me').checked);
+  }catch(error){
+    setAuthBusy(false);$('auth-message').textContent=errorMessage(error);
   }
-  else{setAuthBusy(false);$('auth-message').textContent='Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';}
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
@@ -541,12 +490,4 @@ if(isAuthReturn){
   history.replaceState(history.state,'',clean);
 }
 await refresh();
-if(oauthPopup&&window.opener&&!window.opener.closed&&!googleIntent&&(currentSession||authError)){
-  window.opener.postMessage(currentSession?{type:'dusk:oauth-complete',accessToken:currentSession.access_token,refreshToken:currentSession.refresh_token}:{type:'dusk:oauth-error',message:authError},location.origin);
-}else if(googleIntent&&!user){
-  const clean=new URL(location.href);clean.searchParams.delete('auth');clean.searchParams.delete('remember');history.replaceState(history.state,'',clean);
-  sessionStorage.setItem('dusk-oauth-popup','true');
-  showAuth('signin');setAuthBusy(true);$('google-label').textContent='Opening Google...';
-  if(window.opener&&!window.opener.closed)window.opener.postMessage({type:'dusk:oauth-ready'},location.origin);
-  else await runGoogleOAuth();
-}else if(authError){showAuth();$('auth-message').textContent=authError;}
+if(authError){showAuth();$('auth-message').textContent=authError;}

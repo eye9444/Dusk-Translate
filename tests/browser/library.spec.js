@@ -98,6 +98,7 @@ test('mobile editor collapses controls and gives source and translation equal sc
   expect(translation.y).toBeGreaterThan(source.y);expect(Math.abs(source.height-translation.height)).toBeLessThanOrEqual(2);
   await expect(editor.locator('#src-txt')).toHaveCSS('overflow-y','auto');await expect(editor.locator('#tl-out')).toHaveCSS('overflow-y','auto');
   await editor.locator('#tl-out').focus();await expect(editor.locator('#tl-out')).toHaveCSS('outline-style','none');await expect(editor.locator('.pane:not(.pane-left)')).not.toHaveCSS('box-shadow','none');
+  await editor.locator('#host-menu').click();await expect(editor.locator('#host-dictionary')).toBeVisible();await editor.locator('#host-dictionary').click();await expect(editor.locator('#dictionary-dialog')).toBeVisible();await editor.getByRole('button',{name:'Close',exact:true}).click();
   await editor.locator('.provider-disclosure summary').click();await expect(editor.locator('.api-key-guide')).toBeVisible();await expect(editor.locator('.api-key-guide')).toHaveAttribute('target','_blank');
   const provider=await editor.locator('.provider-disclosure .mobile-disclosure-content').boundingBox(),keyField=await editor.locator('.provider-key-field').boundingBox(),modelField=await editor.locator('.provider-model-field').boundingBox();
   expect(modelField.y).toBeGreaterThan(keyField.y+keyField.height);expect(keyField.width).toBeLessThanOrEqual(provider.width);expect(modelField.width).toBeLessThanOrEqual(provider.width);
@@ -112,6 +113,16 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
   expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+});
+test('Japanese source is selectable and includes an accessible Yomitan guide',async({page})=>{
+  await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
+  await expect(editor.locator('#src-txt')).toHaveAttribute('lang','ja');await expect(editor.locator('#src-txt')).toHaveAttribute('translate','no');
+  await expect(editor.locator('#src-txt')).toHaveCSS('user-select','text');
+  await editor.getByRole('button',{name:'Dictionary',exact:true}).click();await expect(editor.locator('#dictionary-dialog')).toBeVisible();
+  await expect(editor.locator('#dictionary-dialog')).toContainText('hold Shift and hover');
+  await expect(editor.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('href','https://yomitan.wiki/getting-started/');
+  await expect(editor.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('target','_blank');
+  await editor.getByRole('button',{name:'Close',exact:true}).click();await expect(editor.locator('#dictionary-dialog')).not.toBeVisible();
 });
 test('login honestly reports missing configuration',async({page})=>{
   await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth')).toBeDisabled();

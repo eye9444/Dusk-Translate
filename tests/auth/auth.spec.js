@@ -49,7 +49,7 @@ test('forgot password gives neutral confirmation and same-origin redirect',async
   await expect(page.locator('#google-option')).toBeHidden();
 });
 
-for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE in a popup without email or password`,async({page,context})=>{
+for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE in the same tab without email or password`,async({page,context})=>{
   let authorization;
   await context.route('https://dusk-test.supabase.co/auth/v1/authorize**',async route=>{
     authorization=new URL(route.request().url());
@@ -58,21 +58,16 @@ for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE in a popu
   await page.goto('/');await page.locator('#account').click();
   if(mode==='signup')await page.locator('#auth-switch').click();
   await page.locator('#terms-accept').check();
-  const popupPromise=page.waitForEvent('popup');await page.getByRole('button',{name:'Continue with Google'}).click();const googlePopup=await popupPromise;
-  await expect(googlePopup.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
-  await expect(page.locator('#auth-message')).toContainText('Google window');
+  await page.getByRole('button',{name:'Continue with Google'}).click();
+  await expect(page.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
   expect(authorization.searchParams.get('provider')).toBe('google');
-  expect(authorization.searchParams.get('prompt')).toBe('select_account');
   expect(authorization.searchParams.get('code_challenge_method')).toBe('s256');
   expect(authorization.searchParams.get('code_challenge')).toMatch(/^[\w-]{43}$/);
   const redirect=new URL(authorization.searchParams.get('redirect_to'));
   expect(redirect.origin).toBe('http://127.0.0.1:4174');expect(redirect.pathname).toBe('/');
-  await googlePopup.close();
-  await expect(page.locator('#auth-message')).toContainText('closed before completion');
-  await expect(page.locator('#google-auth')).toBeEnabled();
 });
 
-test('Google popup returns its session to the original page and closes',async({page,context})=>{
+test('Google same-tab callback restores the session and cleans the URL',async({page,context})=>{
   const user={id:'22222222-2222-4222-8222-222222222222',email:'google@example.test',aud:'authenticated',role:'authenticated',app_metadata:{provider:'google'}};
   let exchanges=0,callback;
   await context.route('https://dusk-test.supabase.co/**',async route=>{
@@ -95,10 +90,8 @@ test('Google popup returns its session to the original page and closes',async({p
     return route.fulfill({json:{}});
   });
   await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
-  const originalURL=page.url();
-  const popupPromise=page.waitForEvent('popup');await page.locator('#google-auth').click();const googlePopup=await popupPromise;
-  await expect.poll(()=>googlePopup.isClosed()).toBe(true);
-  await expect(page).toHaveURL(originalURL);
+  await page.locator('#google-auth').click();
+  await expect(page).toHaveURL('http://127.0.0.1:4174/');
   await expect(page.locator('#account')).toHaveText('Sign out');
   await expect(page.locator('#storage-info')).toContainText(user.email);
   await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);
@@ -173,12 +166,11 @@ test('account forms fit mobile in both themes',async({page},testInfo)=>{
   }
 });
 
-test('Google disabled on the backend reports the error in the original page',async({page,context})=>{
+test('Google disabled on the backend reports the error without leaving the page',async({page,context})=>{
   await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
   await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
   const originalURL=page.url();
-  const popupPromise=page.waitForEvent('popup');await page.locator('#google-auth').click();const googlePopup=await popupPromise;
-  await expect.poll(()=>googlePopup.isClosed()).toBe(true);
+  await page.locator('#google-auth').click();
   await expect(page.locator('#auth-message')).toContainText('not enabled yet');
   await expect(page.locator('#auth-submit')).toBeEnabled();
   await expect(page).toHaveURL(originalURL);

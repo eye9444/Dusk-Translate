@@ -80,12 +80,33 @@ const providerControls=document.createElement('div'); providerControls.className
 providerControls.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelSelect),providerFeedback);
 providerDisclosure.content.append(providerControls);
 keyBar.append(providerDisclosure.details);
+
+// Yomitan reads ordinary selectable page text, so the source pane remains real
+// Japanese DOM text rather than a canvas or custom rendering surface.
+const sourceText=document.getElementById('src-txt');
+sourceText.lang='ja';sourceText.setAttribute('translate','no');
+const dictionaryDialog=document.createElement('dialog');dictionaryDialog.id='dictionary-dialog';dictionaryDialog.className='dictionary-dialog';dictionaryDialog.setAttribute('aria-labelledby','dictionary-title');
+const dictionaryPanel=document.createElement('div');dictionaryPanel.className='dictionary-panel';
+const dictionaryKicker=document.createElement('p');dictionaryKicker.className='dictionary-kicker';dictionaryKicker.textContent='JAPANESE LOOKUP';
+const dictionaryTitle=document.createElement('h2');dictionaryTitle.id='dictionary-title';dictionaryTitle.textContent='Use Yomitan in the source pane';
+const dictionaryIntro=document.createElement('p');dictionaryIntro.textContent='DuskTranslate keeps Japanese source text selectable so Yomitan can scan it directly without sending the book to another service.';
+const dictionarySteps=document.createElement('ol');
+['Install Yomitan and add a Japanese dictionary.','On desktop, hold Shift and hover a word in the source pane.','On supported mobile browsers, touch Japanese text to open the lookup popup.'].forEach(text=>{const item=document.createElement('li');item.textContent=text;dictionarySteps.append(item);});
+const dictionaryNote=document.createElement('p');dictionaryNote.className='dictionary-note';dictionaryNote.textContent='Yomitan is an independent browser extension. DuskTranslate does not install it, read its dictionary history, or receive data from it.';
+const dictionaryActions=document.createElement('div');dictionaryActions.className='dictionary-actions';
+const dictionaryGuide=document.createElement('a');dictionaryGuide.href='https://yomitan.wiki/getting-started/';dictionaryGuide.target='_blank';dictionaryGuide.rel='noopener';dictionaryGuide.textContent='Open Yomitan setup ↗';
+const dictionaryClose=document.createElement('button');dictionaryClose.type='button';dictionaryClose.textContent='Close';dictionaryClose.onclick=()=>dictionaryDialog.close();
+dictionaryActions.append(dictionaryGuide,dictionaryClose);dictionaryPanel.append(dictionaryKicker,dictionaryTitle,dictionaryIntro,dictionarySteps,dictionaryNote,dictionaryActions);dictionaryDialog.append(dictionaryPanel);document.body.append(dictionaryDialog);
+const showDictionary=()=>{if(!dictionaryDialog.open)dictionaryDialog.showModal();};
+dictionaryDialog.addEventListener('click',event=>{if(event.target===dictionaryDialog)dictionaryDialog.close();});
+
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
 for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
 const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
 const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
-menu.append(menuAction('host-library','Back to library','library'),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
+const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');action();}; return button; };
+menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Japanese dictionary',showDictionary),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
 editorMenu.append(menuButton,menu);
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
@@ -98,7 +119,9 @@ keyBar.prepend(editorMenu,editorIdentity);
 const legacyHeader = document.querySelector('header');
 const headerActions = document.createElement('div'); headerActions.className='host-header-actions';
 const glossaryButton = legacyHeader?.querySelector('.glossary-toggle'); const themeButton = document.getElementById('theme-btn');
+const dictionaryButton=document.createElement('button');dictionaryButton.type='button';dictionaryButton.className='dictionary-toggle';dictionaryButton.textContent='Dictionary';dictionaryButton.setAttribute('aria-haspopup','dialog');dictionaryButton.onclick=showDictionary;
 headerActions.append(saveStatus);
+headerActions.append(dictionaryButton);
 if (glossaryButton) headerActions.append(glossaryButton);
 if (themeButton) headerActions.append(themeButton);
 keyBar.append(headerActions);
@@ -134,7 +157,7 @@ renderList = function () {
   novel.chapters.forEach((ch, i) => {
     const row = document.createElement('div'); row.id = 'ci' + i; row.className = 'ch-item'; row.tabIndex = 0; row.setAttribute('role','button');
     const id = document.createElement('div'); id.className = 'ch-id'; id.textContent = ch.id;
-    const title = document.createElement('div'); title.className = 'ch-title'; title.textContent = (ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
+    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
     row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);

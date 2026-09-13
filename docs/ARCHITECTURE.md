@@ -27,7 +27,9 @@ This document describes the active hosted application. Historical standalone HTM
 
 On narrow screens the adapter groups provider settings, chapter navigation, and translation tools into native disclosure controls. The source and editable translation panes then share the remaining viewport equally, and only their text regions scroll. Desktop keeps the existing side-by-side workspace.
 
-Google OAuth starts in a new same-origin tab before redirecting to Google. This keeps the PKCE verifier in the tab that receives the callback and preserves the persistent or session-only remember-me choice.
+Google OAuth redirects the current tab to Google and returns it to the application. The same browser context therefore creates and exchanges the PKCE verifier. A checked remember-me choice stores the Supabase session in localStorage; an unchecked choice uses sessionStorage for the current tab only.
+
+The source pane and generated chapter titles are ordinary selectable DOM text marked with `lang="ja"`. This lets compatible browser extensions such as Yomitan scan the text directly. The Dictionary action only opens local guidance and an explicit link to Yomitan setup; DuskTranslate does not embed a third-party dictionary script or send lookup text to another API.
 
 ## Static pages
 
