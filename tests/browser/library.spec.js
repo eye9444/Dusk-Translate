@@ -113,6 +113,7 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
   expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+  expect(await editor.locator('.key-bar').evaluate(element=>getComputedStyle(element,'::after').content)).toBe('none');
   await editor.locator('#api-key').focus();await expect(editor.locator('#api-key')).toHaveCSS('outline-width','1px');
 });
 test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{

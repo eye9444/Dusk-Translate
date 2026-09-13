@@ -16,6 +16,14 @@ test('static policy and setup pages are directly reachable',async({page})=>{
   }
 });
 
+test('static policy and setup pages use the shared slim scrollbar',async({page})=>{
+  for(const [path] of pages){
+    await page.goto(path);
+    await expect(page.locator('html')).toHaveCSS('scrollbar-width','thin');
+    await expect(page.locator('html')).toHaveCSS('scrollbar-color',/rgba?\(/);
+  }
+});
+
 test('policy and API guide links open outside the working tab',async({page})=>{
   await page.goto('/');
   for(const path of ['/privacy.html','/terms.html','/cookies.html','/guides/api-keys.html']){
