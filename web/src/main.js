@@ -329,6 +329,8 @@ window.addEventListener('message', e => {
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
+    if (e.data.action === 'findReplace') showFindReplace();
+    if (e.data.action === 'consistency') checkConsistency();
     return;
   }
   if (e.data.type === 'editor:dictionary') {
@@ -405,6 +407,149 @@ $('manage-form').onsubmit=async e=>{
   }catch(err){$('manage-error').textContent=errorMessage(err);}
   finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;}
 };
+
+let findReplaceMatches = [];
+function showFindReplace() {
+  if (!active) return;
+  $('find-replace-form').reset();
+  $('find-error').textContent = '';
+  $('find-preview').style.display = 'none';
+  $('replace-btn').style.display = 'none';
+  findReplaceMatches = [];
+  $('find-replace-dialog').showModal();
+}
+$('preview-btn').onclick = () => {
+  const findText = $('find-text').value;
+  const caseSensitive = $('case-sensitive').checked;
+  if (!findText) {
+    $('find-error').textContent = 'Enter text to find';
+    return;
+  }
+  findReplaceMatches = [];
+  const snapshot = active.snapshot;
+  const flags = caseSensitive ? 'g' : 'gi';
+  const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+  snapshot.novel.chapters.forEach((ch, idx) => {
+    const translation = snapshot.translations[ch.id];
+    if (!translation) return;
+    const matches = [...translation.matchAll(regex)];
+    matches.forEach(match => {
+      const start = Math.max(0, match.index - 30);
+      const end = Math.min(translation.length, match.index + match[0].length + 30);
+      const context = translation.slice(start, end);
+      findReplaceMatches.push({ chapterId: ch.id, chapterIndex: idx, matchIndex: match.index, context });
+    });
+  });
+  if (findReplaceMatches.length === 0) {
+    $('find-error').textContent = 'No matches found';
+    $('find-preview').style.display = 'none';
+    $('replace-btn').style.display = 'none';
+    return;
+  }
+  $('find-error').textContent = '';
+  $('match-list').replaceChildren();
+  findReplaceMatches.slice(0, 50).forEach(match => {
+    const chapterNum = match.chapterIndex + 1;
+    const item = el('div', '', `Chapter ${chapterNum}: ...${match.context}...`);
+    item.style.cssText = 'padding:4px 0;border-bottom:1px solid var(--border);font-size:.85rem;font-family:monospace';
+    $('match-list').append(item);
+  });
+  if (findReplaceMatches.length > 50) {
+    $('match-list').append(el('div', '', `...and ${findReplaceMatches.length - 50} more matches`));
+  }
+  $('find-preview').style.display = 'block';
+  $('replace-btn').style.display = '';
+  $('replace-btn').textContent = `Replace all (${findReplaceMatches.length} matches)`;
+};
+$('find-replace-form').onsubmit = async e => {
+  e.preventDefault();
+  const findText = $('find-text').value;
+  const replaceText = $('replace-text').value;
+  const caseSensitive = $('case-sensitive').checked;
+  if (findReplaceMatches.length === 0) {
+    $('find-error').textContent = 'Click Preview changes first';
+    return;
+  }
+  $('editor').contentWindow.postMessage({
+    type: 'host:findReplace',
+    findText,
+    replaceText,
+    caseSensitive
+  }, location.origin);
+  $('find-replace-dialog').close();
+};
+
+async function checkConsistency() {
+  if (!active) return;
+  $('consistency-dialog').showModal();
+  $('consistency-status').textContent = 'Analyzing translations...';
+  $('consistency-results').replaceChildren();
+  $('consistency-error').textContent = '';
+  await new Promise(resolve => setTimeout(resolve, 50));
+  const snapshot = active.snapshot;
+  const sourceToTranslations = new Map();
+  snapshot.novel.chapters.forEach((ch, idx) => {
+    const translation = snapshot.translations[ch.id];
+    if (!translation || translation.endsWith('…PARTIAL')) return;
+    const sourceSentences = ch.text.split(/[。！？\n]+/).filter(s => s.trim().length > 10);
+    const translationSentences = translation.split(/[.!?\n]+/).filter(s => s.trim().length > 10);
+    sourceSentences.forEach((source, sIdx) => {
+      const sourceKey = source.trim().slice(0, 100);
+      if (!sourceKey) return;
+      const tlIdx = Math.floor((sIdx / sourceSentences.length) * translationSentences.length);
+      const translation = translationSentences[tlIdx]?.trim();
+      if (!translation) return;
+      if (!sourceToTranslations.has(sourceKey)) {
+        sourceToTranslations.set(sourceKey, new Map());
+      }
+      const translationMap = sourceToTranslations.get(sourceKey);
+      if (!translationMap.has(translation)) {
+        translationMap.set(translation, []);
+      }
+      translationMap.get(translation).push(idx + 1);
+    });
+  });
+  const inconsistencies = [];
+  sourceToTranslations.forEach((translationMap, source) => {
+    if (translationMap.size > 1) {
+      const translations = Array.from(translationMap.entries()).map(([tl, chapters]) => ({ translation: tl, chapters }));
+      inconsistencies.push({ source, translations });
+    }
+  });
+  inconsistencies.sort((a, b) => b.translations.length - a.translations.length);
+  $('consistency-status').textContent = inconsistencies.length > 0
+    ? `Found ${inconsistencies.length} potential inconsistencies`
+    : '✓ No inconsistencies detected';
+  if (inconsistencies.length === 0) {
+    $('consistency-results').append(el('p', '', 'All similar source text appears to be translated consistently.'));
+    return;
+  }
+  inconsistencies.slice(0, 20).forEach(issue => {
+    const card = el('div', '');
+    card.style.cssText = 'border:1.5px solid var(--border);padding:12px;margin:8px 0;border-radius:4px';
+    const sourceLabel = el('p', '', 'Source: ');
+    sourceLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:4px';
+    const sourceText = el('p', '', issue.source);
+    sourceText.style.cssText = 'font-family:serif;font-size:.9rem;margin-bottom:12px;font-style:italic';
+    const varLabel = el('p', '', `${issue.translations.length} different translations found:`);
+    varLabel.style.cssText = 'font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:6px';
+    card.append(sourceLabel, sourceText, varLabel);
+    issue.translations.forEach((item) => {
+      const variant = el('div', '');
+      variant.style.cssText = 'margin:6px 0;padding:6px;background:var(--aged);border-radius:3px';
+      const tlText = el('p', '', `"${item.translation}"`);
+      tlText.style.cssText = 'font-size:.85rem;margin-bottom:4px';
+      const chapters = el('p', '', `Chapters: ${item.chapters.slice(0, 5).join(', ')}${item.chapters.length > 5 ? '...' : ''}`);
+      chapters.style.cssText = 'font-size:.75rem;color:var(--muted);font-family:monospace';
+      variant.append(tlText, chapters);
+      card.append(variant);
+    });
+    $('consistency-results').append(card);
+  });
+  if (inconsistencies.length > 20) {
+    $('consistency-results').append(el('p', '', `...and ${inconsistencies.length - 20} more issues. Fix the top ones first.`));
+  }
+}
 
 function showAuth(mode='signin') {
   if(authBusy)return;

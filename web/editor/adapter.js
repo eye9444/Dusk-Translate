@@ -93,7 +93,7 @@ for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
 const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
 const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
 const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');action();}; return button; };
-menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
+menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),menuAction('host-find-replace','Find and replace','findReplace'),menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
 editorMenu.append(menuButton,menu);
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
@@ -236,6 +236,40 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
+  if (e.data.type === 'host:findReplace') {
+    const { findText, replaceText, caseSensitive } = e.data;
+    const flags = caseSensitive ? 'g' : 'gi';
+    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\  if (e.data.type !== 'host:open' || projectId) return;'), flags);
+
+    let replacedCount = 0;
+    Object.keys(translations).forEach(chapterId => {
+      const original = translations[chapterId];
+      if (original.endsWith('…PARTIAL')) return; // Skip currently translating chapters
+
+      const replaced = original.replace(regex, replaceText);
+      if (replaced !== original) {
+        translations[chapterId] = replaced;
+        replacedCount++;
+        const chapterIndex = novel.chapters.findIndex(ch => ch.id === chapterId);
+        if (chapterIndex >= 0) {
+          updateMark(chapterIndex, replaced);
+        }
+      }
+    });
+
+    if (translations[novel.chapters[cur].id] && !translations[novel.chapters[cur].id].endsWith('…PARTIAL')) {
+      const out = document.getElementById('tl-out');
+      if (!busy) {
+        out.textContent = translations[novel.chapters[cur].id];
+      }
+    }
+
+    updateProg();
+    emit(true);
+    setStatus('✓ Replaced text in ' + replacedCount + ' chapters');
+    setTimeout(hideStatus, 3000);
+    return;
+  }
   if (e.data.type !== 'host:open' || projectId) return;
   projectId = e.data.project.id;
   try {
