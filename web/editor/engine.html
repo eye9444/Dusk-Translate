@@ -188,7 +188,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
 <div class="key-bar">
   <label>API Key</label>
   <div class="key-input-wrap">
-    <input type="text" id="api-key" placeholder="AIza… or sk-or-v1-…" oninput="onKeyInput()">
+    <input type="text" id="api-key" placeholder="AIza… / AQ.… / sk-or-v1-…" oninput="onKeyInput()">
     <button onclick="toggleVis()" id="vis-btn">
       <svg id="eye-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -199,7 +199,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
   </div>
   <label>Model</label>
   <select id="model-select" onchange="onKeyInput()">
-    <optgroup label="── AI Studio (AIza… key) ──">
+    <optgroup label="── AI Studio (AIza… or AQ.… key) ──">
       <option value="ai|gemini-3.7-flash">Gemini 3.7 Flash (free)</option>
       <option value="ai|gemini-3.5-flash">Gemini 3.5 Flash (free)</option>
       <option value="ai|gemini-3-flash-preview">Gemini 3 Flash Preview (free)</option>
@@ -336,7 +336,7 @@ function toggleVis() {
   }
 }
 
-function isAIKey(k)  { return k.startsWith('AIza') && k.length > 20; }
+function isAIKey(k)  { return /^(?:AIza|AQ\.)/.test(k) && k.length > 20; }
 function isORKey(k)  { return k.startsWith('sk-or-') && k.length > 20; }
 function keyMatchesProvider(k, p) {
   if (p === 'ai') return isAIKey(k);
@@ -357,7 +357,7 @@ function onKeyInput() {
   } else if (p === 'or' && isAIKey(k)) {
     el.textContent = 'That looks like an AI Studio key — select a Gemini model'; el.className = 'key-status err';
   } else if (p === 'ai') {
-    el.textContent = 'AI Studio key should start with AIza…'; el.className = 'key-status err';
+    el.textContent = 'AI Studio key should start with AIza… or AQ.…'; el.className = 'key-status err';
   } else {
     el.textContent = 'OpenRouter key should start with sk-or-…'; el.className = 'key-status err';
   }
@@ -781,10 +781,10 @@ async function translateOpenRouter(prompt, out, cursor, onToken, abortCtrl) {
 
 async function translateAIStudio(prompt, out, cursor, onToken, abortCtrl) {
   const model = getModel();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${getKey()}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': getKey() },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { temperature: 0.7 }
