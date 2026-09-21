@@ -239,7 +239,7 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:findReplace') {
     const { findText, replaceText, caseSensitive } = e.data;
     const flags = caseSensitive ? 'g' : 'gi';
-    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\  if (e.data.type !== 'host:open' || projectId) return;'), flags);
+    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
 
     let replacedCount = 0;
     Object.keys(translations).forEach(chapterId => {

@@ -116,6 +116,12 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   expect(await editor.locator('.key-bar').evaluate(element=>getComputedStyle(element,'::after').content)).toBe('none');
   await editor.locator('#api-key').focus();await expect(editor.locator('#api-key')).toHaveCSS('outline-width','1px');
 });
+test('AI Studio accepts standard and authorization key prefixes',async({page})=>{
+  await create(page,'AI Studio key formats');const editor=page.frameLocator('#editor');
+  for(const key of ['AIzaFAKE_TEST_KEY_123456789012345','AQ.TEST_AUTHORIZATION_KEY_123456789']){
+    await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('AI Studio key set');await expect(editor.locator('#btn-tl')).toBeEnabled();
+  }
+});
 test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
   await expect(editor.locator('#src-txt')).toHaveAttribute('lang','ja');await expect(editor.locator('#src-txt')).toHaveAttribute('translate','no');
@@ -144,13 +150,16 @@ test('backup ZIP restores a project with its edited translation',async({page})=>
   await expect(editor.locator('#tl-out')).toHaveText('Keep this translation.');
 });
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
+  let requestKey='';
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
+    requestKey=route.request().headers()['x-goog-api-key'] || '';
     await new Promise(resolve=>setTimeout(resolve,700));
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
-  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#api-key').fill('AIzaFAKE_TEST_KEY_123456789012345');
+  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
+  expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
   await expect(editor.locator('#tl-out')).toContainText('Short partial output');await expect(editor.locator('.partial-badge')).toBeVisible();
