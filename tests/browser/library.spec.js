@@ -11,7 +11,7 @@ async function create(page,name='Test book',file) {
   await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
 }
-async function editorAction(page,id) {const editor=page.frameLocator('#editor');await editor.locator('#host-menu').click();await editor.locator(id).click();}
+async function editorAction(page,id) {const editor=page.frameLocator('#editor');await editor.locator(id === '#host-library' ? '#host-menu' : '#host-tools').click();await editor.locator(id).click();}
 async function leave(page) {await editorAction(page,'#host-library');await expect(page.locator('#library')).toBeVisible();}
 test('saves manual edits, glossary, current chapter; keys never persist',async({page})=>{
   await create(page);
@@ -98,7 +98,7 @@ test('mobile editor collapses controls and gives source and translation equal sc
   expect(translation.y).toBeGreaterThan(source.y);expect(Math.abs(source.height-translation.height)).toBeLessThanOrEqual(2);
   await expect(editor.locator('#src-txt')).toHaveCSS('overflow-y','auto');await expect(editor.locator('#tl-out')).toHaveCSS('overflow-y','auto');
   await editor.locator('#tl-out').focus();await expect(editor.locator('#tl-out')).toHaveCSS('outline-style','none');await expect(editor.locator('.pane:not(.pane-left)')).not.toHaveCSS('box-shadow','none');
-  await editor.locator('#host-menu').click();await expect(editor.locator('#host-dictionary')).toBeVisible();await editor.locator('#host-dictionary').click();await expect(page.locator('#dictionary-dialog')).toBeVisible();await page.getByRole('button',{name:'Close Japanese lookup'}).click();
+  await editor.locator('#host-tools').click();await expect(editor.locator('#host-dictionary')).toBeVisible();await expect(editor.locator('#host-find-replace')).toBeVisible();await expect(editor.locator('#host-consistency')).toBeVisible();await editor.locator('#host-dictionary').click();await expect(page.locator('#dictionary-dialog')).toBeVisible();await page.getByRole('button',{name:'Close Japanese lookup'}).click();
   await editor.locator('.provider-disclosure summary').click();await expect(editor.locator('.api-key-guide')).toBeVisible();await expect(editor.locator('.api-key-guide')).toHaveAttribute('target','_blank');
   const provider=await editor.locator('.provider-disclosure .mobile-disclosure-content').boundingBox(),keyField=await editor.locator('.provider-key-field').boundingBox(),modelField=await editor.locator('.provider-model-field').boundingBox();
   expect(modelField.y).toBeGreaterThan(keyField.y+keyField.height);expect(keyField.width).toBeLessThanOrEqual(provider.width);expect(modelField.width).toBeLessThanOrEqual(provider.width);
@@ -126,14 +126,14 @@ test('Japanese source is selectable and includes the Yomitan iframe setup note',
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
   await expect(editor.locator('#src-txt')).toHaveAttribute('lang','ja');await expect(editor.locator('#src-txt')).toHaveAttribute('translate','no');
   await expect(editor.locator('#src-txt')).toHaveCSS('user-select','text');
-  await editor.getByRole('button',{name:'Yomitan dictionary setup',exact:true}).click();await expect(page.locator('#dictionary-dialog')).toBeVisible();
+  await editor.locator('#host-tools').click();await editor.locator('#host-dictionary').click();await expect(page.locator('#dictionary-dialog')).toBeVisible();
   await expect(page.locator('#dictionary-dialog')).toContainText('Show iframe popups in the root frame');
   await expect(page.locator('#dictionary-dialog')).toContainText('hold Shift and hover');
   const popup=await page.locator('#dictionary-dialog').boundingBox();expect(popup.width).toBeLessThanOrEqual(420);expect(popup.x+popup.width).toBeGreaterThan(1200);
   expect(parseFloat(await page.locator('.dictionary-help p').first().evaluate(element=>getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(15);
   await page.getByRole('button',{name:'Close Japanese lookup'}).focus();await expect(page.getByRole('button',{name:'Close Japanese lookup'})).toHaveCSS('outline-style','none');
   await page.mouse.click(20,400);await expect(page.locator('#dictionary-dialog')).not.toBeVisible();
-  await editor.getByRole('button',{name:'Yomitan dictionary setup',exact:true}).click();
+  await editor.locator('#host-tools').click();await editor.locator('#host-dictionary').click();
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('href','https://yomitan.wiki/getting-started/');
   await expect(page.getByRole('link',{name:'Open Yomitan setup ↗'})).toHaveAttribute('target','_blank');
   await page.getByRole('button',{name:'Close Japanese lookup'}).click();await expect(page.locator('#dictionary-dialog')).not.toBeVisible();
@@ -162,12 +162,12 @@ test('find and replace requires a current preview, keeps literal text, and suppo
   await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('');
   await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
-  await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-menu').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
+  await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-tools').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
-  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-menu').click();await editor.locator('#host-spellcheck').click();
+  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
   await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');await page.waitForTimeout(1300);await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
-  await editor.locator('#tl-out').waitFor();await expect(editor.locator('#tl-out')).toHaveAttribute('spellcheck','false');await editor.locator('#host-menu').click();await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');
+  await editor.locator('#tl-out').waitFor();await expect(editor.locator('#tl-out')).toHaveAttribute('spellcheck','false');await editor.locator('#host-tools').click();await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');
 });
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';
