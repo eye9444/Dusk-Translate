@@ -11,6 +11,17 @@ async function create(page,name='Test book',file) {
   await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
 }
+async function selectTestModel(editor) {
+  await editor.locator('#model-select').evaluate(select=>{
+    const option=document.createElement('option');
+    option.value='ai|test-model';
+    option.textContent='Test model';
+    select.replaceChildren(option);
+    select.disabled=false;
+    select.value=option.value;
+    onKeyInput();
+  });
+}
 async function editorAction(page,id) {const editor=page.frameLocator('#editor');await editor.locator(id === '#host-library' ? '#host-menu' : '#host-tools').click();await editor.locator(id).click();}
 async function leave(page) {await editorAction(page,'#host-library');await expect(page.locator('#library')).toBeVisible();}
 test('saves manual edits, glossary, current chapter; keys never persist',async({page})=>{
@@ -122,6 +133,32 @@ test('AI Studio key formats enable the live model importer',async({page})=>{
     await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('Import models');await expect(editor.locator('#model-import')).toBeEnabled();await expect(editor.locator('#btn-tl')).toBeDisabled();
   }
 });
+test('chapter chunking keeps requests at 5000 characters and preserves source text',async({page})=>{
+  await create(page,'Chunk boundaries');const editor=page.frameLocator('#editor');
+  const result=await editor.locator('#src-txt').evaluate(()=>{
+    const justOver='あ'.repeat(5001), tenThousand='い'.repeat(10000), short='う'.repeat(5000);
+    const inspect=text=>{const chunks=splitTranslationChunks(text);return {count:chunks.length,lengths:chunks.map(chunk=>chunk.length),same:chunks.join('')===text};};
+    return {justOver:inspect(justOver),tenThousand:inspect(tenThousand),short:inspect(short)};
+  });
+  expect(result.short).toEqual({count:1,lengths:[5000],same:true});
+  expect(result.justOver.count).toBe(2);expect(result.justOver.lengths.every(length=>length<=5000)).toBe(true);expect(result.justOver.same).toBe(true);
+  expect(result.tenThousand).toEqual({count:2,lengths:[5000,5000],same:true});
+});
+test('long chapters are translated sequentially in bounded requests',async({page})=>{
+  const requests=[];
+  await page.route('https://generativelanguage.googleapis.com/**',async route=>{
+    requests.push(JSON.parse(route.request().postData()).contents[0].parts[0].text);
+    const response={candidates:[{content:{parts:[{text:`part ${requests.length}`}]},finishReason:'STOP'}]};
+    await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify(response)+'\n\n'});
+  });
+  const longChapter={chapters:[{id:'p-long',text:'あ'.repeat(5001),jp_char_count:5001}]};
+  await create(page,'Chunked request',{name:'long.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(longChapter))});
+  const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
+  await editor.locator('#btn-tl').click();await expect(editor.locator('#tl-out')).toContainText('part 1');await expect(editor.locator('#tl-out')).toContainText('part 2');
+  const sources=requests.map(prompt=>prompt.split('Japanese text:\n').at(-1));
+  expect(requests).toHaveLength(2);expect(sources.every(source=>source.length<=5000)).toBe(true);
+  expect(sources.join('')).toBe(longChapter.chapters[0].text);
+});
 test('model importer fetches live provider models and filters OpenRouter free models',async({page})=>{
   await page.route('https://generativelanguage.googleapis.com/v1beta/models',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({models:[
     {name:'models/gemini-live',displayName:'Gemini Live',inputTokenLimit:32000,supportedGenerationMethods:['generateContent']},
@@ -212,7 +249,7 @@ test('stream interruptions preserve short partial output and lock navigation',as
     await new Promise(resolve=>setTimeout(resolve,700));
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
-  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
+  await create(page);const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
   expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');

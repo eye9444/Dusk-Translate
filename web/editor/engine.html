@@ -716,6 +716,35 @@ function go(d) {
   if (n >= 0 && n < novel.chapters.length) selectCh(n);
 }
 
+const TRANSLATION_CHUNK_LIMIT = 5000;
+function splitTranslationChunks(text, limit = TRANSLATION_CHUNK_LIMIT) {
+  if (text.length <= limit) return [text];
+  const chunkCount = Math.ceil(text.length / limit);
+  const chunks = [];
+  let start = 0;
+  for (let remaining = chunkCount; remaining > 1; remaining--) {
+    const remainingLength = text.length - start;
+    const ideal = start + Math.round(remainingLength / remaining);
+    const latest = Math.min(text.length - (remaining - 1), start + limit);
+    let best = -1, bestScore = -1, bestDistance = Infinity;
+    for (let end = start + 1; end <= latest; end++) {
+      const previous = text[end - 1], beforePrevious = text[end - 2] || '';
+      const score = previous === '\n' && beforePrevious === '\n' ? 3
+        : /[。！？.!?]/.test(previous) ? 2
+        : /\s/.test(previous) ? 1 : 0;
+      const distance = Math.abs(end - ideal);
+      if (score > bestScore || (score === bestScore && distance < bestDistance)) {
+        best = end; bestScore = score; bestDistance = distance;
+      }
+    }
+    // A boundary is only useful if it exists; otherwise use the balanced split.
+    const end = bestScore > 0 ? best : ideal;
+    chunks.push(text.slice(start, end)); start = end;
+  }
+  chunks.push(text.slice(start));
+  return chunks;
+}
+
 async function translateCurrent() {
   if (!novel || busy || !isReady()) return;
 
@@ -745,9 +774,10 @@ async function translateCurrent() {
     ? `\n\nName/term glossary — always use these translations exactly:\n${glossaryLines.map(l => `- ${l}`).join('\n')}`
     : '';
 
-  const prompt = plainTextFallback
-    ? `Translate the following Japanese plain text into English. Output only the translation. Preserve paragraph breaks and dialogue formatting.\n\n${ch.text}`
-    : `You are a professional Japanese-to-English light novel translator.\n\nStyle: ${styleMap[style]}${glossarySection}\n\nRules:\n- Output ONLY the translated text. No notes, no commentary.\n- Preserve paragraph breaks exactly as in the original.\n- Keep 『』「」quote marks or convert consistently to English quotes.\n- Always follow the glossary above for names and terms.\n\nJapanese text:\n${ch.text}`;
+  const chunks = splitTranslationChunks(ch.text);
+  const makePrompt = source => plainTextFallback
+    ? `Translate the following Japanese plain text into English. Output only the translation. Preserve paragraph breaks and dialogue formatting.\n\n${source}`
+    : `You are a professional Japanese-to-English light novel translator.\n\nStyle: ${styleMap[style]}${glossarySection}\n\nRules:\n- Output ONLY the translated text. No notes, no commentary.\n- Preserve paragraph breaks exactly as in the original.\n- Keep 『』「」quote marks or convert consistently to English quotes.\n- Always follow the glossary above for names and terms.\n\nJapanese text:\n${source}`;
 
   const out = document.getElementById('tl-out');
   out.innerHTML = '';
@@ -773,41 +803,46 @@ async function translateCurrent() {
     setStatus(msg);
   };
 
-  devLogEntry('prompt', { chapter: ch.id, provider, model: getModel(), plainTextFallback, promptLength: prompt.length, prompt });
-
   try {
-    let cleanStop;
-    if (provider === 'or') {
-      cleanStop = await translateOpenRouter(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
-    } else {
-      cleanStop = await translateAIStudio(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
+    for (let index = 0; index < chunks.length; index++) {
+      const source = chunks[index];
+      const prompt = makePrompt(source);
+      const prefix = chunks.length > 1 ? ` · part ${index + 1}/${chunks.length}` : '';
+      setStatus(`Translating ${ch.id}${prefix}…`, true);
+      if (index > 0 && getTextContent().trim()) appendToken(out, cursor, '\n\n');
+      const partStart = getTextContent().length;
+      devLogEntry('prompt', { chapter: ch.id, provider, model: getModel(), plainTextFallback, part: index + 1, parts: chunks.length, promptLength: prompt.length, prompt });
+      const cleanStop = provider === 'or'
+        ? await translateOpenRouter(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl)
+        : await translateAIStudio(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
+      const part = getTextContent().slice(partStart);
+      if (!part.trim()) {
+        if (!plainTextFallback) {
+          clearInterval(watchdog);
+          window._plainTextRetryChapter = ch.id;
+          endBusy();
+          setStatus(`Empty response in part ${index + 1} — retrying with plain text…`, true);
+          translateCurrent();
+          return;
+        }
+        throw new Error(`Empty response for part ${index + 1}/${chunks.length} — the model may be rate limited or blocking this chapter`);
+      }
+      if (!cleanStop) {
+        clearInterval(watchdog);
+        cursor.remove();
+        savePartial(getTextContent(), `⚠ Stream ended during part ${index + 1}/${chunks.length} — partial saved. Click Retry to finish.`);
+        endBusy();
+        return;
+      }
     }
-
     clearInterval(watchdog);
     const full = getTextContent();
     cursor.remove();
-
-    if (!full.trim()) {
-      if (!plainTextFallback) {
-        window._plainTextRetryChapter = ch.id;
-        endBusy();
-        setStatus('Empty response — retrying with plain text…', true);
-        translateCurrent();
-        return;
-      } else {
-        window._plainTextRetryChapter = null;
-        throw new Error('Empty response after retry — model may be rate limited or blocking this chapter');
-      }
-    } else if (!cleanStop) {
-      // Stream closed without a proper stop signal — silently incomplete
-      savePartial(full, '⚠ Stream ended early — partial saved. Click Retry.');
-    } else {
-      window._plainTextRetryChapter = null;
-      translations[ch.id] = full;
-      updateMark(cur, full); updateProg();
-      setStatus('✓ Done — ' + ch.id);
-      setTimeout(hideStatus, 2500);
-    }
+    window._plainTextRetryChapter = null;
+    translations[ch.id] = full;
+    updateMark(cur, full); updateProg();
+    setStatus(`✓ Done — ${ch.id}${chunks.length > 1 ? ` (${chunks.length} parts)` : ''}`);
+    setTimeout(hideStatus, 2500);
 
   } catch (err) {
     clearInterval(watchdog);
