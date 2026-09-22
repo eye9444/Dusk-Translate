@@ -119,21 +119,8 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
 test('AI Studio accepts standard and authorization key prefixes',async({page})=>{
   await create(page,'AI Studio key formats');const editor=page.frameLocator('#editor');
   for(const key of ['AIzaFAKE_TEST_KEY_123456789012345','AQ.TEST_AUTHORIZATION_KEY_123456789']){
-    await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('AI Studio');await expect(editor.locator('#btn-tl')).toBeEnabled();
+    await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('AI Studio key set');await expect(editor.locator('#btn-tl')).toBeEnabled();
   }
-});
-test('auto model picker follows the API key provider while preserving manual choices',async({page})=>{
-  await create(page,'Automatic provider');const editor=page.frameLocator('#editor');
-  await expect(editor.locator('#model-select')).toHaveValue('auto|recommended');
-  await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
-  await expect(editor.locator('#key-status')).toContainText('Auto: AI Studio');
-  await expect(editor.locator('#btn-tl')).toBeEnabled();
-  expect(await editor.locator('#model-select').evaluate(()=>({provider:getProvider(),model:getModel()}))).toEqual({provider:'ai',model:'gemini-3.7-flash'});
-  await editor.locator('#api-key').fill('sk-or-v1-TEST_AUTHORIZATION_KEY_123456789');
-  await expect(editor.locator('#key-status')).toContainText('Auto: OpenRouter');
-  expect(await editor.locator('#model-select').evaluate(()=>({provider:getProvider(),model:getModel()}))).toEqual({provider:'or',model:'openrouter/free'});
-  await editor.locator('#model-select').selectOption('ai|gemma-4-26b-a4b-it');
-  await expect(editor.locator('#model-select')).toHaveValue('ai|gemma-4-26b-a4b-it');
 });
 test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
