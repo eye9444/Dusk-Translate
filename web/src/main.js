@@ -452,21 +452,35 @@ $('manage-form').onsubmit=async e=>{
   finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;}
 };
 
-let findReplaceMatches = [], findReplacePreview = null;
+let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1;
 function findReplaceFingerprint() {
   return JSON.stringify(active?.snapshot?.translations || {});
 }
 function invalidateFindReplacePreview(message = '') {
-  findReplaceMatches = []; findReplacePreview = null;
-  $('find-preview').style.display = 'none'; $('replace-btn').style.display = 'none';
+  findReplaceMatches = []; findReplacePreview = null; findReplaceIndex = -1;
+  $('find-preview').hidden = true; $('find-navigation').hidden = true; $('replace-btn').hidden = true;
+  if (active) $('editor').contentWindow.postMessage({ type: 'host:clearFind' }, location.origin);
   if (message) $('find-error').textContent = message;
+}
+function focusFindMatch(index) {
+  if (!findReplaceMatches.length || !findReplacePreview) return;
+  findReplaceIndex = (index + findReplaceMatches.length) % findReplaceMatches.length;
+  const match = findReplaceMatches[findReplaceIndex];
+  $('find-position').textContent = `${findReplaceIndex + 1} of ${findReplaceMatches.length}`;
+  Array.from($('match-list').children).forEach((item, itemIndex) => {
+    const selected = itemIndex === findReplaceIndex;
+    item.setAttribute('aria-selected', String(selected));
+    if (selected) item.scrollIntoView({ block: 'nearest' });
+  });
+  $('editor').contentWindow.postMessage({
+    type: 'host:findFocus', chapterIndex: match.chapterIndex, matchIndex: match.matchIndex,
+    findText: findReplacePreview.findText, caseSensitive: findReplacePreview.caseSensitive, target: 'translation'
+  }, location.origin);
 }
 function showFindReplace() {
   if (!active) return;
   $('find-replace-form').reset();
   $('find-error').textContent = '';
-  $('find-preview').style.display = 'none';
-  $('replace-btn').style.display = 'none';
   invalidateFindReplacePreview();
   $('find-replace-dialog').showModal();
 }
@@ -497,26 +511,25 @@ $('preview-btn').onclick = () => {
   });
   if (findReplaceMatches.length === 0) {
     $('find-error').textContent = 'No matches found';
-    $('find-preview').style.display = 'none';
-    $('replace-btn').style.display = 'none';
+    invalidateFindReplacePreview();
+    $('find-error').textContent = 'No matches found';
     return;
   }
   $('find-error').textContent = '';
   $('match-list').replaceChildren();
-  findReplaceMatches.slice(0, 50).forEach(match => {
+  findReplaceMatches.forEach((match, matchIndex) => {
     const chapterNum = match.chapterIndex + 1;
-    const item = el('div', '', `Chapter ${chapterNum}: ...${match.context}...`);
-    item.style.cssText = 'padding:4px 0;border-bottom:1px solid var(--border);font-size:.85rem;font-family:monospace';
+    const item = button(`Chapter ${chapterNum}: ...${match.context}...`, () => focusFindMatch(matchIndex));
+    item.className = 'match-item'; item.setAttribute('role', 'option'); item.setAttribute('aria-selected', 'false');
     $('match-list').append(item);
   });
-  if (findReplaceMatches.length > 50) {
-    $('match-list').append(el('div', '', `...and ${findReplaceMatches.length - 50} more matches`));
-  }
-  $('find-preview').style.display = 'block';
-  $('replace-btn').style.display = '';
+  $('find-preview').hidden = false; $('find-navigation').hidden = false; $('replace-btn').hidden = false;
   $('replace-btn').textContent = `Replace all (${findReplaceMatches.length} matches)`;
   findReplacePreview={findText,replaceText:$('replace-text').value,caseSensitive,fingerprint:findReplaceFingerprint()};
+  focusFindMatch(0);
 };
+$('find-previous').onclick = () => focusFindMatch(findReplaceIndex - 1);
+$('find-next').onclick = () => focusFindMatch(findReplaceIndex + 1);
 $('find-replace-form').onsubmit = async e => {
   e.preventDefault();
   const findText = $('find-text').value;
@@ -551,10 +564,10 @@ async function checkConsistency() {
   const sourceToTranslations = new Map();
   let checkedChapters = 0, skippedPartial = 0, comparedPairs = 0;
   snapshot.novel.chapters.forEach((ch, idx) => {
-    const translation = snapshot.translations[ch.id];
-    if (!translation || translation.endsWith('…PARTIAL')) { if (translation?.endsWith('…PARTIAL')) skippedPartial++; return; }
+    const chapterTranslation = snapshot.translations[ch.id];
+    if (!chapterTranslation || chapterTranslation.endsWith('…PARTIAL')) { if (chapterTranslation?.endsWith('…PARTIAL')) skippedPartial++; return; }
     const sourceSentences = ch.text.split(/[。！？\n]+/).filter(s => s.trim().length > 10);
-    const translationSentences = translation.split(/[.!?\n]+/).filter(s => s.trim().length > 10);
+    const translationSentences = chapterTranslation.split(/[.!?\n]+/).filter(s => s.trim().length > 10);
     if (!sourceSentences.length || !translationSentences.length) return;
     checkedChapters++;
     sourceSentences.forEach((source, sIdx) => {
@@ -569,15 +582,17 @@ async function checkConsistency() {
       }
       const translationMap = sourceToTranslations.get(sourceKey);
       if (!translationMap.has(translation)) {
-        translationMap.set(translation, []);
+        translationMap.set(translation, { chapters: [], locations: [] });
       }
-      translationMap.get(translation).push(idx + 1);
+      const entry = translationMap.get(translation);
+      entry.chapters.push(idx + 1);
+      entry.locations.push({ chapterIndex: idx, matchIndex: chapterTranslation.indexOf(translation) });
     });
   });
   const inconsistencies = [];
   sourceToTranslations.forEach((translationMap, source) => {
     if (translationMap.size > 1) {
-      const translations = Array.from(translationMap.entries()).map(([tl, chapters]) => ({ translation: tl, chapters }));
+      const translations = Array.from(translationMap.entries()).map(([tl, value]) => ({ translation: tl, ...value }));
       inconsistencies.push({ source, translations });
     }
   });
@@ -608,7 +623,16 @@ async function checkConsistency() {
       tlText.style.cssText = 'font-size:.85rem;margin-bottom:4px';
       const chapters = el('p', '', `Chapters: ${item.chapters.slice(0, 5).join(', ')}${item.chapters.length > 5 ? '...' : ''}`);
       chapters.style.cssText = 'font-size:.75rem;color:var(--muted);font-family:monospace';
-      variant.append(tlText, chapters);
+      const openMatch = button(`Open chapter ${item.chapters[0]} match`, () => {
+        const location = item.locations[0];
+        $('consistency-dialog').close();
+        $('editor').contentWindow.postMessage({
+          type: 'host:findFocus', chapterIndex: location.chapterIndex, matchIndex: location.matchIndex,
+          findText: item.translation, caseSensitive: true, target: 'translation'
+        }, location.origin);
+      });
+      openMatch.className = 'consistency-open';
+      variant.append(tlText, chapters, openMatch);
       card.append(variant);
     });
     $('consistency-results').append(card);
