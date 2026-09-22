@@ -352,12 +352,18 @@ dictionaryDialog.addEventListener('click',event=>{
 });
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
+  if (e.data.type === 'editor:findNavigate') {
+    focusFindMatch(findReplaceIndex + Number(e.data.delta || 0));
+    return;
+  }
   if (e.data.type === 'editor:action') {
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
     if (e.data.action === 'findReplace') showFindReplace();
+    if (e.data.action === 'findReview') showFindReplace(true);
     if (e.data.action === 'consistency') checkConsistency();
+    if (e.data.action === 'consistencyReview') checkConsistency();
     return;
   }
   if (e.data.type === 'editor:dictionary') {
@@ -474,14 +480,17 @@ function focusFindMatch(index) {
   });
   $('editor').contentWindow.postMessage({
     type: 'host:findFocus', chapterIndex: match.chapterIndex, matchIndex: match.matchIndex,
-    findText: findReplacePreview.findText, caseSensitive: findReplacePreview.caseSensitive, target: 'translation'
+    findText: findReplacePreview.findText, caseSensitive: findReplacePreview.caseSensitive, target: 'translation',
+    position: findReplaceIndex + 1, total: findReplaceMatches.length
   }, location.origin);
 }
-function showFindReplace() {
+function showFindReplace(preserve = false) {
   if (!active) return;
-  $('find-replace-form').reset();
-  $('find-error').textContent = '';
-  invalidateFindReplacePreview();
+  if (!preserve || !findReplacePreview) {
+    $('find-replace-form').reset();
+    $('find-error').textContent = '';
+    invalidateFindReplacePreview();
+  }
   $('find-replace-dialog').showModal();
 }
 ['find-text','replace-text','case-sensitive'].forEach(id => $(id).addEventListener(id === 'case-sensitive' ? 'change' : 'input', () => {
@@ -519,11 +528,15 @@ $('preview-btn').onclick = () => {
   $('match-list').replaceChildren();
   findReplaceMatches.forEach((match, matchIndex) => {
     const chapterNum = match.chapterIndex + 1;
-    const item = button(`Chapter ${chapterNum}: ...${match.context}...`, () => focusFindMatch(matchIndex));
+    const item = button(`Chapter ${chapterNum}: ...${match.context}...`, () => {
+      focusFindMatch(matchIndex);
+      $('find-replace-dialog').close();
+    });
     item.className = 'match-item'; item.setAttribute('role', 'option'); item.setAttribute('aria-selected', 'false');
     $('match-list').append(item);
   });
-  $('find-preview').hidden = false; $('find-navigation').hidden = false; $('replace-btn').hidden = false;
+  const hasReplacement = $('replace-text').value.length > 0;
+  $('find-preview').hidden = false; $('find-navigation').hidden = false; $('replace-btn').hidden = !hasReplacement;
   $('replace-btn').textContent = `Replace all (${findReplaceMatches.length} matches)`;
   findReplacePreview={findText,replaceText:$('replace-text').value,caseSensitive,fingerprint:findReplaceFingerprint()};
   focusFindMatch(0);
@@ -537,6 +550,10 @@ $('find-replace-form').onsubmit = async e => {
   const caseSensitive = $('case-sensitive').checked;
   if (!findReplacePreview || findReplaceMatches.length === 0) {
     $('find-error').textContent = 'Click Preview changes first';
+    return;
+  }
+  if (!replaceText) {
+    $('find-error').textContent = 'Enter replacement text before replacing. Searching never deletes text.';
     return;
   }
   if (findText !== findReplacePreview.findText || replaceText !== findReplacePreview.replaceText || caseSensitive !== findReplacePreview.caseSensitive || findReplaceFingerprint() !== findReplacePreview.fingerprint) {
@@ -628,7 +645,8 @@ async function checkConsistency() {
         $('consistency-dialog').close();
         $('editor').contentWindow.postMessage({
           type: 'host:findFocus', chapterIndex: location.chapterIndex, matchIndex: location.matchIndex,
-          findText: item.translation, caseSensitive: true, target: 'translation'
+          findText: item.translation, caseSensitive: true, target: 'translation',
+          reviewAction: 'consistencyReview', reviewLabel: 'Review'
         }, location.origin);
       });
       openMatch.className = 'consistency-open';

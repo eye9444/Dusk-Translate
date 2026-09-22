@@ -36,6 +36,7 @@ function saveManualText() {
   updateMark(cur, value); updateProg(); emit();
 }
 const clearSearchHighlights = () => {
+  if (findNavigator) findNavigator.hidden = true;
   if (!globalThis.CSS?.highlights) return;
   CSS.highlights.delete('dusk-find');
   CSS.highlights.delete('dusk-find-current');
@@ -171,6 +172,26 @@ headerActions.append(toolsWrap);
 if (glossaryButton) headerActions.append(glossaryButton);
 if (themeButton) headerActions.append(themeButton);
 keyBar.append(headerActions);
+
+// Search results stay navigable after the host's review dialog is dismissed.
+const translationActions = document.querySelector('.pane:not(.pane-left) .pane-lbl .acts');
+const findNavigator = document.createElement('div'); findNavigator.id='host-find-navigator'; findNavigator.className='find-navigator'; findNavigator.hidden=true;
+const findPrevious = document.createElement('button'); findPrevious.type='button'; findPrevious.className='btn sm'; findPrevious.textContent='←'; findPrevious.setAttribute('aria-label','Previous search match');
+const findPosition = document.createElement('output'); findPosition.setAttribute('aria-live','polite');
+const findNext = document.createElement('button'); findNext.type='button'; findNext.className='btn sm'; findNext.textContent='→'; findNext.setAttribute('aria-label','Next search match');
+const findReview = document.createElement('button'); findReview.type='button'; findReview.className='btn sm'; findReview.textContent='Find'; findReview.setAttribute('aria-label','Return to find and replace');
+findPrevious.onclick=()=>send('editor:findNavigate',{delta:-1});
+findNext.onclick=()=>send('editor:findNavigate',{delta:1});
+findReview.onclick=()=>send('editor:action',{action:findReview.dataset.reviewAction || 'findReview'});
+findNavigator.append(findPrevious,findPosition,findNext,findReview);
+translationActions?.prepend(findNavigator);
+function updateFindNavigator({ position, total, reviewAction = 'findReview', reviewLabel = 'Find' }) {
+  const hasNavigation = Number.isInteger(position) && Number.isInteger(total) && total > 0;
+  findNavigator.hidden=!hasNavigation && !reviewAction;
+  findPrevious.hidden=!hasNavigation; findPosition.hidden=!hasNavigation; findNext.hidden=!hasNavigation;
+  findReview.dataset.reviewAction=reviewAction; findReview.textContent=reviewLabel;
+  if (hasNavigation) findPosition.value=`${position} of ${total}`;
+}
 const toolDisclosure = makeDisclosure('Translation tools', 'tool-disclosure');
 const controls = document.querySelector('.controls'); controls.before(toolDisclosure.details); toolDisclosure.content.append(controls);
 const chapterDisclosure = makeDisclosure('Chapter list', 'chapter-disclosure');
@@ -300,11 +321,15 @@ window.addEventListener('message', async e => {
     if (busy || !novel) return;
     const chapterIndex = Math.max(0, Math.min(novel.chapters.length - 1, Number(e.data.chapterIndex) || 0));
     if (chapterIndex !== cur) selectCh(chapterIndex);
-    requestAnimationFrame(() => highlightSearchMatch(e.data));
+    requestAnimationFrame(() => {
+      highlightSearchMatch(e.data);
+      updateFindNavigator(e.data);
+    });
     return;
   }
   if (e.data.type === 'host:findReplace') {
     const { findText, replaceText, caseSensitive } = e.data;
+    if (!findText || !replaceText) return;
     const flags = caseSensitive ? 'g' : 'gi';
     const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
 

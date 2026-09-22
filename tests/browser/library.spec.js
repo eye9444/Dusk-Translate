@@ -151,17 +151,18 @@ test('backup ZIP restores a project with its edited translation',async({page})=>
   await leave(page);await page.locator('#import-project').click();await expect(page.locator('#new-title-label')).toBeHidden();await page.locator('#new-file').setInputFiles({name:'backup.zip',mimeType:'application/zip',buffer});await page.locator('#create-submit').click();
   await expect(editor.locator('#tl-out')).toHaveText('Keep this translation.');
 });
-test('find and replace requires a current preview, keeps literal text, and supports undo',async({page})=>{
+test('find review navigates without replacing and replacement needs an explicit value',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');
   async function openFindReplace(){await editorAction(page,'#host-find-replace');}
   await editor.locator('#tl-out').fill('cat dog');await openFindReplace();
-  await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();
+  await page.locator('#find-text').fill('cat');await page.locator('#preview-btn').click();
   await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);await expect(page.locator('#find-position')).toHaveText('1 of 1');
+  await expect(page.locator('#replace-btn')).toBeHidden();await page.locator('.match-item').click();await expect(page.locator('#find-replace-dialog')).not.toBeVisible();
+  await expect(editor.locator('#host-find-navigator')).toBeVisible();await expect(editor.locator('#host-find-navigator output')).toHaveText('1 of 1');
+  await editor.locator('#host-find-navigator button',{hasText:'Find'}).click();await expect(page.locator('#find-replace-dialog')).toBeVisible();await expect(page.locator('#find-text')).toHaveValue('cat');
   await page.locator('#find-text').fill('dog');await expect(page.locator('#replace-btn')).toBeHidden();
   await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('$&');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('$& dog');
-  await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
-  await expect(editor.locator('#tl-out')).toHaveText('');
   await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-tools').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
 });
@@ -174,6 +175,7 @@ test('consistency findings open and highlight the relevant translation passage',
   const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('This is the first long translation wording.');await editor.locator('#btn-next').click();await editor.locator('#tl-out').fill('This is a different long translation wording.');
   await editorAction(page,'#host-consistency');await expect(page.locator('#consistency-dialog')).toBeVisible();await page.getByRole('button',{name:'Open chapter 1 match'}).click();
   await expect(page.locator('#consistency-dialog')).not.toBeVisible();await expect(editor.locator('#tl-out')).toContainText('first long translation');await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);
+  await expect(editor.locator('#host-find-navigator')).toBeVisible();await editor.locator('#host-find-navigator button',{hasText:'Review'}).click();await expect(page.locator('#consistency-dialog')).toBeVisible();
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
