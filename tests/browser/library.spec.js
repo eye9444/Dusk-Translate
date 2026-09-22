@@ -159,7 +159,8 @@ test('find review navigates without replacing and replacement needs an explicit 
   await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);await expect(page.locator('#find-position')).toHaveText('1 of 1');
   await expect(page.locator('#replace-btn')).toBeHidden();await page.locator('.match-item').click();await expect(page.locator('#find-replace-dialog')).not.toBeVisible();
   await expect(editor.locator('#host-find-navigator')).toBeVisible();await expect(editor.locator('#host-find-navigator output')).toHaveText('1 of 1');
-  await editor.locator('#host-find-navigator button',{hasText:'Find'}).click();await expect(page.locator('#find-replace-dialog')).toBeVisible();await expect(page.locator('#find-text')).toHaveValue('cat');
+  await editor.locator('#host-find-navigator button',{hasText:'Find'}).click();await expect(page.locator('#find-replace-dialog')).toBeVisible();await expect(page.locator('#find-text')).toHaveValue('cat');await page.getByRole('button',{name:'Close',exact:true}).click();await expect(editor.locator('#host-find-navigator')).toBeHidden();
+  await openFindReplace();
   await page.locator('#find-text').fill('dog');await expect(page.locator('#replace-btn')).toBeHidden();
   await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('$&');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('$& dog');

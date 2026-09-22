@@ -458,7 +458,7 @@ $('manage-form').onsubmit=async e=>{
   finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;}
 };
 
-let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1;
+let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1, preserveEditorReview = false;
 function findReplaceFingerprint() {
   return JSON.stringify(active?.snapshot?.translations || {});
 }
@@ -493,6 +493,15 @@ function showFindReplace(preserve = false) {
   }
   $('find-replace-dialog').showModal();
 }
+$('find-replace-dialog').addEventListener('close', () => {
+  // Only a selected result hands the review controls to the editor header.
+  if (!preserveEditorReview) invalidateFindReplacePreview();
+  preserveEditorReview = false;
+});
+$('consistency-dialog').addEventListener('close', () => {
+  if (!preserveEditorReview && active) $('editor').contentWindow.postMessage({ type: 'host:clearFind' }, location.origin);
+  preserveEditorReview = false;
+});
 ['find-text','replace-text','case-sensitive'].forEach(id => $(id).addEventListener(id === 'case-sensitive' ? 'change' : 'input', () => {
   if (findReplacePreview) invalidateFindReplacePreview('Preview updated. Review the replacement again.');
 }));
@@ -530,6 +539,7 @@ $('preview-btn').onclick = () => {
     const chapterNum = match.chapterIndex + 1;
     const item = button(`Chapter ${chapterNum}: ...${match.context}...`, () => {
       focusFindMatch(matchIndex);
+      preserveEditorReview = true;
       $('find-replace-dialog').close();
     });
     item.className = 'match-item'; item.setAttribute('role', 'option'); item.setAttribute('aria-selected', 'false');
@@ -642,6 +652,7 @@ async function checkConsistency() {
       chapters.style.cssText = 'font-size:.75rem;color:var(--muted);font-family:monospace';
       const openMatch = button(`Open chapter ${item.chapters[0]} match`, () => {
         const location = item.locations[0];
+        preserveEditorReview = true;
         $('consistency-dialog').close();
         $('editor').contentWindow.postMessage({
           type: 'host:findFocus', chapterIndex: location.chapterIndex, matchIndex: location.matchIndex,
