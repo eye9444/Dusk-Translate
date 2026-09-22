@@ -90,11 +90,18 @@ sourceText.lang='ja';sourceText.setAttribute('translate','no');
 const showDictionary=()=>send('editor:dictionary');
 
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
-const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project menu'); menuButton.setAttribute('aria-expanded','false');
+const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project navigation'); menuButton.setAttribute('aria-expanded','false');
 for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
-const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
-const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
-const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');action();}; return button; };
+const navigationMenu = document.createElement('div'); navigationMenu.id = 'host-menu-popover'; navigationMenu.className = 'host-menu-popover'; navigationMenu.hidden = true;
+const navigationAction = document.createElement('button'); navigationAction.id='host-library'; navigationAction.type='button'; navigationAction.textContent='Back to library'; navigationAction.onclick=()=>{navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action:'library'});};
+navigationMenu.append(navigationAction);
+editorMenu.append(menuButton,navigationMenu);
+
+const toolsWrap=document.createElement('div');toolsWrap.className='host-tools-wrap';
+const toolMenu=document.createElement('div');toolMenu.id='host-tools-popover';toolMenu.className='host-menu-popover';toolMenu.hidden=true;
+const closeToolMenu=()=>{toolMenu.hidden=true;dictionaryButton.setAttribute('aria-expanded','false');};
+const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{closeToolMenu();send('editor:action',{action});}; return button; };
+const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{closeToolMenu();action();}; return button; };
 const spellcheckAction=localMenuAction('host-spellcheck','',()=>{
   spellcheckEnabled = !spellcheckEnabled; document.getElementById('tl-out').spellcheck = spellcheckEnabled; updateSpellcheckAction(); emit();
 });
@@ -110,8 +117,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
   lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
-menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
-editorMenu.append(menuButton,menu);
+toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
@@ -123,9 +129,10 @@ keyBar.prepend(editorMenu,editorIdentity);
 const legacyHeader = document.querySelector('header');
 const headerActions = document.createElement('div'); headerActions.className='host-header-actions';
 const glossaryButton = legacyHeader?.querySelector('.glossary-toggle'); const themeButton = document.getElementById('theme-btn');
-const dictionaryButton=document.createElement('button');dictionaryButton.type='button';dictionaryButton.className='dictionary-toggle';dictionaryButton.setAttribute('aria-label','Yomitan dictionary setup');dictionaryButton.title='Yomitan dictionary setup';dictionaryButton.setAttribute('aria-haspopup','dialog');dictionaryButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a3 3 0 0 1 3 3v14a3 3 0 0 0-3-3H4z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H14v17a3 3 0 0 1 3-3h3z"/></svg>';dictionaryButton.onclick=showDictionary;
+const dictionaryButton=document.createElement('button');dictionaryButton.id='host-tools';dictionaryButton.type='button';dictionaryButton.className='dictionary-toggle';dictionaryButton.setAttribute('aria-label','Open editor tools and dictionary');dictionaryButton.title='Editor tools and dictionary';dictionaryButton.setAttribute('aria-haspopup','menu');dictionaryButton.setAttribute('aria-expanded','false');dictionaryButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11a3 3 0 0 1 3 3v14a3 3 0 0 0-3-3H4z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H14v17a3 3 0 0 1 3-3h3z"/></svg>';dictionaryButton.onclick=e=>{e.stopPropagation();toolMenu.hidden=!toolMenu.hidden;dictionaryButton.setAttribute('aria-expanded',String(!toolMenu.hidden));};
+toolsWrap.append(dictionaryButton,toolMenu);
 headerActions.append(saveStatus);
-headerActions.append(dictionaryButton);
+headerActions.append(toolsWrap);
 if (glossaryButton) headerActions.append(glossaryButton);
 if (themeButton) headerActions.append(themeButton);
 keyBar.append(headerActions);
@@ -151,9 +158,9 @@ syncDisclosures(mobileQuery); mobileQuery.addEventListener('change', syncDisclos
 disclosures.forEach(details => details.addEventListener('toggle', () => {
   if (mobileQuery.matches && details.open) disclosures.filter(other => other !== details).forEach(other => { other.open=false; });
 }));
-menuButton.onclick = e => { e.stopPropagation(); menu.hidden=!menu.hidden; menuButton.setAttribute('aria-expanded',String(!menu.hidden)); };
-document.addEventListener('click',e=>{if(!editorMenu.contains(e.target)){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){menu.hidden=true;menuButton.setAttribute('aria-expanded','false');}});
+menuButton.onclick = e => { e.stopPropagation(); navigationMenu.hidden=!navigationMenu.hidden; menuButton.setAttribute('aria-expanded',String(!navigationMenu.hidden)); };
+document.addEventListener('click',e=>{if(!editorMenu.contains(e.target)){navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');}if(!toolsWrap.contains(e.target))closeToolMenu();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');closeToolMenu();}});
 
 // Imported chapter titles are text, never markup in the hosted application.
 renderList = function () {
