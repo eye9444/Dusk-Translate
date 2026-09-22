@@ -35,7 +35,42 @@ function saveManualText() {
   else delete translations[id];
   updateMark(cur, value); updateProg(); emit();
 }
-document.getElementById('tl-out').addEventListener('input', saveManualText);
+const clearSearchHighlights = () => {
+  if (!globalThis.CSS?.highlights) return;
+  CSS.highlights.delete('dusk-find');
+  CSS.highlights.delete('dusk-find-current');
+};
+function textRange(root, start, end) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let offset = 0, startNode, endNode, startOffset, endOffset;
+  while (walker.nextNode()) {
+    const node = walker.currentNode, nodeEnd = offset + node.textContent.length;
+    if (!startNode && start >= offset && start <= nodeEnd) { startNode = node; startOffset = start - offset; }
+    if (end >= offset && end <= nodeEnd) { endNode = node; endOffset = end - offset; break; }
+    offset = nodeEnd;
+  }
+  if (!startNode || !endNode) return null;
+  const range = document.createRange(); range.setStart(startNode, startOffset); range.setEnd(endNode, endOffset); return range;
+}
+function highlightSearchMatch({ findText, caseSensitive, matchIndex, target = 'translation' }) {
+  clearSearchHighlights();
+  if (!findText || !globalThis.CSS?.highlights || typeof Highlight === 'undefined') return;
+  const root = target === 'source' ? document.getElementById('src-txt') : document.getElementById('tl-out');
+  const flags = caseSensitive ? 'g' : 'gi';
+  const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+  const ranges = [], matches = [];
+  for (const match of root.textContent.matchAll(regex)) {
+    const range = textRange(root, match.index, match.index + match[0].length);
+    if (range) { ranges.push(range); matches.push({ range, index: match.index }); }
+  }
+  if (!ranges.length) return;
+  CSS.highlights.set('dusk-find', new Highlight(...ranges));
+  const current = matches.find(match => match.index === matchIndex) || matches[0];
+  CSS.highlights.set('dusk-find-current', new Highlight(current.range));
+  const rootBox = root.getBoundingClientRect(), matchBox = current.range.getBoundingClientRect();
+  root.scrollTop += matchBox.top - rootBox.top - (root.clientHeight / 2) + (matchBox.height / 2);
+}
+document.getElementById('tl-out').addEventListener('input', () => { clearSearchHighlights(); saveManualText(); });
 document.getElementById('tl-out').addEventListener('paste', e => {
   e.preventDefault(); if (busy) return;
   const text = e.clipboardData.getData('text/plain');
@@ -176,7 +211,7 @@ renderList = function () {
   });
 };
 const originalSelect = selectCh;
-selectCh = function(i) { if (busy) return; originalSelect(i); emit(); };
+selectCh = function(i) { if (busy) return; clearSearchHighlights(); originalSelect(i); emit(); };
 const originalClear = clearTl;
 clearTl = function() { if (busy) return; originalClear(); emit(); };
 const originalImport = importTXT;
@@ -260,6 +295,14 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
+  if (e.data.type === 'host:clearFind') { clearSearchHighlights(); return; }
+  if (e.data.type === 'host:findFocus') {
+    if (busy || !novel) return;
+    const chapterIndex = Math.max(0, Math.min(novel.chapters.length - 1, Number(e.data.chapterIndex) || 0));
+    if (chapterIndex !== cur) selectCh(chapterIndex);
+    requestAnimationFrame(() => highlightSearchMatch(e.data));
+    return;
+  }
   if (e.data.type === 'host:findReplace') {
     const { findText, replaceText, caseSensitive } = e.data;
     const flags = caseSensitive ? 'g' : 'gi';

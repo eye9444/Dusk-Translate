@@ -156,6 +156,7 @@ test('find and replace requires a current preview, keeps literal text, and suppo
   async function openFindReplace(){await editorAction(page,'#host-find-replace');}
   await editor.locator('#tl-out').fill('cat dog');await openFindReplace();
   await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();
+  await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);await expect(page.locator('#find-position')).toHaveText('1 of 1');
   await page.locator('#find-text').fill('dog');await expect(page.locator('#replace-btn')).toBeHidden();
   await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('$&');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('$& dog');
@@ -163,6 +164,16 @@ test('find and replace requires a current preview, keeps literal text, and suppo
   await expect(editor.locator('#tl-out')).toHaveText('');
   await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-tools').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
+});
+test('consistency findings open and highlight the relevant translation passage',async({page})=>{
+  const repeated={chapters:[
+    {id:'p-001',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17},
+    {id:'p-002',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17}
+  ]};
+  await create(page,'Consistency navigation',{name:'repeated.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(repeated))});
+  const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('This is the first long translation wording.');await editor.locator('#btn-next').click();await editor.locator('#tl-out').fill('This is a different long translation wording.');
+  await editorAction(page,'#host-consistency');await expect(page.locator('#consistency-dialog')).toBeVisible();await page.getByRole('button',{name:'Open chapter 1 match'}).click();
+  await expect(page.locator('#consistency-dialog')).not.toBeVisible();await expect(editor.locator('#tl-out')).toContainText('first long translation');await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
