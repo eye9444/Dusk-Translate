@@ -146,8 +146,28 @@ test('backup ZIP restores a project with its edited translation',async({page})=>
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   const pending=page.waitForEvent('download');await editorAction(page,'#host-backup');const file=await pending;
   const {readFile}=await import('node:fs/promises');const buffer=await readFile(await file.path());
-  await leave(page);await create(page,'Restored',{name:'backup.zip',mimeType:'application/zip',buffer});
+  const archive=await JSZip.loadAsync(buffer);const manifest=JSON.parse(await archive.file('project.json').async('string'));
+  expect(manifest.schemaVersion).toBe(2);expect(manifest.title).toBe('Backup source');expect(await archive.file('translation.txt').async('string')).toContain('Keep this translation.');
+  await leave(page);await page.locator('#import-project').click();await expect(page.locator('#new-title-label')).toBeHidden();await page.locator('#new-file').setInputFiles({name:'backup.zip',mimeType:'application/zip',buffer});await page.locator('#create-submit').click();
   await expect(editor.locator('#tl-out')).toHaveText('Keep this translation.');
+});
+test('find and replace requires a current preview, keeps literal text, and supports undo',async({page})=>{
+  await create(page);const editor=page.frameLocator('#editor');
+  async function openFindReplace(){await editorAction(page,'#host-find-replace');}
+  await editor.locator('#tl-out').fill('cat dog');await openFindReplace();
+  await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();
+  await page.locator('#find-text').fill('dog');await expect(page.locator('#replace-btn')).toBeHidden();
+  await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('$&');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
+  await expect(editor.locator('#tl-out')).toHaveText('$& dog');
+  await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
+  await expect(editor.locator('#tl-out')).toHaveText('');
+  await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
+  await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-menu').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
+});
+test('spellcheck setting and its menu label survive a reload',async({page})=>{
+  await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-menu').click();await editor.locator('#host-spellcheck').click();
+  await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');await page.waitForTimeout(1300);await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await editor.locator('#tl-out').waitFor();await expect(editor.locator('#tl-out')).toHaveAttribute('spellcheck','false');await editor.locator('#host-menu').click();await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');
 });
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';

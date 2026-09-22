@@ -13,6 +13,12 @@ test('rejects invalid and duplicate chapter identifiers',()=>{
   assert.throws(()=>validateNovel({chapters:[{id:'__proto__',text:'bad'}]}));
   assert.throws(()=>validateNovel({chapters:[{id:'same',text:'a'},{id:'same',text:'b'}]}));
 });
+test('spellcheck defaults to true and respects false',()=>{
+  const snap = cleanSnapshot({novel,translations:{one:'A'},spellcheck:false});
+  assert.equal(snap.spellcheck,false);
+  const defaultSnap = cleanSnapshot({novel,translations:{one:'A'}});
+  assert.equal(defaultSnap.spellcheck,true);
+});
 test('upload boundaries are enforced',()=>{
   assert.throws(()=>validateFile({name:'book.exe',size:10}));
   assert.throws(()=>validateFile({name:'book.epub',size:21*1024*1024}));

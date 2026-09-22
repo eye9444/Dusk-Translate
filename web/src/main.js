@@ -33,6 +33,13 @@ function announceSave(message) {
 function el(tag, className, value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = value; return n; }
 function button(label, action) { const n = el('button','',label); n.addEventListener('click', action); return n; }
 function download(name, data) { const url = URL.createObjectURL(data); const a = el('a',''); a.href=url; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); }
+function safeFileName(value) { return String(value || 'project').replace(/[^a-z0-9_-]/gi,'_'); }
+function textExport(snapshot) {
+  return (snapshot?.novel?.chapters || []).flatMap(chapter => {
+    const translation = snapshot.translations?.[chapter.id]?.replace(/…PARTIAL$/, '').trim();
+    return translation ? [`${'─'.repeat(60)}\n[${chapter.id}]\n${'─'.repeat(60)}\n\n${translation}`] : [];
+  }).join('\n\n');
+}
 function theme(value) { document.body.classList.toggle('eclipse', value === 'eclipse'); localStorage.setItem('theme',value); $('editor').contentWindow?.postMessage({type:'host:theme',theme:value}, location.origin); }
 theme(localStorage.getItem('theme') || 'dusk');
 $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? 'dusk' : 'eclipse');
@@ -108,7 +115,7 @@ function render() {
     const translated = button('Read translation',() => openReader(p.id, 'translated'));
     translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
     if (!complete && isEpub(p)) translated.title=completionKnown ? `Translate all ${details.total} chapters to unlock this edition.` : 'Check whether the cloud project has a complete translated edition.';
-    actions.append(open,original,translated,button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    actions.append(open,original,translated,button('Export project',() => downloadProject(p)),button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     card.append(actions); $('projects').append(card);
   });
 }
@@ -128,7 +135,24 @@ document.addEventListener('keydown',event=>{
     event.preventDefault();$('search').focus();
   }
 });
-$('new-project').onclick = () => { $('project-form').reset(); $('new-error').textContent=''; $('project-dialog').showModal(); };
+let importingProject = false;
+function showProjectDialog(importing = false) {
+  importingProject = importing;
+  $('project-form').reset(); $('new-error').textContent='';
+  $('project-dialog-eyebrow').textContent = importing ? 'RESTORE A PROJECT' : 'A NEW CHAPTER';
+  $('project-dialog-title').textContent = importing ? 'Import a project' : 'Start a project';
+  $('new-title-label').hidden = importing;
+  $('new-title').required = !importing;
+  $('new-file-label').firstChild.textContent = importing ? 'DuskTranslate project ZIP' : 'Original book or project backup';
+  $('new-file').accept = importing ? '.zip,application/zip' : '.epub,.json,.txt,.zip';
+  $('new-file-help').innerHTML = importing
+    ? 'Choose a project ZIP exported by DuskTranslate. It restores the original book, translations, glossary, and reading position.'
+    : 'EPUB, source JSON, TXT, or backup ZIP · up to 20 MB.<br>Your original file is kept for future exports.';
+  $('create-submit').textContent = importing ? 'Import project' : 'Create project';
+  $('project-dialog').showModal();
+}
+$('new-project').onclick = () => showProjectDialog();
+$('import-project').onclick = () => showProjectDialog(true);
 $('welcome-signin').onclick=()=>showAuth('signin');$('welcome-signup').onclick=()=>showAuth('signup');
 $('welcome-guest').onclick=()=>{guestMode=true;sessionStorage.setItem('dusk-guest','true');refresh();};
 $('new-file').onchange = () => { if (!$('new-title').value) $('new-title').value = ($('new-file').files[0]?.name || '').replace(/\.[^.]+$/,'').slice(0,120); };
@@ -137,7 +161,8 @@ $('project-form').onsubmit = async e => {
   working=true; $('create-submit').disabled=true; $('new-error').textContent='';
   try {
     let file = $('new-file').files[0]; validateFile(file);
-    let snapshot = null;
+    if (importingProject && !/\.zip$/i.test(file.name)) throw new Error('Choose a DuskTranslate project ZIP.');
+    let snapshot = null, importedTitle = '';
     if (/\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
@@ -146,10 +171,12 @@ $('project-form').onsubmit = async e => {
       const record = JSON.parse(await archive.file('project.json').async('string'));
       if (typeof record.fileName!=='string' || !/\.(epub|json|txt)$/i.test(record.fileName) || !archive.file(record.fileName.replace(/[\\/]/g,'_'))) throw new Error('Backup original book is missing or invalid.');
       snapshot=cleanSnapshot(record.snapshot);
+      importedTitle=typeof record.title === 'string' ? record.title.trim().slice(0,120) : '';
       file=new File([await archive.file(record.fileName.replace(/[\\/]/g,'_')).async('arraybuffer')],record.fileName);
       validateFile(file);
     }
-    const title = $('new-title').value.trim(); if (!title) throw new Error('Enter a project title.');
+    const title = (importingProject ? importedTitle : $('new-title').value.trim()) || $('new-title').value.trim();
+    if (!title) throw new Error(importingProject ? 'This backup does not include a usable project title.' : 'Enter a project title.');
     let p = { id:crypto.randomUUID(), owner:owner(), title, file, fileName:file.name, snapshot, archived:false, revision:1, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), dirty:false };
     if (user) p = await remote.create(p);
     await local.put(p); $('project-dialog').close(); await refresh(); await openProject(p.id);
@@ -374,10 +401,27 @@ $('back').onclick=leave;
 $('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerOpen)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
 async function downloadBackup() {
   if (!active) return;
+  await draftQueue; await flush();
+  await downloadProject(active);
+}
+async function projectBackupBlob(project) {
+  if (!project?.file || !project?.snapshot) throw new Error('Open this project once before exporting it.');
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();
-  zip.file(active.fileName.replace(/[\\/]/g,'_'),active.file);
-  zip.file('project.json',JSON.stringify({title:active.title,fileName:active.fileName,snapshot:cleanSnapshot(active.snapshot)},null,2));
-  download(`${active.title.replace(/[^a-z0-9_-]/gi,'_')}-backup.zip`,await zip.generateAsync({type:'blob'}));
+  const originalName=project.fileName.replace(/[\\/]/g,'_');
+  const snapshot=cleanSnapshot(project.snapshot);
+  zip.file(originalName,project.file);
+  zip.file('project.json',JSON.stringify({schemaVersion:2,exportedAt:new Date().toISOString(),title:project.title,fileName:project.fileName,snapshot},null,2));
+  const translations=textExport(snapshot);
+  if (translations) zip.file('translation.txt',translations);
+  return zip.generateAsync({type:'blob'});
+}
+async function downloadProject(project) {
+  try {
+    const loaded=project.file ? project : await loadProject(project.id);
+    if (!loaded) throw new Error('Project not found. Refresh your library and try again.');
+    download(`${safeFileName(loaded.title)}-project.zip`,await projectBackupBlob(loaded));
+    status('Project export is ready. Keep the ZIP somewhere safe.');
+  } catch(error) { status(errorMessage(error)); }
 }
 $('backup').onclick=downloadBackup;
 window.addEventListener('beforeunload',e=>{if(active&&(persisted!==generation||streaming)){e.preventDefault();e.returnValue='';}});
@@ -408,16 +452,27 @@ $('manage-form').onsubmit=async e=>{
   finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;}
 };
 
-let findReplaceMatches = [];
+let findReplaceMatches = [], findReplacePreview = null;
+function findReplaceFingerprint() {
+  return JSON.stringify(active?.snapshot?.translations || {});
+}
+function invalidateFindReplacePreview(message = '') {
+  findReplaceMatches = []; findReplacePreview = null;
+  $('find-preview').style.display = 'none'; $('replace-btn').style.display = 'none';
+  if (message) $('find-error').textContent = message;
+}
 function showFindReplace() {
   if (!active) return;
   $('find-replace-form').reset();
   $('find-error').textContent = '';
   $('find-preview').style.display = 'none';
   $('replace-btn').style.display = 'none';
-  findReplaceMatches = [];
+  invalidateFindReplacePreview();
   $('find-replace-dialog').showModal();
 }
+['find-text','replace-text','case-sensitive'].forEach(id => $(id).addEventListener(id === 'case-sensitive' ? 'change' : 'input', () => {
+  if (findReplacePreview) invalidateFindReplacePreview('Preview updated. Review the replacement again.');
+}));
 $('preview-btn').onclick = () => {
   const findText = $('find-text').value;
   const caseSensitive = $('case-sensitive').checked;
@@ -460,14 +515,19 @@ $('preview-btn').onclick = () => {
   $('find-preview').style.display = 'block';
   $('replace-btn').style.display = '';
   $('replace-btn').textContent = `Replace all (${findReplaceMatches.length} matches)`;
+  findReplacePreview={findText,replaceText:$('replace-text').value,caseSensitive,fingerprint:findReplaceFingerprint()};
 };
 $('find-replace-form').onsubmit = async e => {
   e.preventDefault();
   const findText = $('find-text').value;
   const replaceText = $('replace-text').value;
   const caseSensitive = $('case-sensitive').checked;
-  if (findReplaceMatches.length === 0) {
+  if (!findReplacePreview || findReplaceMatches.length === 0) {
     $('find-error').textContent = 'Click Preview changes first';
+    return;
+  }
+  if (findText !== findReplacePreview.findText || replaceText !== findReplacePreview.replaceText || caseSensitive !== findReplacePreview.caseSensitive || findReplaceFingerprint() !== findReplacePreview.fingerprint) {
+    invalidateFindReplacePreview('Translations changed since preview. Review the replacement again.');
     return;
   }
   $('editor').contentWindow.postMessage({
@@ -477,6 +537,7 @@ $('find-replace-form').onsubmit = async e => {
     caseSensitive
   }, location.origin);
   $('find-replace-dialog').close();
+  findReplacePreview=null;
 };
 
 async function checkConsistency() {
@@ -488,17 +549,21 @@ async function checkConsistency() {
   await new Promise(resolve => setTimeout(resolve, 50));
   const snapshot = active.snapshot;
   const sourceToTranslations = new Map();
+  let checkedChapters = 0, skippedPartial = 0, comparedPairs = 0;
   snapshot.novel.chapters.forEach((ch, idx) => {
     const translation = snapshot.translations[ch.id];
-    if (!translation || translation.endsWith('…PARTIAL')) return;
+    if (!translation || translation.endsWith('…PARTIAL')) { if (translation?.endsWith('…PARTIAL')) skippedPartial++; return; }
     const sourceSentences = ch.text.split(/[。！？\n]+/).filter(s => s.trim().length > 10);
     const translationSentences = translation.split(/[.!?\n]+/).filter(s => s.trim().length > 10);
+    if (!sourceSentences.length || !translationSentences.length) return;
+    checkedChapters++;
     sourceSentences.forEach((source, sIdx) => {
       const sourceKey = source.trim().slice(0, 100);
       if (!sourceKey) return;
       const tlIdx = Math.floor((sIdx / sourceSentences.length) * translationSentences.length);
       const translation = translationSentences[tlIdx]?.trim();
       if (!translation) return;
+      comparedPairs++;
       if (!sourceToTranslations.has(sourceKey)) {
         sourceToTranslations.set(sourceKey, new Map());
       }
@@ -518,12 +583,14 @@ async function checkConsistency() {
   });
   inconsistencies.sort((a, b) => b.translations.length - a.translations.length);
   $('consistency-status').textContent = inconsistencies.length > 0
-    ? `Found ${inconsistencies.length} potential inconsistencies`
-    : '✓ No inconsistencies detected';
+    ? `Found ${inconsistencies.length} potential inconsistencies across ${checkedChapters} comparable chapters.`
+    : `No repeated source passages produced conflicting matches across ${checkedChapters} comparable chapters.`;
   if (inconsistencies.length === 0) {
-    $('consistency-results').append(el('p', '', 'All similar source text appears to be translated consistently.'));
+    $('consistency-results').append(el('p', '', comparedPairs ? 'This heuristic only compares repeated source passages with roughly aligned output. It does not confirm that the full translation is consistent.' : 'There were no comparable source/translation sentence pairs to check.'));
+    if (skippedPartial) $('consistency-results').append(el('p', '', `${skippedPartial} partial chapter${skippedPartial === 1 ? ' was' : 's were'} skipped.`));
     return;
   }
+  $('consistency-results').append(el('p', '', `Heuristic only: compare these passages manually before changing your translation.${skippedPartial ? ` ${skippedPartial} partial chapter${skippedPartial === 1 ? ' was' : 's were'} skipped.` : ''}`));
   inconsistencies.slice(0, 20).forEach(issue => {
     const card = el('div', '');
     card.style.cssText = 'border:1.5px solid var(--border);padding:12px;margin:8px 0;border-radius:4px';

@@ -25,7 +25,8 @@ export function cleanSnapshot(s) {
     novel: { chapters, _epubOpfPath: s.novel._epubOpfPath, _epubOpfDir: s.novel._epubOpfDir },
     translations, cur: Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))),
     glossary: String(s.glossary || ''), model: String(s.model || ''),
-    style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural'
+    style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural',
+    spellcheck: s.spellcheck !== false
   };
 }
 /** Calculate completed chapters without counting interrupted partial output. */

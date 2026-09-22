@@ -3,14 +3,16 @@ let projectId = null;
 let readyForSave = false;
 let lastSnapshot = '';
 let lastBusy = false;
+let lastBulkReplacement = null;
 const send = (type, extra = {}) => parent.postMessage({ type, projectId, ...extra }, location.origin);
+let spellcheckEnabled = true;
 function snapshot() {
   const saved = { ...translations };
   if (busy && novel) {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value };
+  return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -93,7 +95,22 @@ for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
 const menu = document.createElement('div'); menu.id = 'host-menu-popover'; menu.className = 'host-menu-popover'; menu.hidden = true;
 const menuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
 const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{menu.hidden=true;menuButton.setAttribute('aria-expanded','false');action();}; return button; };
-menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),menuAction('host-find-replace','Find and replace','findReplace'),menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Download backup','backup'));
+const spellcheckAction=localMenuAction('host-spellcheck','',()=>{
+  spellcheckEnabled = !spellcheckEnabled; document.getElementById('tl-out').spellcheck = spellcheckEnabled; updateSpellcheckAction(); emit();
+});
+const updateSpellcheckAction=()=>{spellcheckAction.textContent=`Spell check: ${spellcheckEnabled ? 'on' : 'off'}`;};
+const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replace',()=>{
+  if (!lastBulkReplacement || busy) return;
+  Object.entries(lastBulkReplacement).forEach(([chapterId, value]) => {
+    if (value === null) delete translations[chapterId]; else translations[chapterId]=value;
+    const chapterIndex=novel.chapters.findIndex(ch=>ch.id===chapterId);
+    if(chapterIndex>=0)updateMark(chapterIndex,translations[chapterId] || '');
+  });
+  const out=document.getElementById('tl-out'); out.textContent=translations[novel.chapters[cur].id] || '';
+  lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
+});
+undoFindReplace.disabled=true; updateSpellcheckAction();
+menu.append(menuAction('host-library','Back to library','library'),localMenuAction('host-dictionary','Yomitan lookup',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
 editorMenu.append(menuButton,menu);
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
@@ -242,13 +259,15 @@ window.addEventListener('message', async e => {
     const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
 
     let replacedCount = 0;
+    const previous = {};
     Object.keys(translations).forEach(chapterId => {
       const original = translations[chapterId];
       if (original.endsWith('…PARTIAL')) return; // Skip currently translating chapters
 
-      const replaced = original.replace(regex, replaceText);
+      const replaced = original.replace(regex, () => replaceText);
       if (replaced !== original) {
-        translations[chapterId] = replaced;
+        previous[chapterId]=original;
+        if (replaced) translations[chapterId] = replaced; else delete translations[chapterId];
         replacedCount++;
         const chapterIndex = novel.chapters.findIndex(ch => ch.id === chapterId);
         if (chapterIndex >= 0) {
@@ -257,13 +276,12 @@ window.addEventListener('message', async e => {
       }
     });
 
-    if (translations[novel.chapters[cur].id] && !translations[novel.chapters[cur].id].endsWith('…PARTIAL')) {
-      const out = document.getElementById('tl-out');
-      if (!busy) {
-        out.textContent = translations[novel.chapters[cur].id];
-      }
+    if (!busy) {
+      const current=translations[novel.chapters[cur].id];
+      document.getElementById('tl-out').textContent = current?.endsWith('…PARTIAL') ? current.slice(0,-8) : (current || '');
     }
 
+    if (replacedCount) { lastBulkReplacement=previous; undoFindReplace.disabled=false; }
     updateProg();
     emit(true);
     setStatus('✓ Replaced text in ' + replacedCount + ' chapters');
@@ -285,6 +303,14 @@ window.addEventListener('message', async e => {
     document.getElementById('glossary').value = p.snapshot?.glossary || '';
     if (p.snapshot?.model && Array.from(document.getElementById('model-select').options).some(o => o.value === p.snapshot.model)) document.getElementById('model-select').value = p.snapshot.model;
     document.getElementById('style-sel').value = p.snapshot?.style || 'natural';
+    if (p.snapshot?.spellcheck === false) {
+      spellcheckEnabled = false;
+      document.getElementById('tl-out').spellcheck = false;
+    } else {
+      spellcheckEnabled = true;
+      document.getElementById('tl-out').spellcheck = true;
+    }
+    updateSpellcheckAction();
     initUI(); originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
     onKeyInput(); readyForSave = true; emit(true); send('editor:loaded');
   } catch(err) { send('editor:error', { message: err.message }); }
