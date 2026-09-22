@@ -110,17 +110,39 @@ test('mobile editor collapses controls and gives source and translation equal sc
 });
 test('desktop AI provider bar keeps key, model and help aligned',async({page})=>{
   await page.setViewportSize({width:1600,height:900});await create(page,'Provider layout');const editor=page.frameLocator('#editor');
-  const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('#model-select').boundingBox();
+  const bar=await editor.locator('.key-bar').boundingBox(),keyControl=await editor.locator('.key-input-wrap').boundingBox(),modelControl=await editor.locator('.model-picker').boundingBox();
   expect(Math.abs(keyControl.y-modelControl.y)).toBeLessThanOrEqual(2);expect(keyControl.x+keyControl.width).toBeLessThanOrEqual(modelControl.x);expect(Math.abs(keyControl.width-modelControl.width)).toBeLessThanOrEqual(1);expect(modelControl.width).toBeLessThanOrEqual(310);expect(bar.height).toBeLessThanOrEqual(70);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
   expect(await editor.locator('.key-bar').evaluate(element=>getComputedStyle(element,'::after').content)).toBe('none');
   await editor.locator('#api-key').focus();await expect(editor.locator('#api-key')).toHaveCSS('outline-width','1px');
 });
-test('AI Studio accepts standard and authorization key prefixes',async({page})=>{
+test('AI Studio key formats enable the live model importer',async({page})=>{
   await create(page,'AI Studio key formats');const editor=page.frameLocator('#editor');
   for(const key of ['AIzaFAKE_TEST_KEY_123456789012345','AQ.TEST_AUTHORIZATION_KEY_123456789']){
-    await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('AI Studio key set');await expect(editor.locator('#btn-tl')).toBeEnabled();
+    await editor.locator('#api-key').fill(key);await expect(editor.locator('#key-status')).toContainText('Import models');await expect(editor.locator('#model-import')).toBeEnabled();await expect(editor.locator('#btn-tl')).toBeDisabled();
   }
+});
+test('model importer fetches live provider models and filters OpenRouter free models',async({page})=>{
+  await page.route('https://generativelanguage.googleapis.com/v1beta/models',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({models:[
+    {name:'models/gemini-live',displayName:'Gemini Live',inputTokenLimit:32000,supportedGenerationMethods:['generateContent']},
+    {name:'models/embedding-only',displayName:'Embedding only',supportedGenerationMethods:['embedContent']}
+  ]})}));
+  await page.route('https://openrouter.ai/api/v1/models',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({data:[
+    {id:'free/text-model:free',name:'Free text model',context_length:16000,pricing:{prompt:'0',completion:'0'},architecture:{output_modalities:['text']}},
+    {id:'paid/text-model',name:'Paid text model',context_length:64000,pricing:{prompt:'0.000001',completion:'0.000002'},architecture:{output_modalities:['text']}},
+    {id:'free/image-model:free',name:'Free image model',pricing:{prompt:'0',completion:'0'},architecture:{output_modalities:['image']}}
+  ]})}));
+  await create(page,'Live catalog');const editor=page.frameLocator('#editor');
+  await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
+  await editor.locator('#model-import').click();await expect(editor.locator('#model-import-dialog')).toBeVisible();await editor.locator('#import-free-models').click();
+  await expect(editor.locator('#model-select')).toHaveValue('ai|gemini-live');await expect(editor.locator('#model-select option')).toHaveCount(1);await expect(editor.locator('#btn-tl')).toBeEnabled();
+  await editor.getByRole('button',{name:'Close',exact:true}).click();
+  await editor.locator('#api-key').fill('sk-or-v1-TEST_AUTHORIZATION_KEY_123456789');
+  await editor.locator('#model-import').click();await editor.locator('#import-free-models').click();
+  await expect(editor.locator('#model-select')).toHaveValue('or|free/text-model:free');await expect(editor.locator('#model-select option')).toHaveCount(1);
+  await editor.locator('#import-all-models').click();await expect(editor.locator('#model-select option')).toHaveCount(2);await expect(editor.locator('#model-select')).toHaveValue('or|free/text-model:free');
+  await expect(editor.locator('#model-import-status')).toContainText('Imported 2');
+  await editor.locator('#model-select').selectOption('or|paid/text-model');await expect(editor.locator('#btn-tl')).toBeEnabled();
 });
 test('Japanese source is selectable and includes the Yomitan iframe setup note',async({page})=>{
   await create(page,'Dictionary support');const editor=page.frameLocator('#editor');
