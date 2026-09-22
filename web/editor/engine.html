@@ -718,6 +718,7 @@ function go(d) {
 
 const TRANSLATION_CHUNK_LIMIT = 5000;
 const TRANSLATION_CONTINUITY_CHARS = 1250;
+const TRANSLATION_IDLE_TIMEOUT_MS = 120000;
 function splitTranslationChunks(text, limit = TRANSLATION_CHUNK_LIMIT) {
   if (text.length <= limit) return [text];
   const chunkCount = Math.ceil(text.length / limit);
@@ -807,7 +808,7 @@ async function translateCurrent() {
   abortCtrl = new AbortController();
   let lastTok = Date.now();
   watchdog = setInterval(() => {
-    if (Date.now() - lastTok > 30000) { clearInterval(watchdog); abortCtrl.abort(); }
+    if (Date.now() - lastTok > TRANSLATION_IDLE_TIMEOUT_MS) { clearInterval(watchdog); abortCtrl.abort(); }
   }, 2000);
 
   const getTextContent = () => {
@@ -921,8 +922,10 @@ async function translateOpenRouter(prompt, out, cursor, onToken, abortCtrl) {
       try {
         const parsed = JSON.parse(data);
         devLogEntry('openrouter_event', parsed);
+        // Reasoning-only events still prove the provider is actively working.
+        onToken();
         const token = parsed?.choices?.[0]?.delta?.content;
-        if (token) { onToken(); appendToken(out, cursor, token); }
+        if (token) appendToken(out, cursor, token);
         const finish = parsed?.choices?.[0]?.finish_reason;
         if (finish === 'stop') cleanStop = true;
       } catch {}
@@ -961,12 +964,14 @@ async function translateAIStudio(prompt, out, cursor, onToken, abortCtrl) {
       try {
         const parsed = JSON.parse(data);
         devLogEntry('ai_studio_event', parsed);
+        // Native thought parts are hidden, but must keep the idle watchdog alive.
+        onToken();
         // Gemini marks native thinking parts explicitly; only render final prose.
         const token = (parsed?.candidates?.[0]?.content?.parts || [])
           .filter(part => part.text && !part.thought)
           .map(part => part.text)
           .join('');
-        if (token) { onToken(); appendToken(out, cursor, token); }
+        if (token) appendToken(out, cursor, token);
         const finish = parsed?.candidates?.[0]?.finishReason;
         if (finish) { finishReason = finish; if (finish === 'STOP') cleanStop = true; }
         // Also catch top-level error blocks AI Studio sometimes sends mid-stream
