@@ -106,7 +106,8 @@ const makeDisclosure = (label, className) => {
   const content = document.createElement('div'); content.className = 'mobile-disclosure-content';
   details.append(summary, content); return { details, content };
 };
-const [keyLabel, keyInputWrap, modelLabel, modelSelect, keyStatus] = Array.from(keyBar.children);
+const [keyLabel, keyInputWrap, modelLabel, modelPicker, keyStatus] = Array.from(keyBar.children);
+const modelSelect = modelPicker.querySelector('#model-select');
 keyLabel.htmlFor='api-key'; modelLabel.htmlFor='model-select'; keyStatus.setAttribute('role','status');
 const providerField = (className, label, control) => {
   const field=document.createElement('div'); field.className=`provider-field ${className}`; field.append(label,control); return field;
@@ -115,7 +116,7 @@ const providerDisclosure = makeDisclosure('AI provider & model', 'provider-discl
 const keyGuide = document.createElement('a'); keyGuide.className='api-key-guide'; keyGuide.href='/guides/api-keys.html'; keyGuide.target='_blank'; keyGuide.rel='noopener'; keyGuide.textContent='Get an API key ↗';
 const providerFeedback=document.createElement('div'); providerFeedback.className='provider-feedback'; providerFeedback.append(keyStatus,keyGuide);
 const providerControls=document.createElement('div'); providerControls.className='provider-controls';
-providerControls.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelSelect),providerFeedback);
+providerControls.append(providerField('provider-key-field',keyLabel,keyInputWrap),providerField('provider-model-field',modelLabel,modelPicker),providerFeedback);
 providerDisclosure.content.append(providerControls);
 keyBar.append(providerDisclosure.details);
 
@@ -376,7 +377,7 @@ window.addEventListener('message', async e => {
     else if (p.fileName.toLowerCase().endsWith('.json')) novel = checkNovel(JSON.parse(await p.file.text()));
     else { const text = await p.file.text(); novel = checkNovel({ chapters:[{id:'chapter-1',text,jp_char_count:(text.match(/[\u3040-\u9fff]/g)||[]).length}] }); }
     document.getElementById('glossary').value = p.snapshot?.glossary || '';
-    if (p.snapshot?.model && Array.from(document.getElementById('model-select').options).some(o => o.value === p.snapshot.model)) document.getElementById('model-select').value = p.snapshot.model;
+    restoreModelSelection(p.snapshot?.model);
     document.getElementById('style-sel').value = p.snapshot?.style || 'natural';
     if (p.snapshot?.spellcheck === false) {
       spellcheckEnabled = false;
