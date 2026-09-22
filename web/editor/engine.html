@@ -199,6 +199,9 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
   </div>
   <label>Model</label>
   <select id="model-select" onchange="onKeyInput()">
+    <optgroup label="── Automatic ──">
+      <option value="auto|recommended">Auto (recommended)</option>
+    </optgroup>
     <optgroup label="── AI Studio (AIza… or AQ.… key) ──">
       <option value="ai|gemini-3.7-flash">Gemini 3.7 Flash (free)</option>
       <option value="ai|gemini-3.5-flash">Gemini 3.5 Flash (free)</option>
@@ -317,7 +320,20 @@ let devMode = false;
 let devLog = []; // stores API log entries when dev mode is on // stores the original JSZip object for epub round-trip
 
 function getKey()      { return document.getElementById('api-key').value.trim(); }
-function getModelVal() { return document.getElementById('model-select').value; }
+function getSelectedModelVal() { return document.getElementById('model-select').value; }
+function keyProvider(key) {
+  if (isAIKey(key)) return 'ai';
+  if (isORKey(key)) return 'or';
+  return null;
+}
+function getModelVal() {
+  const selected = getSelectedModelVal();
+  if (selected !== 'auto|recommended') return selected;
+  // Auto follows the entered key: fast Gemini for AI Studio, or OpenRouter's
+  // maintained free router when the user supplied an OpenRouter key.
+  const provider = keyProvider(getKey()) || 'ai';
+  return provider === 'or' ? 'or|openrouter/free' : 'ai|gemini-3.7-flash';
+}
 function getProvider() { return getModelVal().split('|')[0]; }
 function getModel()    { return getModelVal().split('|')[1]; }
 
@@ -346,12 +362,16 @@ function keyMatchesProvider(k, p) {
 function isReady() { return keyMatchesProvider(getKey(), getProvider()); }
 
 function onKeyInput() {
-  const k = getKey(), p = getProvider();
+  const k = getKey(), p = getProvider(), auto = getSelectedModelVal() === 'auto|recommended';
   const el = document.getElementById('key-status');
   if (k.length === 0) {
     el.textContent = 'Enter your API key'; el.className = 'key-status';
   } else if (keyMatchesProvider(k, p)) {
-    el.textContent = `✓ ${p === 'ai' ? 'AI Studio' : 'OpenRouter'} key set — ready`; el.className = 'key-status ok';
+    const model = getModel();
+    el.textContent = auto
+      ? `✓ Auto: ${p === 'ai' ? 'AI Studio' : 'OpenRouter'} → ${model}`
+      : `✓ ${p === 'ai' ? 'AI Studio' : 'OpenRouter'} key set — ready`;
+    el.className = 'key-status ok';
   } else if (p === 'ai' && isORKey(k)) {
     el.textContent = 'That looks like an OpenRouter key — select an OR· model'; el.className = 'key-status err';
   } else if (p === 'or' && isAIKey(k)) {
