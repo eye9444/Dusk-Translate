@@ -12,7 +12,7 @@ function snapshot() {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getSelectedModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
