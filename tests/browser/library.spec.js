@@ -148,7 +148,10 @@ test('long chapters are translated sequentially in bounded requests',async({page
   const requests=[];
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
     requests.push(JSON.parse(route.request().postData()).contents[0].parts[0].text);
-    const response={candidates:[{content:{parts:[{text:`part ${requests.length}`}]},finishReason:'STOP'}]};
+    const parts=requests.length===1
+      ? [{text:'provider-native thought',thought:true},{text:'<think>visible reasoning</think>part 1'}]
+      : [{text:'part 2'}];
+    const response={candidates:[{content:{parts},finishReason:'STOP'}]};
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify(response)+'\n\n'});
   });
   const longChapter={chapters:[{id:'p-long',text:'あ'.repeat(5001),jp_char_count:5001}]};
@@ -158,6 +161,8 @@ test('long chapters are translated sequentially in bounded requests',async({page
   const sources=requests.map(prompt=>prompt.split('Japanese text:\n').at(-1));
   expect(requests).toHaveLength(2);expect(sources.every(source=>source.length<=5000)).toBe(true);
   expect(sources.join('')).toBe(longChapter.chapters[0].text);
+  const continuity=requests[1].match(/---\n([\s\S]*?)\n---\n\nJapanese text/)[1];
+  expect(continuity).toBe('part 1');expect(await editor.locator('#tl-out').textContent()).toBe('part 1\n\npart 2');
 });
 test('model importer fetches live provider models and filters OpenRouter free models',async({page})=>{
   await page.route('https://generativelanguage.googleapis.com/v1beta/models',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({models:[
