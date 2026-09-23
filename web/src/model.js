@@ -23,9 +23,13 @@ export function cleanSnapshot(s) {
   const translations = Object.fromEntries(chapters.filter(ch => typeof s.translations?.[ch.id] === 'string').map(ch => [ch.id, s.translations[ch.id]]));
   // A partial only needs its source chunk number to resume after a reload.
   const partialResumes = Object.fromEntries(chapters.flatMap(ch => {
-    const index = s.partialResumes?.[ch.id]?.chunkIndex;
+    const resume = s.partialResumes?.[ch.id];
+    const index = resume?.chunkIndex;
+    const sourceOverride = typeof resume?.sourceOverride === 'string' && resume.sourceOverride.length <= ch.text.length
+      ? resume.sourceOverride
+      : null;
     return translations[ch.id]?.endsWith('…PARTIAL') && Number.isInteger(index) && index >= 0
-      ? [[ch.id, { chunkIndex: index }]]
+      ? [[ch.id, { chunkIndex: index, ...(sourceOverride ? { sourceOverride } : {}) }]]
       : [];
   }));
   return {

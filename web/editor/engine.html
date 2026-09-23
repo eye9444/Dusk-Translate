@@ -760,6 +760,17 @@ function replaceOutputText(out, cursor, text) {
   out.parentElement.scrollTop = out.parentElement.scrollHeight;
 }
 
+function inferLegacyResume(chapter, partialText) {
+  // Older partials did not store their source chunk. Both prompts preserve
+  // paragraph breaks, so use completed translated paragraphs to find the
+  // untouched source remainder without throwing the partial away.
+  const sourceParagraphs = chapter.text.trim().split(/\n\s*\n/).filter(Boolean);
+  const translatedParagraphs = partialText.trim().split(/\n\s*\n/).filter(Boolean);
+  if (!translatedParagraphs.length || translatedParagraphs.length >= sourceParagraphs.length) return null;
+  const sourceOverride = sourceParagraphs.slice(translatedParagraphs.length).join('\n\n');
+  return sourceOverride ? { chunkIndex: 0, text: partialText, sourceOverride } : null;
+}
+
 async function translateCurrent({ resume = null } = {}) {
   if (!novel || busy || !isReady()) return;
 
@@ -789,7 +800,8 @@ async function translateCurrent({ resume = null } = {}) {
     ? `\n\nName/term glossary — always use these translations exactly:\n${glossaryLines.map(l => `- ${l}`).join('\n')}`
     : '';
 
-  const chunks = splitTranslationChunks(ch.text);
+  const sourceForTranslation = resume?.sourceOverride || ch.text;
+  const chunks = splitTranslationChunks(sourceForTranslation);
   const makePrompt = (source, continuity = '', resumesCurrentChunk = false) => {
     const continuitySection = continuity
       ? resumesCurrentChunk
@@ -821,7 +833,7 @@ async function translateCurrent({ resume = null } = {}) {
   };
   const savePartial = (full, msg, chunkIndex) => {
     translations[ch.id] = full + '…PARTIAL';
-    partialResumes[ch.id] = { chunkIndex };
+    partialResumes[ch.id] = { chunkIndex, ...(resume?.sourceOverride ? { sourceOverride: resume.sourceOverride } : {}) };
     out.innerHTML = ''; out.textContent = full;
     const b = document.createElement('span'); b.className = 'partial-badge'; b.textContent = 'partial — click Retry'; out.appendChild(b);
     updateMark(cur, translations[ch.id]); updateProg();
@@ -1026,13 +1038,19 @@ function retryTranslation() {
   const saved = translations[ch.id] || '';
   const resume = partialResumes[ch.id];
   if (!saved.endsWith('…PARTIAL') || !resume) {
-    setStatus('This partial predates resumable retry. Starting the chapter again.');
+    const recovered = saved.endsWith('…PARTIAL') ? inferLegacyResume(ch, saved.replace('…PARTIAL', '')) : null;
+    if (recovered) {
+      setStatus(`Recovering ${ch.id} from its saved partial…`, true);
+      translateCurrent({ resume: recovered });
+      return;
+    }
+    setStatus('This partial cannot be matched to its source safely. Starting the chapter again.');
     delete translations[ch.id];
     translateCurrent();
     return;
   }
   setStatus(`Resuming ${ch.id} from the interrupted part…`, true);
-  translateCurrent({ resume: { chunkIndex: resume.chunkIndex, text: saved.replace('…PARTIAL', '') } });
+  translateCurrent({ resume: { chunkIndex: resume.chunkIndex, text: saved.replace('…PARTIAL', ''), sourceOverride: resume.sourceOverride } });
 }
 
 function updateMark(i, text) {
