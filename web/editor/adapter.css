@@ -18,8 +18,6 @@ body.eclipse { --muted:#aaa090; }
 :focus-visible,button:focus,input:focus,select:focus,a:focus{outline:1px solid var(--muted);outline-offset:2px}
 .tl-out:focus-visible{outline:none}.pane:has(.tl-out:focus){box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 68%,transparent)}
 .src-txt,.ch-title{user-select:text;-webkit-user-select:text}
-::highlight(dusk-find){background:color-mix(in srgb,var(--accent) 34%,transparent);color:var(--ink)}
-::highlight(dusk-find-current){background:var(--accent);color:var(--paper)}
 .dictionary-toggle{display:grid;place-items:center;width:34px;height:34px;margin:0;padding:7px;border:1px solid var(--border);border-radius:50%;background:transparent;color:var(--ink);cursor:pointer}.dictionary-toggle svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.dictionary-toggle:hover{background:var(--ink);color:var(--paper)}
 .find-navigator{display:flex;align-items:center;gap:4px}.find-navigator[hidden]{display:none}.find-navigator output{min-width:38px;text-align:center;font:9px 'DM Mono',monospace;color:var(--muted)}.find-navigator .btn{min-width:25px;padding:4px 6px}.find-navigator .btn:last-child{padding-inline:7px}
 

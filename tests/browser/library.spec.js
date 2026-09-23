@@ -230,7 +230,7 @@ test('find review navigates without replacing and replacement needs an explicit 
   async function openFindReplace(){await editorAction(page,'#host-find-replace');}
   await editor.locator('#tl-out').fill('cat dog');await openFindReplace();
   await page.locator('#find-text').fill('cat');await page.locator('#preview-btn').click();
-  await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);await expect(page.locator('#find-position')).toHaveText('1 of 1');
+  await expect(editor.locator('#host-find-navigator')).toBeVisible();await expect(page.locator('#find-position')).toHaveText('1 of 1');
   await expect(page.locator('#replace-btn')).toBeHidden();await page.locator('.match-item').click();await expect(page.locator('#find-replace-dialog')).not.toBeVisible();
   await expect(editor.locator('#host-find-navigator')).toBeVisible();await expect(editor.locator('#host-find-navigator output')).toHaveText('1 of 1');
   await editor.locator('#host-find-navigator button',{hasText:'Find'}).click();await expect(page.locator('#find-replace-dialog')).toBeVisible();await expect(page.locator('#find-text')).toHaveValue('cat');await page.getByRole('button',{name:'Close',exact:true}).click();await expect(editor.locator('#host-find-navigator')).toBeHidden();
@@ -259,7 +259,7 @@ test('consistency findings open and highlight the relevant translation passage',
   await create(page,'Consistency navigation',{name:'repeated.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(repeated))});
   const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('This is the first long translation wording.');await editor.locator('#btn-next').click();await editor.locator('#tl-out').fill('This is a different long translation wording.');
   await editorAction(page,'#host-consistency');await expect(page.locator('#consistency-dialog')).toBeVisible();await page.getByRole('button',{name:'Open chapter 1 match'}).click();
-  await expect(page.locator('#consistency-dialog')).not.toBeVisible();await expect(editor.locator('#tl-out')).toContainText('first long translation');await expect.poll(()=>editor.locator('#tl-out').evaluate(()=>CSS.highlights.has('dusk-find-current'))).toBe(true);
+  await expect(page.locator('#consistency-dialog')).not.toBeVisible();await expect(editor.locator('#tl-out')).toContainText('first long translation');await expect(editor.locator('#host-find-navigator')).toBeVisible();
   await expect(editor.locator('#host-find-navigator')).toBeVisible();await editor.locator('#host-find-navigator button',{hasText:'Review'}).click();await expect(page.locator('#consistency-dialog')).toBeVisible();
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{

@@ -62,18 +62,17 @@ function createFindRegex(findText, caseSensitive, matchMode = 'substring') {
 }
 function highlightSearchMatch({ findText, caseSensitive, matchMode, matchIndex, target = 'translation' }) {
   clearSearchHighlights();
-  if (!findText || !globalThis.CSS?.highlights || typeof Highlight === 'undefined') return;
+  if (!findText) return;
   const root = target === 'source' ? document.getElementById('src-txt') : document.getElementById('tl-out');
   const regex = createFindRegex(findText, caseSensitive, matchMode);
-  const ranges = [], matches = [];
+  const matches = [];
   for (const match of root.textContent.matchAll(regex)) {
     const range = textRange(root, match.index, match.index + match[0].length);
-    if (range) { ranges.push(range); matches.push({ range, index: match.index }); }
+    if (range) matches.push({ range, index: match.index });
   }
-  if (!ranges.length) return;
-  CSS.highlights.set('dusk-find', new Highlight(...ranges));
+  if (!matches.length) return;
   const current = matches.find(match => match.index === matchIndex) || matches[0];
-  CSS.highlights.set('dusk-find-current', new Highlight(current.range));
+  // Navigate to the match without changing the document's visual text styling.
   const rootBox = root.getBoundingClientRect(), matchBox = current.range.getBoundingClientRect();
   root.scrollTop += matchBox.top - rootBox.top - (root.clientHeight / 2) + (matchBox.height / 2);
 }
