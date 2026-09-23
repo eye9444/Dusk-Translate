@@ -312,7 +312,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
 </div>
 
 <script>
-let novel = null, cur = 0, translations = {}, busy = false;
+let novel = null, cur = 0, translations = {}, partialResumes = {}, busy = false;
 let abortCtrl = null, watchdog = null;
 let hidden = false;
 let epubZip = null;
@@ -760,7 +760,7 @@ function replaceOutputText(out, cursor, text) {
   out.parentElement.scrollTop = out.parentElement.scrollHeight;
 }
 
-async function translateCurrent() {
+async function translateCurrent({ resume = null } = {}) {
   if (!novel || busy || !isReady()) return;
 
   const ch = novel.chapters[cur];
@@ -790,9 +790,11 @@ async function translateCurrent() {
     : '';
 
   const chunks = splitTranslationChunks(ch.text);
-  const makePrompt = (source, continuity = '') => {
+  const makePrompt = (source, continuity = '', resumesCurrentChunk = false) => {
     const continuitySection = continuity
-      ? `\n\nPreviously translated ending for continuity. Do not repeat, revise, explain, or translate it; translate only the new Japanese text.\n---\n${continuity}\n---`
+      ? resumesCurrentChunk
+        ? `\n\nExisting partial translation of this same Japanese passage. Continue directly after it. Do not repeat, revise, explain, or translate the existing text.\n---\n${continuity}\n---`
+        : `\n\nPreviously translated ending for continuity. Do not repeat, revise, explain, or translate it; translate only the new Japanese text.\n---\n${continuity}\n---`
       : '';
     return plainTextFallback
       ? `Translate the following Japanese plain text into English. Output only the translation. Preserve paragraph breaks and dialogue formatting.${continuitySection}\n\n${source}`
@@ -801,6 +803,8 @@ async function translateCurrent() {
 
   const out = document.getElementById('tl-out');
   out.innerHTML = '';
+  const resumeText = resume?.text || '';
+  if (resumeText) out.appendChild(document.createTextNode(resumeText));
   const cursor = document.createElement('span');
   cursor.className = 'cursor';
   out.appendChild(cursor);
@@ -815,23 +819,27 @@ async function translateCurrent() {
     for (const node of out.childNodes) { if (node.nodeType === 3) return node.textContent; }
     return '';
   };
-  const savePartial = (full, msg) => {
+  const savePartial = (full, msg, chunkIndex) => {
     translations[ch.id] = full + '…PARTIAL';
+    partialResumes[ch.id] = { chunkIndex };
     out.innerHTML = ''; out.textContent = full;
     const b = document.createElement('span'); b.className = 'partial-badge'; b.textContent = 'partial — click Retry'; out.appendChild(b);
     updateMark(cur, translations[ch.id]); updateProg();
     setStatus(msg);
   };
 
+  let activeChunkIndex = resume?.chunkIndex ?? 0;
   try {
-    for (let index = 0; index < chunks.length; index++) {
+    for (let index = activeChunkIndex; index < chunks.length; index++) {
+      activeChunkIndex = index;
       const source = chunks[index];
       const priorTranslation = getTextContent().trim();
       const continuity = priorTranslation.slice(-TRANSLATION_CONTINUITY_CHARS);
-      const prompt = makePrompt(source, continuity);
+      const resumingCurrentChunk = Boolean(resume && index === resume.chunkIndex);
+      const prompt = makePrompt(source, continuity, resumingCurrentChunk);
       const prefix = chunks.length > 1 ? ` · part ${index + 1}/${chunks.length}` : '';
       setStatus(`Translating ${ch.id}${prefix}…`, true);
-      if (index > 0 && priorTranslation) appendToken(out, cursor, '\n\n');
+      if (index > (resume?.chunkIndex ?? 0) && priorTranslation) appendToken(out, cursor, '\n\n');
       const partStart = getTextContent().length;
       devLogEntry('prompt', { chapter: ch.id, provider, model: getModel(), plainTextFallback, part: index + 1, parts: chunks.length, promptLength: prompt.length, prompt });
       const cleanStop = provider === 'or'
@@ -846,7 +854,7 @@ async function translateCurrent() {
           window._plainTextRetryChapter = ch.id;
           endBusy();
           setStatus(`Empty response in part ${index + 1} — retrying with plain text…`, true);
-          translateCurrent();
+          translateCurrent({ resume });
           return;
         }
         throw new Error(`Empty response for part ${index + 1}/${chunks.length} — the model may be rate limited or blocking this chapter`);
@@ -854,7 +862,7 @@ async function translateCurrent() {
       if (!cleanStop) {
         clearInterval(watchdog);
         cursor.remove();
-        savePartial(getTextContent(), `⚠ Stream ended during part ${index + 1}/${chunks.length} — partial saved. Click Retry to finish.`);
+        savePartial(getTextContent(), `⚠ Stream ended during part ${index + 1}/${chunks.length} — partial saved. Retry continues from here.`, activeChunkIndex);
         endBusy();
         return;
       }
@@ -864,6 +872,7 @@ async function translateCurrent() {
     cursor.remove();
     window._plainTextRetryChapter = null;
     translations[ch.id] = full;
+    delete partialResumes[ch.id];
     updateMark(cur, full); updateProg();
     setStatus(`✓ Done — ${ch.id}${chunks.length > 1 ? ` (${chunks.length} parts)` : ''}`);
     setTimeout(hideStatus, 2500);
@@ -877,10 +886,10 @@ async function translateCurrent() {
       window._plainTextRetryChapter = ch.id;
       endBusy();
       setStatus('Request failed — retrying with plain text…', true);
-      translateCurrent();
+      translateCurrent({ resume });
       return;
     } else if (full.length > 80) {
-      savePartial(full, 'Stream interrupted — partial saved. Click Retry to finish.');
+      savePartial(full, 'Stream interrupted — partial saved. Retry continues from here.', activeChunkIndex);
     } else {
       devLogEntry('error', { message: err.message, chapter: ch?.id });
       out.textContent = '[Error: ' + err.message + ']';
@@ -1010,12 +1019,15 @@ function abortTranslation() {
 function retryTranslation() {
   const ch = novel?.chapters[cur];
   if (!ch) return;
-  delete translations[ch.id];
-  document.getElementById('tl-out').innerHTML = '';
-  const ck = document.getElementById('ck' + cur);
-  if (ck) { ck.textContent = ''; ck.className = ''; }
-  updateProg();
-  translateCurrent();
+  const saved = translations[ch.id] || '';
+  const resume = partialResumes[ch.id];
+  if (!saved.endsWith('…PARTIAL') || !resume) {
+    setStatus('This partial predates resumable retry. Starting the chapter again.');
+    delete translations[ch.id];
+    translateCurrent();
+    return;
+  }
+  translateCurrent({ resume: { chunkIndex: resume.chunkIndex, text: saved.replace('…PARTIAL', '') } });
 }
 
 function updateMark(i, text) {
@@ -1040,6 +1052,7 @@ function clearTl() {
   const ch = novel?.chapters[cur];
   if (!ch) return;
   delete translations[ch.id];
+  delete partialResumes[ch.id];
   document.getElementById('tl-out').innerHTML = '';
   const ck = document.getElementById('ck' + cur);
   if (ck) { ck.textContent = ''; ck.className = ''; }

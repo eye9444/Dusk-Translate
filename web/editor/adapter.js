@@ -12,7 +12,7 @@ function snapshot() {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, translations: saved, partialResumes, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -33,6 +33,7 @@ function saveManualText() {
   const id = novel.chapters[cur].id;
   if (value.trim()) translations[id] = value;
   else delete translations[id];
+  delete partialResumes[id];
   updateMark(cur, value); updateProg(); emit();
 }
 const clearSearchHighlights = () => {
@@ -243,10 +244,10 @@ updateMark = function(i,text) { if (!text?.trim()) { const mark=document.getElem
 const originalRetry = retryTranslation;
 retryTranslation = function() { if (!busy && isReady()) originalRetry(); };
 const originalTranslate = translateCurrent;
-translateCurrent = async function() {
+translateCurrent = async function(options) {
   if (busy || !novel || !isReady()) return;
   const out = document.getElementById('tl-out'); out.contentEditable = 'false';
-  try { const promise = originalTranslate(); emit(); await promise; }
+  try { const promise = originalTranslate(options); emit(); await promise; }
   finally { if (!busy) out.contentEditable = 'true'; emit(); }
 };
 abortTranslation = function() {
@@ -369,9 +370,9 @@ window.addEventListener('message', async e => {
   try {
     const p = e.data.project;
     projectTitle.textContent = p.title;
-    keyInput.value = ''; translations = {}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
+    keyInput.value = ''; translations = {}; partialResumes = {}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
-      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {};
+      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {};
       if (p.fileName.toLowerCase().endsWith('.epub')) epubZip = await JSZip.loadAsync(p.file);
     } else if (p.fileName.toLowerCase().endsWith('.epub')) novel = await parseEpub(p.file);
     else if (p.fileName.toLowerCase().endsWith('.json')) novel = checkNovel(JSON.parse(await p.file.text()));

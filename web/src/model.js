@@ -21,9 +21,16 @@ export function cleanSnapshot(s) {
   validateNovel(s.novel);
   const chapters = s.novel.chapters.map(ch => ({ id: ch.id, text: ch.text, jp_char_count: Number(ch.jp_char_count) || 0, ...(typeof ch.xhtmlPath === 'string' ? { xhtmlPath: ch.xhtmlPath } : {}) }));
   const translations = Object.fromEntries(chapters.filter(ch => typeof s.translations?.[ch.id] === 'string').map(ch => [ch.id, s.translations[ch.id]]));
+  // A partial only needs its source chunk number to resume after a reload.
+  const partialResumes = Object.fromEntries(chapters.flatMap(ch => {
+    const index = s.partialResumes?.[ch.id]?.chunkIndex;
+    return translations[ch.id]?.endsWith('…PARTIAL') && Number.isInteger(index) && index >= 0
+      ? [[ch.id, { chunkIndex: index }]]
+      : [];
+  }));
   return {
     novel: { chapters, _epubOpfPath: s.novel._epubOpfPath, _epubOpfDir: s.novel._epubOpfDir },
-    translations, cur: Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))),
+    translations, partialResumes, cur: Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))),
     glossary: String(s.glossary || ''), model: String(s.model || ''),
     style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural',
     spellcheck: s.spellcheck !== false
