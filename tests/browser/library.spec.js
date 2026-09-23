@@ -285,6 +285,20 @@ test('retry continues a partial translation instead of restarting the chapter',a
   const sources=prompts.map(prompt=>prompt.split('Japanese text:\n').at(-1));
   expect(prompts).toHaveLength(3);expect(sources[1]).toBe(sources[2]);expect(sources[2].length).toBeLessThan(source.length);expect(prompts[2]).toContain('Existing partial translation of this same Japanese passage');expect(prompts[2]).toContain('Existing partial');
 });
+test('legacy partials recover the untranslated source paragraphs',async({page})=>{
+  let prompt='';
+  await page.route('https://generativelanguage.googleapis.com/**',async route=>{
+    prompt=JSON.parse(route.request().postData()).contents[0].parts[0].text;
+    await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Third translation'}]},finishReason:'STOP'}]})+'\n\n'});
+  });
+  const source='第一段落。\n\n第二段落。\n\n第三段落。';
+  await create(page,'Legacy recovery',{name:'legacy.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({chapters:[{id:'p-legacy',text:source,jp_char_count:15}]}))});
+  const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
+  await editor.locator('#tl-out').evaluate(()=>{translations['p-legacy']='First translation.\n\nSecond translation.…PARTIAL';partialResumes={};selectCh(0);});
+  await editor.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(editor.locator('#tl-out')).toHaveText('First translation.\n\nSecond translation.Third translation');
+  expect(prompt).toContain('第三段落。');expect(prompt).not.toContain('第一段落。');expect(prompt).not.toContain('第二段落。');
+});
 test('capture library and editor layouts',async({page})=>{
   await page.goto('/');await page.screenshot({path:'/tmp/dusktranslate-empty.png',fullPage:true,animations:'disabled'});
   await create(page,'A small book of everyday Japanese');await page.frameLocator('#editor').locator('#tl-out').fill('Every day begins with a new sentence.');
