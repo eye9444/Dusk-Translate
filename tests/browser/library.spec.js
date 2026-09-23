@@ -127,6 +127,16 @@ test('desktop AI provider bar keeps key, model and help aligned',async({page})=>
   expect(await editor.locator('.key-bar').evaluate(element=>getComputedStyle(element,'::after').content)).toBe('none');
   await editor.locator('#api-key').focus();await expect(editor.locator('#api-key')).toHaveCSS('outline-width','1px');
 });
+test('translation actions stay visible while the editor pane scrolls',async({page})=>{
+  await page.setViewportSize({width:1600,height:900});await create(page,'Sticky translation tools');const editor=page.frameLocator('#editor');
+  const pane=editor.locator('.pane:not(.pane-left)'),label=pane.locator('.pane-lbl');
+  await editor.locator('#tl-out').evaluate(element=>{element.textContent='A translated paragraph.\n\n'.repeat(180);});
+  await pane.evaluate(element=>{element.scrollTop=240;});
+  await expect(label).toHaveCSS('position','sticky');
+  const paneBox=await pane.boundingBox(),labelBox=await label.boundingBox();
+  expect(labelBox.y).toBeGreaterThanOrEqual(paneBox.y);expect(labelBox.y).toBeLessThanOrEqual(paneBox.y+25);
+  await expect(editor.locator('#btn-retry')).toBeVisible();
+});
 test('AI Studio key formats enable the live model importer',async({page})=>{
   await create(page,'AI Studio key formats');const editor=page.frameLocator('#editor');
   for(const key of ['AIzaFAKE_TEST_KEY_123456789012345','AQ.TEST_AUTHORIZATION_KEY_123456789']){
