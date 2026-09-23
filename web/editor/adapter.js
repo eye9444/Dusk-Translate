@@ -54,12 +54,17 @@ function textRange(root, start, end) {
   if (!startNode || !endNode) return null;
   const range = document.createRange(); range.setStart(startNode, startOffset); range.setEnd(endNode, endOffset); return range;
 }
-function highlightSearchMatch({ findText, caseSensitive, matchIndex, target = 'translation' }) {
+function createFindRegex(findText, caseSensitive, matchMode = 'substring') {
+  const escaped = findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Match only complete Unicode words when requested, without changing substring search.
+  const pattern = matchMode === 'word' ? `(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])` : escaped;
+  return new RegExp(pattern, caseSensitive ? 'gu' : 'giu');
+}
+function highlightSearchMatch({ findText, caseSensitive, matchMode, matchIndex, target = 'translation' }) {
   clearSearchHighlights();
   if (!findText || !globalThis.CSS?.highlights || typeof Highlight === 'undefined') return;
   const root = target === 'source' ? document.getElementById('src-txt') : document.getElementById('tl-out');
-  const flags = caseSensitive ? 'g' : 'gi';
-  const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+  const regex = createFindRegex(findText, caseSensitive, matchMode);
   const ranges = [], matches = [];
   for (const match of root.textContent.matchAll(regex)) {
     const range = textRange(root, match.index, match.index + match[0].length);
@@ -330,10 +335,9 @@ window.addEventListener('message', async e => {
     return;
   }
   if (e.data.type === 'host:findReplace') {
-    const { findText, replaceText, caseSensitive } = e.data;
+    const { findText, replaceText, caseSensitive, matchMode } = e.data;
     if (!findText || !replaceText) return;
-    const flags = caseSensitive ? 'g' : 'gi';
-    const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+    const regex = createFindRegex(findText, caseSensitive, matchMode);
 
     let replacedCount = 0;
     const previous = {};

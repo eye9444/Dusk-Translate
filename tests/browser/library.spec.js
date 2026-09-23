@@ -241,6 +241,16 @@ test('find review navigates without replacing and replacement needs an explicit 
   await editor.locator('#tl-out').fill('cat');await openFindReplace();await page.locator('#find-text').fill('cat');await page.locator('#replace-text').fill('fox');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('fox');await editor.locator('#host-tools').click();await editor.locator('#host-undo-find-replace').click();await expect(editor.locator('#tl-out')).toHaveText('cat');
 });
+test('find and replace supports substring and exact-word matching',async({page})=>{
+  await create(page);const editor=page.frameLocator('#editor');
+  await editor.locator('#tl-out').fill('Charlotte met Char. A character watched.');await editorAction(page,'#host-find-replace');
+  await page.locator('#find-text').fill('Char');await page.locator('#preview-btn').click();
+  await expect(page.locator('#find-position')).toHaveText('1 of 3');await expect(page.locator('.match-item')).toHaveCount(3);
+  await page.locator('#find-match-mode').selectOption('word');await page.locator('#preview-btn').click();
+  await expect(page.locator('#find-position')).toHaveText('1 of 1');await expect(page.locator('.match-item')).toHaveCount(1);
+  await page.locator('#replace-text').fill('Sam');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
+  await expect(editor.locator('#tl-out')).toHaveText('Charlotte met Sam. A character watched.');
+});
 test('consistency findings open and highlight the relevant translation passage',async({page})=>{
   const repeated={chapters:[
     {id:'p-001',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17},
