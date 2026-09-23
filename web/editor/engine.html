@@ -294,7 +294,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
         <div class="pane-lbl">
           🇬🇧 Translation
           <div class="acts">
-            <button class="btn sm" onclick="retryTranslation()">Retry</button>
+            <button class="btn sm" id="btn-retry" onclick="retryTranslation()">Retry</button>
             <button class="btn sm" onclick="copyTl()">Copy</button>
             <button class="btn sm" onclick="clearTl()">Clear</button>
           </div>
@@ -1007,6 +1007,8 @@ function endBusy() {
   busy = false;
   document.getElementById('btn-tl').disabled = false;
   document.getElementById('btn-abort').style.display = 'none';
+  const retry = document.getElementById('btn-retry');
+  if (retry) { retry.disabled = false; retry.textContent = 'Retry'; }
 }
 
 function abortTranslation() {
@@ -1019,6 +1021,8 @@ function abortTranslation() {
 function retryTranslation() {
   const ch = novel?.chapters[cur];
   if (!ch) return;
+  const retry = document.getElementById('btn-retry');
+  if (retry) { retry.disabled = true; retry.textContent = 'Resuming…'; }
   const saved = translations[ch.id] || '';
   const resume = partialResumes[ch.id];
   if (!saved.endsWith('…PARTIAL') || !resume) {
@@ -1027,6 +1031,7 @@ function retryTranslation() {
     translateCurrent();
     return;
   }
+  setStatus(`Resuming ${ch.id} from the interrupted part…`, true);
   translateCurrent({ resume: { chunkIndex: resume.chunkIndex, text: saved.replace('…PARTIAL', '') } });
 }
 
