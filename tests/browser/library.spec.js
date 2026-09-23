@@ -269,6 +269,7 @@ test('retry continues a partial translation instead of restarting the chapter',a
     const parts=prompts.length === 1 ? [{text:'First completed part'}] : prompts.length === 2 ? [{text:'Existing partial'}] : [{text:' continuation'}];
     const candidate={content:{parts}};
     if (prompts.length !== 2) candidate.finishReason='STOP';
+    if (prompts.length === 3) await new Promise(resolve=>setTimeout(resolve,300));
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[candidate]})+'\n\n'});
   });
   const source='あ'.repeat(5001);
@@ -278,7 +279,9 @@ test('retry continues a partial translation instead of restarting the chapter',a
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
   await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');await expect(editor.locator('.partial-badge')).toBeVisible();
   await editor.getByRole('button',{name:'Retry',exact:true}).click();
+  await expect(editor.locator('#btn-retry')).toHaveText('Resuming…');await expect(editor.locator('#btn-retry')).toBeDisabled();
   await expect(editor.locator('#tl-out')).toHaveText('First completed part\n\nExisting partial continuation');await expect(editor.locator('.partial-badge')).toHaveCount(0);
+  await expect(editor.locator('#btn-retry')).toHaveText('Retry');await expect(editor.locator('#btn-retry')).toBeEnabled();
   const sources=prompts.map(prompt=>prompt.split('Japanese text:\n').at(-1));
   expect(prompts).toHaveLength(3);expect(sources[1]).toBe(sources[2]);expect(sources[2].length).toBeLessThan(source.length);expect(prompts[2]).toContain('Existing partial translation of this same Japanese passage');expect(prompts[2]).toContain('Existing partial');
 });
