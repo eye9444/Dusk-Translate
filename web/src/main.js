@@ -459,6 +459,12 @@ $('manage-form').onsubmit=async e=>{
 };
 
 let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1, preserveEditorReview = false;
+function createFindRegex(findText, caseSensitive, matchMode = 'substring') {
+  const escaped = findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Unicode-aware boundaries keep exact-word searches out of longer names and words.
+  const pattern = matchMode === 'word' ? `(?<![\\p{L}\\p{N}_])${escaped}(?![\\p{L}\\p{N}_])` : escaped;
+  return new RegExp(pattern, caseSensitive ? 'gu' : 'giu');
+}
 function findReplaceFingerprint() {
   return JSON.stringify(active?.snapshot?.translations || {});
 }
@@ -480,7 +486,7 @@ function focusFindMatch(index) {
   });
   $('editor').contentWindow.postMessage({
     type: 'host:findFocus', chapterIndex: match.chapterIndex, matchIndex: match.matchIndex,
-    findText: findReplacePreview.findText, caseSensitive: findReplacePreview.caseSensitive, target: 'translation',
+    findText: findReplacePreview.findText, caseSensitive: findReplacePreview.caseSensitive, matchMode: findReplacePreview.matchMode, target: 'translation',
     position: findReplaceIndex + 1, total: findReplaceMatches.length
   }, location.origin);
 }
@@ -502,20 +508,20 @@ $('consistency-dialog').addEventListener('close', () => {
   if (!preserveEditorReview && active) $('editor').contentWindow.postMessage({ type: 'host:clearFind' }, location.origin);
   preserveEditorReview = false;
 });
-['find-text','replace-text','case-sensitive'].forEach(id => $(id).addEventListener(id === 'case-sensitive' ? 'change' : 'input', () => {
+['find-text','replace-text','case-sensitive','find-match-mode'].forEach(id => $(id).addEventListener(['case-sensitive','find-match-mode'].includes(id) ? 'change' : 'input', () => {
   if (findReplacePreview) invalidateFindReplacePreview('Preview updated. Review the replacement again.');
 }));
 $('preview-btn').onclick = () => {
   const findText = $('find-text').value;
   const caseSensitive = $('case-sensitive').checked;
+  const matchMode = $('find-match-mode').value;
   if (!findText) {
     $('find-error').textContent = 'Enter text to find';
     return;
   }
   findReplaceMatches = [];
   const snapshot = active.snapshot;
-  const flags = caseSensitive ? 'g' : 'gi';
-  const regex = new RegExp(findText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+  const regex = createFindRegex(findText, caseSensitive, matchMode);
   snapshot.novel.chapters.forEach((ch, idx) => {
     const translation = snapshot.translations[ch.id];
     if (!translation) return;
@@ -548,7 +554,7 @@ $('preview-btn').onclick = () => {
   const hasReplacement = $('replace-text').value.length > 0;
   $('find-preview').hidden = false; $('find-navigation').hidden = false; $('replace-btn').hidden = !hasReplacement;
   $('replace-btn').textContent = `Replace all (${findReplaceMatches.length} matches)`;
-  findReplacePreview={findText,replaceText:$('replace-text').value,caseSensitive,fingerprint:findReplaceFingerprint()};
+  findReplacePreview={findText,replaceText:$('replace-text').value,caseSensitive,matchMode,fingerprint:findReplaceFingerprint()};
   focusFindMatch(0);
 };
 $('find-previous').onclick = () => focusFindMatch(findReplaceIndex - 1);
@@ -558,6 +564,7 @@ $('find-replace-form').onsubmit = async e => {
   const findText = $('find-text').value;
   const replaceText = $('replace-text').value;
   const caseSensitive = $('case-sensitive').checked;
+  const matchMode = $('find-match-mode').value;
   if (!findReplacePreview || findReplaceMatches.length === 0) {
     $('find-error').textContent = 'Click Preview changes first';
     return;
@@ -566,7 +573,7 @@ $('find-replace-form').onsubmit = async e => {
     $('find-error').textContent = 'Enter replacement text before replacing. Searching never deletes text.';
     return;
   }
-  if (findText !== findReplacePreview.findText || replaceText !== findReplacePreview.replaceText || caseSensitive !== findReplacePreview.caseSensitive || findReplaceFingerprint() !== findReplacePreview.fingerprint) {
+  if (findText !== findReplacePreview.findText || replaceText !== findReplacePreview.replaceText || caseSensitive !== findReplacePreview.caseSensitive || matchMode !== findReplacePreview.matchMode || findReplaceFingerprint() !== findReplacePreview.fingerprint) {
     invalidateFindReplacePreview('Translations changed since preview. Review the replacement again.');
     return;
   }
@@ -574,7 +581,8 @@ $('find-replace-form').onsubmit = async e => {
     type: 'host:findReplace',
     findText,
     replaceText,
-    caseSensitive
+    caseSensitive,
+    matchMode
   }, location.origin);
   $('find-replace-dialog').close();
   findReplacePreview=null;
