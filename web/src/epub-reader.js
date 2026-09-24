@@ -55,6 +55,37 @@ function markupParagraphs(markup) {
   return paragraphs;
 }
 
+function imageMimeType(path) {
+  const extension = path.split('.').pop()?.toLowerCase();
+  return ({ jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', avif:'image/avif', svg:'image/svg+xml' })[extension] || 'application/octet-stream';
+}
+
+async function readerBlocks(markup, chapterPath, zip) {
+  const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
+  const root = doc.querySelector('body') || doc.documentElement;
+  const blocks = [], base = chapterPath.includes('/') ? chapterPath.slice(0, chapterPath.lastIndexOf('/')) : '';
+  let buffer = '';
+  const flush = () => { const text = cleanText(buffer); if (text) blocks.push({ type:'text', text }); buffer = ''; };
+  const walk = async node => {
+    if (node.nodeType === Node.TEXT_NODE) { buffer += node.nodeValue || ''; return; }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const tag = node.localName.toLowerCase();
+    if (SKIP_TAGS.has(tag)) return;
+    if (tag === 'img') {
+      flush();
+      const source = node.getAttribute('src') || '', path = archivePath(source.split(/[?#]/, 1)[0], base), entry = path && zip.file(path);
+      if (entry) blocks.push({ type:'image', src:URL.createObjectURL(new Blob([await entry.async('arraybuffer')], { type:imageMimeType(path) })), alt:cleanText(node.getAttribute('alt') || '') });
+      else if (node.getAttribute('alt')) buffer += `[${node.getAttribute('alt')}]`;
+      return;
+    }
+    if (BLOCK_TAGS.has(tag) || tag === 'br') flush();
+    for (const child of node.childNodes) await walk(child);
+    if (BLOCK_TAGS.has(tag) || tag === 'br') flush();
+  };
+  await walk(root); flush();
+  return blocks;
+}
+
 function firstHeading(paragraphs, fallback) {
   const heading = paragraphs.find(text => text.length <= 180);
   return heading || fallback;
@@ -110,9 +141,10 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
     const path = archivePath(href, opfDirectory);
     const entry = zip.file(path);
     if (!entry) continue;
-    const paragraphs = markupParagraphs(await entry.async('string'));
-    if (!paragraphs.length) continue;
-    chapters.push({ id: item.getAttribute('id') || `chapter-${index + 1}`, title: firstHeading(paragraphs, `Chapter ${chapters.length + 1}`), paragraphs });
+    const blocks = await readerBlocks(await entry.async('string'), path, zip);
+    const paragraphs = blocks.filter(block => block.type === 'text').map(block => block.text);
+    if (!blocks.length) continue;
+    chapters.push({ id: item.getAttribute('id') || `chapter-${index + 1}`, title: firstHeading(paragraphs, `Chapter ${chapters.length + 1}`), paragraphs, blocks });
   }
   if (!chapters.length) throw new Error('No readable chapters were found in this EPUB.');
   return { title: metadataTitle, chapters };
@@ -120,15 +152,16 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
 
 export async function buildTranslatedEpub(file, snapshot) {
   const chapters = snapshot?.novel?.chapters || [];
-  const translations = snapshot?.translations || {};
-  if (!chapters.length || chapters.some(chapter => !translations[chapter.id]?.trim() || translations[chapter.id].endsWith('…PARTIAL'))) {
-    throw new Error('Finish every chapter before opening the translated EPUB.');
+  const translations = snapshot?.translations || {}, excluded = new Set(snapshot?.exportExcluded || []);
+  const selected = chapters.filter(chapter => !excluded.has(chapter.id));
+  if (!selected.length || selected.some(chapter => !translations[chapter.id]?.trim() || translations[chapter.id].endsWith('…PARTIAL'))) {
+    throw new Error('Finish every selected chapter before opening the translated EPUB.');
   }
   const zip = await JSZip.loadAsync(file);
   const expanded = Object.values(zip.files).reduce((total, entry) => total + (entry._data?.uncompressedSize || 0), 0);
   if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 100 MB.');
 
-  for (const chapter of chapters) {
+  for (const chapter of selected) {
     const entry = zip.file(chapter.xhtmlPath);
     if (!entry) throw new Error(`The original EPUB chapter ${chapter.id} is missing.`);
     const translation = translations[chapter.id].replace(/…PARTIAL$/, '').trim();
@@ -139,7 +172,8 @@ export async function buildTranslatedEpub(file, snapshot) {
   if (opfEntry) {
     const opf = (await opfEntry.async('string'))
       .replace(/page-progression-direction="rtl"/g, 'page-progression-direction="ltr"')
-      .replace(/\s*properties="page-spread-(left|right)"/g, '');
+      .replace(/\s*properties="page-spread-(left|right)"/g, '')
+      .replace(/<itemref\b[^>]*\bidref=["']([^"']+)["'][^>]*\/?>(?:<\/itemref>)?/g, (itemref, id) => excluded.has(id) ? '' : itemref);
     zip.file(opfPath, opf);
   }
   return zip.generateAsync({ type:'blob', mimeType:'application/epub+zip', compression:'DEFLATE', compressionOptions:{ level:6 } });

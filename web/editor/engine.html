@@ -564,7 +564,9 @@ function extractTextFromXhtml(xhtml) {
 // ── EPUB EXPORTER ────────────────────────────────────────────
 async function doEpubExport() {
   if (!novel || !epubZip) { setStatus('Load an EPUB first — JSON-loaded novels cannot export to EPUB'); return; }
-  const done = novel.chapters.filter(ch => translations[ch.id]);
+  const excluded = new Set(typeof exportExcluded === 'undefined' ? [] : exportExcluded);
+  const selected = novel.chapters.filter(ch => !excluded.has(ch.id));
+  const done = selected.filter(ch => translations[ch.id]);
   if (done.length === 0) { setStatus('Nothing translated yet.'); return; }
 
   setStatus(`Building EPUB (${done.length} chapters)…`, true);
@@ -588,11 +590,13 @@ async function doEpubExport() {
       var opfText = await opfFile.async('text');
       opfText = opfText.replace(/page-progression-direction="rtl"/g, 'page-progression-direction="ltr"');
       opfText = opfText.replace(/\s*properties="page-spread-(left|right)"/g, '');
+      // Keep excluded chapters out of the EPUB reading order while preserving package resources.
+      opfText = opfText.replace(/<itemref\b[^>]*\bidref=["']([^"']+)["'][^>]*\/?>(?:<\/itemref>)?/g, (itemref, id) => excluded.has(id) ? '' : itemref);
       outZip.file(novel._epubOpfPath, opfText);
     }
 
     // Now patch translated xhtml files
-    for (const ch of novel.chapters) {
+    for (const ch of selected) {
       if (!translations[ch.id]) continue;
       const translatedText = translations[ch.id].replace('…PARTIAL', '').trim();
       const origXhtml = await epubZip.file(ch.xhtmlPath).async('text');
@@ -606,7 +610,7 @@ async function doEpubExport() {
     a.href = URL.createObjectURL(blob);
     a.download = 'translated.epub';
     a.click();
-    setStatus(`✓ Downloaded translated.epub (${done.length}/${novel.chapters.length} chapters translated)`);
+    setStatus(`✓ Downloaded translated.epub (${done.length}/${selected.length} selected chapters translated)`);
     setTimeout(hideStatus, 3000);
   } catch(err) {
     setStatus('EPUB export error: ' + err.message);
@@ -1124,9 +1128,10 @@ function doSourceExport() {
 
 function doExport() {
   if (!novel) return;
+  const excluded = new Set(typeof exportExcluded === 'undefined' ? [] : exportExcluded);
   let out = '';
   novel.chapters.forEach(ch => {
-    if (translations[ch.id]) {
+    if (!excluded.has(ch.id) && translations[ch.id]) {
       out += `\n\n${'─'.repeat(60)}\n[${ch.id}]\n${'─'.repeat(60)}\n\n${translations[ch.id].replace('…PARTIAL','').trim()}`;
     }
   });
