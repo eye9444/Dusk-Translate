@@ -89,8 +89,8 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   await page.getByRole('button',{name:'Read original',exact:true}).click();
   await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
   await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-content img')).toHaveAttribute('alt','Chapter illustration');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
-  const initial=await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'));
-  await page.locator('#reader-font-up').click();expect(await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'))).not.toBe(initial);
+  const initial=await page.locator('#reader-page').evaluate(el=>({font:getComputedStyle(el).getPropertyValue('--reader-font-size'),image:getComputedStyle(el).getPropertyValue('--reader-image-max')}));
+  await page.locator('#reader-font-up').click();const increased=await page.locator('#reader-page').evaluate(el=>({font:getComputedStyle(el).getPropertyValue('--reader-font-size'),image:getComputedStyle(el).getPropertyValue('--reader-image-max')}));expect(increased.font).not.toBe(initial.font);expect(increased.image).not.toBe(initial.image);
   await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Another paragraph.');
   await page.locator('#reader-page').focus();await page.keyboard.press('0');await expect(page.locator('#reader-font-value')).toHaveText('20 px');
   await page.locator('#reader-back').click();await expect(page.locator('#library')).toBeVisible();

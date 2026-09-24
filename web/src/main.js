@@ -246,6 +246,7 @@ function setReaderFontSize(value) {
   const size = Math.min(READER_FONT_MAX, Math.max(READER_FONT_MIN, value));
   localStorage.setItem(READER_FONT_KEY, String(size));
   $('reader-page').style.setProperty('--reader-font-size', `${size}px`);
+  $('reader-page').style.setProperty('--reader-image-max', `${Math.round(900 * size / READER_FONT_DEFAULT)}px`);
   $('reader-font-value').textContent = `${size} px`;
 }
 function renderReader() {
