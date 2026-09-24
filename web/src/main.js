@@ -22,14 +22,10 @@ let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
 const ROUTES = new Set(['/','/home','/editor','/reader']);
+const EDITOR_RETURN_KEY = 'dusk-editor-return-library';
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
-function wasPageReloaded() {
-  const navigation = performance.getEntriesByType('navigation')[0];
-  const legacyNavigation = performance.navigation;
-  return navigation?.type === 'reload' || legacyNavigation?.type === 1;
-}
 function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
 function projectRoute(path, id, edition = '') {
   const query = new URLSearchParams({ project:id });
@@ -40,9 +36,14 @@ function navigate(path, replace = false) {
   if (`${location.pathname}${location.search}` === path) return;
   history[replace ? 'replaceState' : 'pushState']({}, '', path);
 }
-// Redirect before auth/library bootstrapping: a stalled cloud request must not
-// leave a reloaded editor route on an unusable blank workspace.
-if (currentRoute() === '/editor' && wasPageReloaded()) location.replace('/home');
+let returningFromEditor = currentRoute() === '/editor' && sessionStorage.getItem(EDITOR_RETURN_KEY) === 'true';
+sessionStorage.removeItem(EDITOR_RETURN_KEY);
+// This deliberately runs before auth/library bootstrapping. Browser navigation
+// timing is inconsistent, so use a short-lived editor-unload marker instead.
+if (returningFromEditor) location.replace('/home');
+window.addEventListener('pagehide', () => {
+  if (!returningFromEditor && currentRoute() === '/editor') sessionStorage.setItem(EDITOR_RETURN_KEY, 'true');
+});
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
 function announceSave(message) {
@@ -887,12 +888,6 @@ async function restoreRoute() {
   if (route === '/' && (user || guestMode)) { navigate('/home', true); return; }
   if (!user && !guestMode && route !== '/') { navigate('/', true); await refresh(); return; }
   if (route === '/editor') {
-    if (wasPageReloaded()) {
-      navigate('/home', true);
-      await refresh();
-      status('Returned to your library after reloading the editor.');
-      return;
-    }
     if (!projectId) { navigate('/home', true); status('Choose a project before opening the editor.'); return; }
     await openProject(projectId, false);
     if (!active) navigate('/home', true);
