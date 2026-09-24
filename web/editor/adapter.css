@@ -34,3 +34,6 @@ body.eclipse { --muted:#aaa090; }
   .panes{display:grid!important;flex:1;grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr);height:auto;min-height:0!important;overflow:hidden}.pane{display:flex;flex-direction:column;min-height:0;max-height:none;padding:12px 15px;overflow:hidden}.pane-left{border-right:0;border-bottom:1px solid var(--border)}.pane-lbl{flex:none;margin-bottom:8px}.src-txt,.tl-out{flex:1;min-height:0;overflow:auto;font-size:15px;line-height:1.85;overscroll-behavior:contain}.tl-out:empty{min-height:0}
   .glossary-bar{flex:none}.statusbar{left:0}.find-navigator{margin-left:auto}
 }
+
+/* Join the stationary pane controls to the editor chrome instead of floating them below it. */
+@media(min-width:851px){.pane{padding:0}.pane-lbl{margin:0;padding:10px 28px}.src-txt,.tl-out{padding:22px 28px}}

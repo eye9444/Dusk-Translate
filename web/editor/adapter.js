@@ -4,6 +4,7 @@ let readyForSave = false;
 let lastSnapshot = '';
 let lastBusy = false;
 let lastBulkReplacement = null;
+let exportExcluded = [];
 const send = (type, extra = {}) => parent.postMessage({ type, projectId, ...extra }, location.origin);
 let spellcheckEnabled = true;
 function snapshot() {
@@ -12,7 +13,7 @@ function snapshot() {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, partialResumes, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, translations: saved, partialResumes, exportExcluded, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -159,7 +160,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
   lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
-toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
+toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
@@ -323,6 +324,12 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
   if (e.data.type === 'host:clearFind') { clearSearchHighlights(); return; }
+  if (e.data.type === 'host:exportSettings') {
+    const ids = new Set(novel?.chapters.map(chapter => chapter.id));
+    exportExcluded = [...new Set(Array.isArray(e.data.exportExcluded) ? e.data.exportExcluded : [])].filter(id => ids.has(id));
+    emit(true); setStatus(`${exportExcluded.length} chapter${exportExcluded.length === 1 ? '' : 's'} excluded from final exports.`); setTimeout(hideStatus, 3000);
+    return;
+  }
   if (e.data.type === 'host:findFocus') {
     if (busy || !novel) return;
     const chapterIndex = Math.max(0, Math.min(novel.chapters.length - 1, Number(e.data.chapterIndex) || 0));
@@ -373,9 +380,9 @@ window.addEventListener('message', async e => {
   try {
     const p = e.data.project;
     projectTitle.textContent = p.title;
-    keyInput.value = ''; translations = {}; partialResumes = {}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
+    keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
-      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {};
+      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
       if (p.fileName.toLowerCase().endsWith('.epub')) epubZip = await JSZip.loadAsync(p.file);
     } else if (p.fileName.toLowerCase().endsWith('.epub')) novel = await parseEpub(p.file);
     else if (p.fileName.toLowerCase().endsWith('.json')) novel = checkNovel(JSON.parse(await p.file.text()));

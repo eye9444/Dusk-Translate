@@ -35,11 +35,31 @@ function button(label, action) { const n = el('button','',label); n.addEventList
 function download(name, data) { const url = URL.createObjectURL(data); const a = el('a',''); a.href=url; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); }
 function safeFileName(value) { return String(value || 'project').replace(/[^a-z0-9_-]/gi,'_'); }
 function textExport(snapshot) {
+  const excluded = new Set(snapshot?.exportExcluded || []);
   return (snapshot?.novel?.chapters || []).flatMap(chapter => {
+    if (excluded.has(chapter.id)) return [];
     const translation = snapshot.translations?.[chapter.id]?.replace(/…PARTIAL$/, '').trim();
     return translation ? [`${'─'.repeat(60)}\n[${chapter.id}]\n${'─'.repeat(60)}\n\n${translation}`] : [];
   }).join('\n\n');
 }
+function showExportSettings() {
+  if (!active?.snapshot?.novel) return;
+  const excluded = new Set(active.snapshot.exportExcluded || []);
+  $('export-chapters').replaceChildren(...active.snapshot.novel.chapters.map((chapter, index) => {
+    const label = el('label', 'export-chapter'), input = document.createElement('input');
+    input.type = 'checkbox'; input.value = chapter.id; input.checked = !excluded.has(chapter.id);
+    label.append(input, el('span', '', `Chapter ${index + 1} · ${chapter.id}`), el('small', '', chapter.text.replace(/\s+/g, ' ').slice(0, 72)));
+    return label;
+  }));
+  $('export-settings-dialog').showModal();
+}
+$('export-settings-form').onsubmit = event => {
+  event.preventDefault(); if (!active) return;
+  const included = new Set([...$('export-chapters').querySelectorAll('input:checked')].map(input => input.value));
+  const exportExcluded = active.snapshot.novel.chapters.filter(chapter => !included.has(chapter.id)).map(chapter => chapter.id);
+  $('editor').contentWindow.postMessage({ type:'host:exportSettings', exportExcluded }, location.origin);
+  $('export-settings-dialog').close();
+};
 function theme(value) { document.body.classList.toggle('eclipse', value === 'eclipse'); localStorage.setItem('theme',value); $('editor').contentWindow?.postMessage({type:'host:theme',theme:value}, location.origin); }
 theme(localStorage.getItem('theme') || 'dusk');
 $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? 'dusk' : 'eclipse');
@@ -111,10 +131,11 @@ function render() {
     const open = button('Open project',() => openProject(p.id)); open.className='primary';
     const original = button('Read original',() => openReader(p.id, 'original')); original.hidden=!isEpub(p);
     const completionKnown = details.total > 0;
-    const complete = isEpub(p) && completionKnown && details.done === details.total;
+    const exportChapters = p.snapshot?.novel?.chapters?.filter(chapter => !p.snapshot.exportExcluded?.includes(chapter.id)) || [];
+    const complete = isEpub(p) && exportChapters.length > 0 && exportChapters.every(chapter => p.snapshot.translations?.[chapter.id]?.trim() && !p.snapshot.translations[chapter.id].endsWith('…PARTIAL'));
     const translated = button('Read translation',() => openReader(p.id, 'translated'));
     translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
-    if (!complete && isEpub(p)) translated.title=completionKnown ? `Translate all ${details.total} chapters to unlock this edition.` : 'Check whether the cloud project has a complete translated edition.';
+    if (!complete && isEpub(p)) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
     actions.append(open,original,translated,button('Export project',() => downloadProject(p)),button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     card.append(actions); $('projects').append(card);
   });
@@ -233,7 +254,15 @@ function renderReader() {
   $('reader-title').textContent = readerBook.title;
   $('reader-chapter-count').textContent = `Chapter ${readerChapter + 1} of ${readerBook.chapters.length}`;
   $('reader-chapter-title').textContent = chapter.title;
-  $('reader-content').replaceChildren(...chapter.paragraphs.map(text => el('p', '', text)));
+  $('reader-content').replaceChildren(...(chapter.blocks || chapter.paragraphs.map(text => ({ type:'text', text }))).map(block => {
+    if (block.type === 'image') {
+      const figure = el('figure', 'reader-image'), image = document.createElement('img');
+      image.src = block.src; image.alt = block.alt || ''; image.loading = 'lazy'; image.decoding = 'async'; figure.append(image);
+      if (block.alt) figure.append(el('figcaption', '', block.alt));
+      return figure;
+    }
+    return el('p', '', block.text);
+  }));
   $('reader-chapters').replaceChildren(...readerBook.chapters.map((item, index) => {
     const chapterButton = button(`${String(index + 1).padStart(2, '0')}  ${item.title}`, () => {
       readerChapter = index;
@@ -288,6 +317,7 @@ async function openReader(id, edition = 'original') {
 }
 function leaveReader() {
   if (!readerOpen) return;
+  readerBook?.chapters.flatMap(chapter => chapter.blocks || []).filter(block => block.type === 'image').forEach(block => URL.revokeObjectURL(block.src));
   readerOpen = false; readerProject = null; readerBook = null; readerChapter = 0;
   $('reader').hidden = true; document.body.classList.remove('reader-open');
   refresh();
@@ -360,6 +390,7 @@ window.addEventListener('message', e => {
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
+    if (e.data.action === 'exportSettings') showExportSettings();
     if (e.data.action === 'findReplace') showFindReplace();
     if (e.data.action === 'findReview') showFindReplace(true);
     if (e.data.action === 'consistency') checkConsistency();

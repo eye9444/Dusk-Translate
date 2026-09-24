@@ -78,8 +78,9 @@ test('original EPUB survives reload and can export translated chapters',async({p
 test('built-in EPUB reader opens chapters and supports accessible font controls',async({page})=>{
   const zip=new JSZip();zip.file('mimetype','application/epub+zip');
   zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
-  zip.file('OEBPS/book.opf','<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Built-in reader test</dc:title></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>');
-  zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>First chapter</h1><p>Japanese reader text.</p></body></html>');
+  zip.file('OEBPS/book.opf','<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Built-in reader test</dc:title></metadata><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="two" href="two.xhtml" media-type="application/xhtml+xml"/><item id="cover" href="cover.png" media-type="image/png"/></manifest><spine><itemref idref="one"/><itemref idref="two"/></spine></package>');
+  zip.file('OEBPS/cover.png',Buffer.from('89504e470d0a1a0a','hex'));
+  zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>First chapter</h1><p>Japanese reader text.</p><img src="cover.png" alt="Chapter illustration"/></body></html>');
   zip.file('OEBPS/two.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>Second chapter</h1><p>Another paragraph.</p></body></html>');
   const epubBuffer=await zip.generateAsync({type:'nodebuffer'});
   await create(page,'Reader test',{name:'reader.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
@@ -87,7 +88,7 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   await expect(page.locator('#reader-edition')).toHaveText('STANDALONE EPUB');await page.locator('#reader-back').click();
   await page.getByRole('button',{name:'Read original',exact:true}).click();
   await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
-  await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
+  await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-content img')).toHaveAttribute('alt','Chapter illustration');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
   const initial=await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'));
   await page.locator('#reader-font-up').click();expect(await page.locator('#reader-page').evaluate(el=>getComputedStyle(el).getPropertyValue('--reader-font-size'))).not.toBe(initial);
   await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Another paragraph.');
