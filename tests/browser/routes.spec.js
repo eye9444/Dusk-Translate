@@ -18,8 +18,12 @@ test('guest landing redirects to home and project opens on an editor URL', async
   await expect(page.frameLocator('#editor').locator('#src-txt')).toContainText('ルートのテストです。');
   await expect(page).toHaveURL(/\/editor\?project=/);
 
-  // Project routes must survive a direct browser reload, not only in-app navigation.
+  // Reloading an active editor returns to the reliable library entry point.
   await page.reload();
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.locator('#library')).toBeVisible();
+
+  await page.locator('article.project-card').getByRole('button', { name:'Open project', exact:true }).click();
   await expect(page.frameLocator('#editor').locator('#src-txt')).toContainText('ルートのテストです。');
 
   const editor = page.frameLocator('#editor');

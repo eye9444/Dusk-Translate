@@ -25,6 +25,11 @@ const ROUTES = new Set(['/','/home','/editor','/reader']);
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
+function wasPageReloaded() {
+  const navigation = performance.getEntriesByType('navigation')[0];
+  const legacyNavigation = performance.navigation;
+  return navigation?.type === 'reload' || legacyNavigation?.type === 1;
+}
 function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
 function projectRoute(path, id, edition = '') {
   const query = new URLSearchParams({ project:id });
@@ -879,6 +884,12 @@ async function restoreRoute() {
   if (route === '/' && (user || guestMode)) { navigate('/home', true); return; }
   if (!user && !guestMode && route !== '/') { navigate('/', true); await refresh(); return; }
   if (route === '/editor') {
+    if (wasPageReloaded()) {
+      navigate('/home', true);
+      await refresh();
+      status('Returned to your library after reloading the editor.');
+      return;
+    }
     if (!projectId) { navigate('/home', true); status('Choose a project before opening the editor.'); return; }
     await openProject(projectId, false);
     if (!active) navigate('/home', true);
