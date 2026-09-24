@@ -9,7 +9,7 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await db.exec(`
       create role anon; create role authenticated;
       create schema auth; create schema storage;
-      create table auth.users(id uuid primary key);
+      create table auth.users(id uuid primary key,email text not null unique);
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint);
       create table storage.objects(id serial primary key,bucket_id text,name text);
@@ -18,9 +18,10 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
       grant usage on schema public,auth,storage to anon,authenticated;
       grant select,insert,delete on storage.objects to authenticated;
       grant usage,select on sequence storage.objects_id_seq to authenticated;
-      insert into auth.users values ('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222');
+      insert into auth.users values ('11111111-1111-4111-8111-111111111111','owner@example.test'),('22222222-2222-4222-8222-222222222222','editor@example.test');
     `);
     await db.exec(await readFile('supabase/migrations/202609100001_projects.sql','utf8'));
+    await db.exec(await readFile('supabase/migrations/202609240001_project_collaborators.sql','utf8'));
     const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',id='33333333-3333-4333-8333-333333333333';
     await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('insert into projects(id,owner_id,title,file_name,file_path) values ($1,$2,$3,$4,$5)',[id,a,'A book','book.epub',`${a}/${id}/original`]);
@@ -35,6 +36,20 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('delete from projects where id=$1 returning id',[id])).rows.length,0);
     await assert.rejects(db.query('insert into projects(id,owner_id,title,file_name,file_path) values ($1,$2,$3,$4,$5)',['44444444-4444-4444-8444-444444444444',a,'Intrusion','b.epub',`${a}/44444444-4444-4444-8444-444444444444/original`]),/row-level security/);
     await assert.rejects(db.query("insert into storage.objects(bucket_id,name) values ('books',$1)",[`${a}/bad/original`]),/row-level security/);
+    await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
+    const shared=await db.query('select * from share_project($1,$2)',[id,'editor@example.test']);
+    assert.deepEqual(shared.rows,[{user_id:b,role:'editor'}]);
+    await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
+    assert.equal((await db.query('select * from projects')).rows.length,1);
+    assert.equal((await db.query('select * from storage.objects')).rows.length,1);
+    assert.equal((await db.query('update projects set title=$1 where id=$2 and revision=2 returning revision',['Editor update',id])).rows[0].revision,3);
+    assert.equal((await db.query('delete from projects where id=$1 returning id',[id])).rows.length,0);
+    await assert.rejects(db.query('select * from share_project($1,$2)',[id,'owner@example.test']),/Only the project owner/);
+    await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
+    await db.query('select remove_project_collaborator($1,$2)',[id,b]);
+    await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
+    assert.equal((await db.query('select * from projects')).rows.length,0);
+    assert.equal((await db.query('select * from storage.objects')).rows.length,0);
     await db.exec('reset role;set role anon;');
     await assert.rejects(db.query('select * from projects'),/permission denied/);
   } finally { await db.close(); }

@@ -91,7 +91,7 @@ test('Google same-tab callback restores the session and cleans the URL',async({p
   });
   await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
   await page.locator('#google-auth').click();
-  await expect(page).toHaveURL('http://127.0.0.1:4174/');
+  await expect(page).toHaveURL('http://127.0.0.1:4174/home');
   await expect(page.locator('#account')).toHaveText('Sign out');
   await expect(page.locator('#storage-info')).toContainText(user.email);
   await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);

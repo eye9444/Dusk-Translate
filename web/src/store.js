@@ -72,44 +72,48 @@ export const local = {
     return { ...project, file: file?.file };
   },
   put(p) { return transaction(['projects','projectFiles'], 'readwrite', ({projects,projectFiles}) => {
-    const record = { ...p, cacheKey: `${p.owner}:${p.id}`, snapshot: cleanSnapshot(p.snapshot) };
+    const cacheOwner = p.cacheOwner || p.owner;
+    const record = { ...p, cacheOwner, cacheKey: `${cacheOwner}:${p.id}`, snapshot: cleanSnapshot(p.snapshot) };
     const file = record.file;
     delete record.file;
     projects.put(record);
     if (file) projectFiles.put({ cacheKey: record.cacheKey, file });
   }); },
   patch(p) { return transaction('projects', 'readwrite', ({projects}) => {
-    const record = { ...p, cacheKey: `${p.owner}:${p.id}`, snapshot: cleanSnapshot(p.snapshot) };
+    const cacheOwner = p.cacheOwner || p.owner;
+    const record = { ...p, cacheOwner, cacheKey: `${cacheOwner}:${p.id}`, snapshot: cleanSnapshot(p.snapshot) };
     delete record.file;
     projects.put(record);
   }); },
   remove(owner, id) { const cacheKey = `${owner}:${id}`; return transaction(['projects','projectFiles'], 'readwrite', ({projects,projectFiles}) => { projects.delete(cacheKey); projectFiles.delete(cacheKey); }); }
 };
 function must(result) {
-  if (result.error) throw new Error(result.error.code === 'PGRST205'
-    ? 'Your account is connected, but cloud project storage still needs setup by the project owner. Sign out to use your browser library for now.'
-    : result.error.message);
+  if (result.error) {
+    if (result.error.code === 'PGRST205') throw new Error('Your account is connected, but cloud project storage still needs setup by the project owner. Sign out to use your browser library for now.');
+    if (result.error.code === 'PGRST202') throw new Error('Project sharing still needs its Supabase migration. Ask the project owner to run the latest migration before inviting collaborators.');
+    throw new Error(result.error.message);
+  }
   return result.data;
 }
 function fromRow(row) {
-  return { id:row.id, owner:row.owner_id, title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, archived:row.archived, updatedAt:row.updated_at, createdAt:row.created_at, revision:row.revision, dirty:false };
+  return { id:row.id, owner:row.owner_id, title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, archived:row.archived, updatedAt:row.updated_at, createdAt:row.created_at, revision:row.revision, collaborators:row.project_collaborators || [], dirty:false };
 }
 export const remote = {
-  async list() { return must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,archived,updated_at,created_at,revision').order('updated_at', { ascending:false })).map(fromRow); },
+  async list() { return must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').order('updated_at', { ascending:false })).map(fromRow); },
   async create(p) {
     const path = `${p.owner}/${p.id}/original`;
     must(await cloud.storage.from('books').upload(path,p.file,{contentType:'application/octet-stream'}));
-    const result = await cloud.from('projects').insert({id:p.id,owner_id:p.owner,title:p.title,file_name:p.fileName,file_path:path,snapshot:cleanSnapshot(p.snapshot)}).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision').single();
+    const result = await cloud.from('projects').insert({id:p.id,owner_id:p.owner,title:p.title,file_name:p.fileName,file_path:path,snapshot:cleanSnapshot(p.snapshot)}).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').single();
     if (result.error) { await cloud.storage.from('books').remove([path]); must(result); }
     return { ...fromRow(result.data), file:p.file };
   },
   async open(id) {
-    const row = must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision').eq('id',id).single());
+    const row = must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').eq('id',id).single());
     const file = must(await cloud.storage.from('books').download(row.file_path));
     return { ...fromRow(row), file };
   },
   async save(p) {
-    const rows = must(await cloud.from('projects').update({ title:p.title, snapshot:cleanSnapshot(p.snapshot), archived:p.archived }).eq('id',p.id).eq('revision',p.revision).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision'));
+    const rows = must(await cloud.from('projects').update({ title:p.title, snapshot:cleanSnapshot(p.snapshot), archived:p.archived }).eq('id',p.id).eq('revision',p.revision).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision,project_collaborators(user_id,role)'));
     if (!rows.length) throw new Error('This project changed in another tab or device. Your draft is saved on this device; download a backup before reopening.');
     return fromRow(rows[0]);
   },
@@ -118,5 +122,14 @@ export const remote = {
     must(await cloud.storage.from('books').remove([p.filePath]));
     const rows = must(await cloud.from('projects').delete().eq('id',p.id).select('id'));
     if (!rows.length) throw new Error('Project could not be deleted. Refresh your library.');
+  },
+  async collaborators(projectId) {
+    return must(await cloud.rpc('list_project_collaborators', { target_project_id:projectId }));
+  },
+  async share(projectId, email) {
+    return must(await cloud.rpc('share_project', { target_project_id:projectId, collaborator_email:email, collaborator_role:'editor' }));
+  },
+  async removeCollaborator(projectId, userId) {
+    must(await cloud.rpc('remove_project_collaborator', { target_project_id:projectId, target_user_id:userId }));
   }
 };

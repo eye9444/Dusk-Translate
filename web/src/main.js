@@ -21,9 +21,20 @@ let renderedOwner = null;
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
+const ROUTES = new Set(['/','/home','/editor','/reader']);
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
+function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
+function projectRoute(path, id, edition = '') {
+  const query = new URLSearchParams({ project:id });
+  if (edition) query.set('edition', edition);
+  return `${path}?${query}`;
+}
+function navigate(path, replace = false) {
+  if (`${location.pathname}${location.search}` === path) return;
+  history[replace ? 'replaceState' : 'pushState']({}, '', path);
+}
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
 function announceSave(message) {
@@ -66,6 +77,7 @@ $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? '
 document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.closest('dialog').close());
 
 async function refresh() {
+  if (currentRoute() === '/' && (user || guestMode)) navigate('/home', true);
   const request = ++libraryRequest;
   const libraryOwner = owner();
   let cached = [];
@@ -123,7 +135,8 @@ function render() {
   view.forEach(p => {
     const card = el('article','project-card');
     const details = progress(p.snapshot);
-    card.append(el('p','stamp',`${p.fileName.split('.').pop().toUpperCase()} / ${p.owner === 'guest' ? 'ON THIS DEVICE' : 'CLOUD'}`),el('h3','',p.title));
+    const projectLocation = p.owner === 'guest' ? 'ON THIS DEVICE' : p.owner === user?.id ? 'CLOUD' : 'SHARED WITH YOU';
+    card.append(el('p',p.owner === user?.id ? 'stamp' : 'stamp shared-stamp',`${p.fileName.split('.').pop().toUpperCase()} / ${projectLocation}`),el('h3','',p.title));
     card.append(el('p','muted',p.snapshot ? `${details.done} of ${details.total} chapters complete` : 'Open to continue your translation'));
     if (p.snapshot) { const bar = document.createElement('progress'); bar.max=100; bar.value=details.percent; bar.setAttribute('aria-label',`${details.percent}% translated`); card.append(bar); }
     card.append(el('p','stamp',p.dirty?'Saved on device / cloud sync pending':`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
@@ -136,7 +149,8 @@ function render() {
     const translated = button('Read translation',() => openReader(p.id, 'translated'));
     translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
     if (!complete && isEpub(p)) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
-    actions.append(open,original,translated,button('Export project',() => downloadProject(p)),button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    actions.append(open,original,translated,button('Export project',() => downloadProject(p)));
+    if (user && p.owner === user.id) actions.append(button('Share',() => showShare(p)),button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     card.append(actions); $('projects').append(card);
   });
 }
@@ -218,13 +232,13 @@ async function loadProject(id) {
   if (!user) return cached;
   if (cached?.dirty) return cached;
   try {
-    return await remote.open(id);
+    return { ...(await remote.open(id)), cacheOwner:owner() };
   } catch (error) {
     if (!navigator.onLine && cached?.snapshot && cached?.file) return cached;
     throw error;
   }
 }
-async function openProject(id) {
+async function openProject(id, updateRoute = true) {
   if (active || readerOpen || closing || opening) return;
   opening = true;
   try {
@@ -235,6 +249,7 @@ async function openProject(id) {
     $('library').hidden=true; $('workspace').hidden=false; document.body.classList.add('workspace-open');
     $('project-title').textContent=active.title; announceSave('Opening…');
     $('editor').src='/editor/index.html'; status('');
+    if (updateRoute) navigate(projectRoute('/editor', id));
   } catch(e) { status(errorMessage(e)); active=null; releaseLock?.(); releaseLock=null; }
   finally { opening=false; }
 }
@@ -304,7 +319,7 @@ async function presentReader(file, fileName, edition, project = null, preserveRe
     $('reader-content').append(el('p', '', errorMessage(error)));
   }
 }
-async function openReader(id, edition = 'original') {
+async function openReader(id, edition = 'original', updateRoute = true) {
   if (active || readerOpen || opening) return;
   opening = true;
   status('Opening EPUB reader...');
@@ -313,16 +328,18 @@ async function openReader(id, edition = 'original') {
     if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
     const file = edition === 'translated' ? await buildTranslatedEpub(project.file, project.snapshot) : project.file;
     await presentReader(file, project.fileName, edition === 'translated' ? 'TRANSLATED EDITION' : 'ORIGINAL EDITION', project);
+    if (updateRoute) navigate(projectRoute('/reader', id, edition));
     status('');
   } catch (error) {
     status(errorMessage(error));
   } finally { opening = false; }
 }
-function leaveReader() {
+function leaveReader({ updateRoute = true } = {}) {
   if (!readerOpen) return;
   readerBook?.chapters.flatMap(chapter => chapter.blocks || []).filter(block => block.type === 'image').forEach(block => URL.revokeObjectURL(block.src));
   readerOpen = false; readerProject = null; readerBook = null; readerChapter = 0;
   $('reader').hidden = true; document.body.classList.remove('reader-open');
+  if (updateRoute) navigate(readerReturn === 'welcome' ? '/' : '/home');
   refresh();
   requestAnimationFrame(() => $(readerReturn === 'welcome' ? 'welcome-reader' : 'library-reader').focus());
 }
@@ -333,11 +350,11 @@ $('reader-open-file').onclick = chooseReaderFile;
 $('reader-file').onchange = async () => {
   const file = $('reader-file').files[0];
   if (!file) return;
-  try { validateFile(file); await presentReader(file, file.name, 'STANDALONE EPUB', null, readerOpen); }
+  try { validateFile(file); await presentReader(file, file.name, 'STANDALONE EPUB', null, readerOpen); navigate('/reader'); }
   catch (error) { prepareReader(file.name, 'STANDALONE EPUB', readerOpen); $('reader-chapter-title').textContent='This EPUB could not be opened.'; $('reader-status').textContent='Reader error'; $('reader-content').append(el('p', '', errorMessage(error))); }
 };
 $('reader-back').onclick = leaveReader;
-$('reader-editor').onclick = async () => { if (readerProject?.id) { const id = readerProject.id; leaveReader(); await openProject(id); } };
+$('reader-editor').onclick = async () => { if (readerProject?.id) { const id = readerProject.id; leaveReader({ updateRoute:false }); await openProject(id); } };
 $('reader-font-down').onclick = () => setReaderFontSize(readerFontSize() - READER_FONT_STEP);
 $('reader-font-reset').onclick = () => setReaderFontSize(READER_FONT_DEFAULT);
 $('reader-font-up').onclick = () => setReaderFontSize(readerFontSize() + READER_FONT_STEP);
@@ -427,16 +444,17 @@ window.addEventListener('message', e => {
 });
 async function saveNow() { saveError=''; await draftQueue; await flush(); }
 $('save-now').onclick = saveNow;
-async function leave() {
+async function leave({ updateRoute = true } = {}) {
   if (!active || streaming || closing) return;
   closing=true; clearTimeout(saveTimer); saveTimer=null;
   await draftQueue; saveError=''; await flush();
   if (saveError) {
-    const cached=await local.get(active.owner,active.id);
+    const cached=await local.get(owner(),active.id);
     const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
     if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
   }
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
+  if (updateRoute) navigate('/home');
 }
 $('back').onclick=leave;
 $('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerOpen)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
@@ -468,6 +486,43 @@ $('backup').onclick=downloadBackup;
 window.addEventListener('beforeunload',e=>{if(active&&(persisted!==generation||streaming)){e.preventDefault();e.returnValue='';}});
 window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
+
+let sharingProject = null;
+function renderCollaborators(members) {
+  const list = $('share-members');
+  list.replaceChildren();
+  if (!members.length) { list.append(el('p','share-empty','No collaborators yet.')); return; }
+  members.forEach(member => {
+    const row = el('div','share-member'), details = el('div','',member.email);
+    details.append(el('small','',member.role));
+    const remove = button('Remove',async() => {
+      remove.disabled = true; $('share-error').textContent = '';
+      try { await remote.removeCollaborator(sharingProject.id, member.user_id); await renderShareMembers(); await refresh(); }
+      catch (error) { $('share-error').textContent = errorMessage(error); remove.disabled = false; }
+    });
+    row.append(details,remove); list.append(row);
+  });
+}
+async function renderShareMembers() {
+  if (!sharingProject) return;
+  renderCollaborators(await remote.collaborators(sharingProject.id));
+}
+async function showShare(project) {
+  if (!user || project.owner !== user.id) return;
+  sharingProject = project; $('share-title').textContent = `Share “${project.title}”`; $('share-form').reset(); $('share-error').textContent = '';
+  $('share-members').replaceChildren(el('p','share-empty','Loading collaborators…'));
+  $('share-dialog').showModal();
+  try { await renderShareMembers(); } catch (error) { $('share-error').textContent = errorMessage(error); }
+}
+$('share-form').onsubmit = async event => {
+  event.preventDefault(); if (!sharingProject || working) return;
+  working = true; $('share-submit').disabled = true; $('share-error').textContent = '';
+  try {
+    await remote.share(sharingProject.id, $('share-email').value.trim());
+    $('share-email').value = ''; await renderShareMembers(); await refresh();
+  } catch (error) { $('share-error').textContent = errorMessage(error); }
+  finally { working = false; $('share-submit').disabled = false; }
+};
 
 function showManage(kind,p) {
   manage={kind,p}; $('manage-error').textContent=''; $('rename-label').hidden=kind!=='rename'; $('rename-title').required=kind==='rename'; $('rename-title').value=p.title;
@@ -762,7 +817,7 @@ $('google-auth').onclick=async()=>{
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
 $('account').onclick=async()=>{
-  if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;guestMode=false;sessionStorage.removeItem('dusk-guest');await refresh();}
+  if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;guestMode=false;sessionStorage.removeItem('dusk-guest');navigate('/',true);await refresh();}
   else showAuth();
 };
 $('auth-switch').onclick=()=>showAuth(authMode==='signup'?'signin':'signup');
@@ -793,6 +848,7 @@ if(cloud){
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
     if(user?.id!==next?.id){
       if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
+      if (!next) navigate('/', true);
       user=next;setTimeout(refresh,0);
     }
   });
@@ -812,4 +868,28 @@ if(isAuthReturn){
   history.replaceState(history.state,'',clean);
 }
 await refresh();
+async function restoreRoute() {
+  const route = currentRoute(), projectId = new URLSearchParams(location.search).get('project');
+  if (route === '/' && (user || guestMode)) { navigate('/home', true); return; }
+  if (!user && !guestMode && route !== '/') { navigate('/', true); await refresh(); return; }
+  if (route === '/editor') {
+    if (!projectId) { navigate('/home', true); status('Choose a project before opening the editor.'); return; }
+    await openProject(projectId, false);
+    if (!active) navigate('/home', true);
+  } else if (route === '/reader' && projectId) {
+    const edition = new URLSearchParams(location.search).get('edition') === 'translated' ? 'translated' : 'original';
+    await openReader(projectId, edition, false);
+    if (!readerOpen) navigate('/home', true);
+  } else if (route === '/reader') {
+    prepareReader('EPUB reader', 'STANDALONE EPUB');
+    $('reader-chapter-title').textContent = 'Choose an EPUB to begin.';
+    $('reader-status').textContent = 'Open an EPUB from this device';
+  }
+}
+window.addEventListener('popstate', async () => {
+  if (active) await leave({ updateRoute:false });
+  else if (readerOpen) leaveReader({ updateRoute:false });
+  else await restoreRoute();
+});
+await restoreRoute();
 if(authError){showAuth();$('auth-message').textContent=authError;}
