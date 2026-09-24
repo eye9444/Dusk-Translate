@@ -22,7 +22,6 @@ let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
 const ROUTES = new Set(['/','/home','/editor','/reader']);
-const EDITOR_RETURN_KEY = 'dusk-editor-return-library';
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
@@ -36,14 +35,8 @@ function navigate(path, replace = false) {
   if (`${location.pathname}${location.search}` === path) return;
   history[replace ? 'replaceState' : 'pushState']({}, '', path);
 }
-let returningFromEditor = currentRoute() === '/editor' && sessionStorage.getItem(EDITOR_RETURN_KEY) === 'true';
-sessionStorage.removeItem(EDITOR_RETURN_KEY);
-// This deliberately runs before auth/library bootstrapping. Browser navigation
-// timing is inconsistent, so use a short-lived editor-unload marker instead.
-if (returningFromEditor) location.replace('/home');
-window.addEventListener('pagehide', () => {
-  if (!returningFromEditor && currentRoute() === '/editor') sessionStorage.setItem(EDITOR_RETURN_KEY, 'true');
-});
+// Match the production redirect when running with the local development server.
+if (currentRoute() === '/editor') location.replace('/home');
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
 function announceSave(message) {

@@ -2,9 +2,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "redirects": [
+    { "source": "/editor", "destination": "/home", "permanent": false },
+    { "source": "/editor/", "destination": "/home", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/home", "destination": "/index.html" },
-    { "source": "/editor", "destination": "/index.html" },
     { "source": "/reader", "destination": "/index.html" }
   ],
   "headers": [{ "source": "/(.*)", "headers": [
