@@ -41,6 +41,12 @@ function announceSave(message) {
   $('save-status').textContent = message;
   if (active) $('editor').contentWindow?.postMessage({type:'host:status',message}, location.origin);
 }
+function openActiveEditorProject() {
+  if (!active) return;
+  $('editor').contentWindow?.postMessage({type:'host:open',project:active}, location.origin);
+  theme(localStorage.getItem('theme') || 'dusk');
+  announceSave('Opening...');
+}
 function el(tag, className, value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = value; return n; }
 function button(label, action) { const n = el('button','',label); n.addEventListener('click', action); return n; }
 function download(name, data) { const url = URL.createObjectURL(data); const a = el('a',''); a.href=url; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); }
@@ -248,6 +254,8 @@ async function openProject(id, updateRoute = true) {
     generation = active.dirty ? 1 : 0; persisted=0; saveError=''; streaming=false; editorReady=false;
     $('library').hidden=true; $('workspace').hidden=false; document.body.classList.add('workspace-open');
     $('project-title').textContent=active.title; announceSave('Opening…');
+    // A hard reload can miss the editor's ready message; load is a reliable second handshake.
+    $('editor').onload = () => setTimeout(openActiveEditorProject, 0);
     $('editor').src='/editor/index.html'; status('');
     if (updateRoute) navigate(projectRoute('/editor', id));
   } catch(e) { status(errorMessage(e)); active=null; releaseLock?.(); releaseLock=null; }
@@ -423,9 +431,7 @@ window.addEventListener('message', e => {
     return;
   }
   if (e.data.type === 'editor:ready') {
-    $('editor').contentWindow.postMessage({type:'host:open',project:active}, location.origin);
-    theme(localStorage.getItem('theme') || 'dusk');
-    announceSave('Opening…'); return;
+    openActiveEditorProject(); return;
   }
   if (e.data.projectId !== active.id) return;
   if (e.data.type === 'editor:error') { announceSave(`Could not open book: ${e.data.message}`); return; }
