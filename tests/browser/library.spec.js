@@ -106,6 +106,15 @@ test('reader keeps translated written-number sections separate and numbers from 
   await expect(page.locator('#reader-chapters button')).toHaveCount(2);await expect(page.locator('#reader-chapters button').first()).toHaveText(/^00/);await expect(page.locator('#reader-content')).toContainText('Fourth-section-only text.');
   await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Fifth-section-only text.');await expect(page.locator('#reader-content')).not.toContainText('Fourth-section-only text.');
 });
+test('reader keeps inline gaiji punctuation out of the illustration flow',async({page})=>{
+  const zip=new JSZip();zip.file('mimetype','application/epub+zip');
+  zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
+  zip.file('OEBPS/book.opf','<package><manifest><item id="one" href="one.xhtml" media-type="application/xhtml+xml"/><item id="glyph" href="glyph.png" media-type="image/png"/></manifest><spine><itemref idref="one"/></spine></package>');
+  zip.file('OEBPS/glyph.png',Buffer.from('89504e470d0a1a0a','hex'));
+  zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><h1>Chapter Four</h1><p>She swayed<img class="gaiji-line" src="glyph.png" alt="～"/>gently.</p></body></html>');
+  await page.goto('/');await page.locator('#reader-file').setInputFiles({name:'gaiji.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});
+  await expect(page.locator('#reader-content')).toContainText('She swayed～gently.');await expect(page.locator('#reader-content img')).toHaveCount(0);
+});
 test('same project cannot be edited in two tabs',async({page,context})=>{
   await create(page);const second=await context.newPage();await second.goto('/');await second.getByRole('button',{name:'Open project',exact:true}).click();
   await expect(second.locator('#library-status')).toContainText('already open in another tab');await second.close();
