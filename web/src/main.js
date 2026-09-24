@@ -252,7 +252,7 @@ function renderReader() {
   if (!readerBook) return;
   const chapter = readerBook.chapters[readerChapter];
   $('reader-title').textContent = readerBook.title;
-  $('reader-chapter-count').textContent = `Section ${readerChapter + 1} of ${readerBook.chapters.length}`;
+  $('reader-chapter-count').textContent = `Section ${String(readerChapter).padStart(2, '0')} of ${readerBook.chapters.length}`;
   $('reader-chapter-title').textContent = chapter.title;
   $('reader-content').replaceChildren(...(chapter.blocks || chapter.paragraphs.map(text => ({ type:'text', text }))).map(block => {
     if (block.type === 'image') {
@@ -264,14 +264,14 @@ function renderReader() {
     return el('p', '', block.text);
   }));
   $('reader-chapters').replaceChildren(...readerBook.chapters.map((item, index) => {
-    const chapterButton = button(`${String(index + 1).padStart(2, '0')}  ${item.title}`, () => {
+    const chapterButton = button(`${String(index).padStart(2, '0')}  ${item.title}`, () => {
       readerChapter = index;
       renderReader();
       $('reader-page').scrollTo({ top: 0, behavior: 'smooth' });
       $('reader-page').focus({ preventScroll: true });
     });
     chapterButton.setAttribute('aria-current', String(index === readerChapter));
-    chapterButton.setAttribute('aria-label', `Read section ${index + 1}: ${item.title}`);
+    chapterButton.setAttribute('aria-label', `Read section ${index}: ${item.title}`);
     return chapterButton;
   }));
   setReaderFontSize(readerFontSize());

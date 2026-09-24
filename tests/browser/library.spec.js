@@ -95,6 +95,17 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   await page.locator('#reader-page').focus();await page.keyboard.press('0');await expect(page.locator('#reader-font-value')).toHaveText('20 px');
   await page.locator('#reader-back').click();await expect(page.locator('#library')).toBeVisible();
 });
+test('reader keeps translated written-number sections separate and numbers from zero',async({page})=>{
+  const zip=new JSZip();zip.file('mimetype','application/epub+zip');
+  zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
+  zip.file('OEBPS/book.opf','<package xmlns:dc="http://purl.org/dc/elements/1.1/"><metadata><dc:title>Translated sections</dc:title></metadata><manifest><item id="four" href="four.xhtml" media-type="application/xhtml+xml"/><item id="five" href="five.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="four"/><itemref idref="five"/></spine></package>');
+  zip.file('OEBPS/four.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Chapter Four: "The Little Girl Who Teases the Young Lady"</p><p>Fourth-section-only text.</p></body></html>');
+  zip.file('OEBPS/five.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Chapter Five: "The Other Face"</p><p>Fifth-section-only text.</p></body></html>');
+  const epubBuffer=await zip.generateAsync({type:'nodebuffer'});
+  await page.goto('/');await page.locator('#reader-file').setInputFiles({name:'translated.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
+  await expect(page.locator('#reader-chapters button')).toHaveCount(2);await expect(page.locator('#reader-chapters button').first()).toHaveText(/^00/);await expect(page.locator('#reader-content')).toContainText('Fourth-section-only text.');
+  await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Fifth-section-only text.');await expect(page.locator('#reader-content')).not.toContainText('Fourth-section-only text.');
+});
 test('same project cannot be edited in two tabs',async({page,context})=>{
   await create(page);const second=await context.newPage();await second.goto('/');await second.getByRole('button',{name:'Open project',exact:true}).click();
   await expect(second.locator('#library-status')).toContainText('already open in another tab');await second.close();

@@ -96,7 +96,7 @@ function sectionHeading(markup, paragraphs) {
   const heading = cleanText(doc.querySelector('h1,h2,h3')?.textContent || '');
   if (heading) return heading;
   const first = paragraphs[0] || '';
-  return /^(chapter\s+\d+|prologue|epilogue|contents|第[一二三四五六七八九十0-9]+[章話])/iu.test(first) ? first.slice(0, 180) : '';
+  return /^(chapter(?:\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|[ivxlcdm]+))?|prologue|epilogue|contents|第[一二三四五六七八九十0-9]+[章話])/iu.test(first) ? first.slice(0, 180) : '';
 }
 
 function textOf(node) {
