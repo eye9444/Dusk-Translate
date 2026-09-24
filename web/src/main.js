@@ -40,6 +40,9 @@ function navigate(path, replace = false) {
   if (`${location.pathname}${location.search}` === path) return;
   history[replace ? 'replaceState' : 'pushState']({}, '', path);
 }
+// Redirect before auth/library bootstrapping: a stalled cloud request must not
+// leave a reloaded editor route on an unusable blank workspace.
+if (currentRoute() === '/editor' && wasPageReloaded()) location.replace('/home');
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
 function announceSave(message) {
