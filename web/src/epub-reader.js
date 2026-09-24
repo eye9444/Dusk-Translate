@@ -99,12 +99,15 @@ function injectTranslation(markup, translation) {
   const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
   const body = doc.querySelector('body');
   if (!body || doc.querySelector('parsererror')) throw new Error('A translated EPUB chapter contains invalid XHTML.');
+  // Keep the book's local illustrations available in the translated reader edition.
+  const images = [...body.querySelectorAll('img')].map(image => image.cloneNode(true));
   body.replaceChildren();
   for (const block of translation.split(/\n\n+/).map(cleanText).filter(Boolean)) {
     const paragraph = doc.createElementNS('http://www.w3.org/1999/xhtml', 'p');
     paragraph.textContent = block;
     body.append(paragraph);
   }
+  images.forEach(image => body.append(image));
   body.setAttribute('style', 'writing-mode:horizontal-tb;direction:ltr');
   doc.documentElement.setAttribute('xml:lang', 'en');
   doc.documentElement.setAttribute('lang', 'en');
