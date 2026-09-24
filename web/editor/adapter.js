@@ -1,6 +1,7 @@
 /* Classic script intentionally shares the standalone editor's lexical state. */
 let projectId = null;
 let readyForSave = false;
+let projectOpenPing = null;
 let lastSnapshot = '';
 let lastBusy = false;
 let lastBulkReplacement = null;
@@ -376,6 +377,8 @@ window.addEventListener('message', async e => {
     return;
   }
   if (e.data.type !== 'host:open' || projectId) return;
+  clearInterval(projectOpenPing);
+  projectOpenPing = null;
   projectId = e.data.project.id;
   try {
     const p = e.data.project;
@@ -406,5 +409,9 @@ window.addEventListener('message', async e => {
 window.addEventListener('drop', e => { e.preventDefault(); e.stopImmediatePropagation(); setStatus('Create a new project from the library to load another book.'); }, true);
 document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); toggleDevMode(); } });
 setInterval(() => emit(), 1000);
-window.addEventListener('pagehide', () => emit(true));
-send('editor:ready');
+window.addEventListener('pagehide', () => { clearInterval(projectOpenPing); emit(true); });
+// Keep requesting the project until the parent acknowledges it. This covers a
+// direct editor-route reload while the host is still restoring authentication.
+const requestProject = () => { if (!projectId) send('editor:ready'); };
+requestProject();
+projectOpenPing = setInterval(requestProject, 500);
