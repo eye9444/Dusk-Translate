@@ -36,4 +36,4 @@ body.eclipse { --muted:#aaa090; }
 }
 
 /* Join the stationary pane controls to the editor chrome instead of floating them below it. */
-@media(min-width:851px){.pane{padding:0}.pane-lbl{margin:0;padding:10px 28px}.src-txt,.tl-out{padding:22px 28px}}
+@media(min-width:851px){.pane{display:flex;flex-direction:column;padding:0;overflow:hidden}.pane-lbl{flex:none;margin:0;padding:10px 28px}.src-txt,.tl-out{flex:1;min-height:0;overflow:auto;padding:22px 28px}}
