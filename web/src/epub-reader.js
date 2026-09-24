@@ -72,6 +72,12 @@ async function readerBlocks(markup, chapterPath, zip) {
     const tag = node.localName.toLowerCase();
     if (SKIP_TAGS.has(tag)) return;
     if (tag === 'img') {
+      // Japanese EPUBs commonly encode punctuation such as "~" as a tiny gaiji image.
+      // Keep it inline instead of promoting it into a full-page reader illustration.
+      if (node.classList.contains('gaiji-line')) {
+        buffer += node.getAttribute('alt') || '';
+        return;
+      }
       flush();
       const source = node.getAttribute('src') || '', path = archivePath(source.split(/[?#]/, 1)[0], base), entry = path && zip.file(path);
       if (entry) blocks.push({ type:'image', src:URL.createObjectURL(new Blob([await entry.async('arraybuffer')], { type:imageMimeType(path) })), alt:cleanText(node.getAttribute('alt') || '') });
