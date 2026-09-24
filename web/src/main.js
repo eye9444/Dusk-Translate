@@ -513,7 +513,20 @@ function renderCollaborators(members) {
 }
 async function renderShareMembers() {
   if (!sharingProject) return;
-  renderCollaborators(await remote.collaborators(sharingProject.id));
+  const projectId = sharingProject.id;
+  try {
+    const members = await remote.collaborators(projectId);
+    if (sharingProject?.id === projectId) renderCollaborators(members);
+  } catch (error) {
+    if (sharingProject?.id === projectId) {
+      $('share-members').replaceChildren(el('p','share-empty','Could not load collaborators.'),button('Retry',async () => {
+        $('share-error').textContent = '';
+        try { await renderShareMembers(); }
+        catch (retryError) { $('share-error').textContent = errorMessage(retryError); }
+      }));
+    }
+    throw error;
+  }
 }
 async function showShare(project) {
   if (!user || project.owner !== user.id) return;
