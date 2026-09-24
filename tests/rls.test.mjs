@@ -9,7 +9,7 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await db.exec(`
       create role anon; create role authenticated;
       create schema auth; create schema storage;
-      create table auth.users(id uuid primary key,email varchar(255) not null unique);
+      create table auth.users(id uuid primary key,email varchar(255) not null unique,raw_user_meta_data jsonb default '{}');
       create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint);
       create table storage.objects(id serial primary key,bucket_id text,name text);
@@ -18,11 +18,12 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
       grant usage on schema public,auth,storage to anon,authenticated;
       grant select,insert,delete on storage.objects to authenticated;
       grant usage,select on sequence storage.objects_id_seq to authenticated;
-      insert into auth.users values ('11111111-1111-4111-8111-111111111111','owner@example.test'),('22222222-2222-4222-8222-222222222222','editor@example.test');
+      insert into auth.users(id,email) values ('11111111-1111-4111-8111-111111111111','owner@example.test'),('22222222-2222-4222-8222-222222222222','editor@example.test');
     `);
     await db.exec(await readFile('supabase/migrations/202609100001_projects.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202609240001_project_collaborators.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202609250001_fix_collaborator_email_type.sql','utf8'));
+    await db.exec(await readFile('supabase/migrations/202609250002_project_presence.sql','utf8'));
     const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',id='33333333-3333-4333-8333-333333333333';
     await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('insert into projects(id,owner_id,title,file_name,file_path) values ($1,$2,$3,$4,$5)',[id,a,'A book','book.epub',`${a}/${id}/original`]);
@@ -31,6 +32,7 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('update projects set title=$1 where id=$2 and revision=1 returning revision',['Updated',id])).rows[0].revision,2);
     assert.equal((await db.query('update projects set title=$1 where id=$2 and revision=1 returning revision',['Stale',id])).rows.length,0);
     await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
+    await assert.rejects(db.query('select * from sync_project_presence($1,$2,$3)',[id,b,{}]),/Project access required/);
     assert.equal((await db.query('select * from projects')).rows.length,0);
     assert.equal((await db.query('select * from storage.objects')).rows.length,0);
     assert.equal((await db.query('update projects set title=$1 where id=$2 returning id',['Intrusion',id])).rows.length,0);
@@ -41,6 +43,12 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     const shared=await db.query('select * from share_project($1,$2)',[id,'editor@example.test']);
     assert.deepEqual(shared.rows,[{user_id:b,role:'editor'}]);
     assert.deepEqual((await db.query('select * from list_project_collaborators($1)',[id])).rows,[{user_id:b,email:'editor@example.test',role:'editor'}]);
+    const state={chapter:'p-001',pane:'translation',offset:4,fingerprint:'10:123',active:true,visible:true};
+    const roster=(await db.query('select * from sync_project_presence($1,$2,$3)',[id,a,state])).rows;
+    assert.equal(roster.find(row=>row.user_id===a).online,true);
+    assert.equal(roster.find(row=>row.user_id===b).online,false);
+    assert.deepEqual(roster.find(row=>row.user_id===a).location,state);
+    await assert.rejects(db.query('select * from project_presence'),/permission denied/);
     await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
     assert.equal((await db.query('select * from projects')).rows.length,1);
     assert.equal((await db.query('select * from storage.objects')).rows.length,1);
@@ -48,10 +56,14 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('delete from projects where id=$1 returning id',[id])).rows.length,0);
     await assert.rejects(db.query('select * from share_project($1,$2)',[id,'owner@example.test']),/Only the project owner/);
     await assert.rejects(db.query('select * from list_project_collaborators($1)',[id]),/Only the project owner/);
+    assert.equal((await db.query('select * from sync_project_presence($1,$2,$3)',[id,b,{}])).rows.filter(row=>row.online).length,2);
+    await db.query('select leave_project_presence($1,$2)',[id,b]);
     await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('select remove_project_collaborator($1,$2)',[id,b]);
+    assert.equal((await db.query('select * from sync_project_presence($1,$2,$3)',[id,a,{}])).rows.length,1);
     assert.deepEqual((await db.query('select * from list_project_collaborators($1)',[id])).rows,[]);
     await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
+    await assert.rejects(db.query('select * from sync_project_presence($1,$2,$3)',[id,b,{}]),/Project access required/);
     assert.equal((await db.query('select * from projects')).rows.length,0);
     assert.equal((await db.query('select * from storage.objects')).rows.length,0);
     await db.exec('reset role;set role anon;');
