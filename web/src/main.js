@@ -287,12 +287,14 @@ function prepareReader(title, edition, preserveReturn = false) {
   $('reader-chapter-title').textContent = 'Opening EPUB...';
   $('reader-status').textContent = 'Reading book structure';
   $('reader-chapters').replaceChildren(); $('reader-content').replaceChildren();
+  $('reader-editor').hidden = true;
 }
 async function presentReader(file, fileName, edition, project = null, preserveReturn = false) {
   prepareReader(project?.title || fileName.replace(/\.epub$/i, ''), edition, preserveReturn);
   readerProject = project;
   try {
     readerBook = await readEpub(file, fileName); renderReader();
+    $('reader-editor').hidden = !project;
     $('reader-status').textContent = 'Ready to read';
     $('reader-page').focus({ preventScroll: true });
   } catch (error) {
@@ -334,6 +336,7 @@ $('reader-file').onchange = async () => {
   catch (error) { prepareReader(file.name, 'STANDALONE EPUB', readerOpen); $('reader-chapter-title').textContent='This EPUB could not be opened.'; $('reader-status').textContent='Reader error'; $('reader-content').append(el('p', '', errorMessage(error))); }
 };
 $('reader-back').onclick = leaveReader;
+$('reader-editor').onclick = async () => { if (readerProject?.id) { const id = readerProject.id; leaveReader(); await openProject(id); } };
 $('reader-font-down').onclick = () => setReaderFontSize(readerFontSize() - READER_FONT_STEP);
 $('reader-font-reset').onclick = () => setReaderFontSize(READER_FONT_DEFAULT);
 $('reader-font-up').onclick = () => setReaderFontSize(readerFontSize() + READER_FONT_STEP);
