@@ -252,7 +252,7 @@ function renderReader() {
   if (!readerBook) return;
   const chapter = readerBook.chapters[readerChapter];
   $('reader-title').textContent = readerBook.title;
-  $('reader-chapter-count').textContent = `Chapter ${readerChapter + 1} of ${readerBook.chapters.length}`;
+  $('reader-chapter-count').textContent = `Section ${readerChapter + 1} of ${readerBook.chapters.length}`;
   $('reader-chapter-title').textContent = chapter.title;
   $('reader-content').replaceChildren(...(chapter.blocks || chapter.paragraphs.map(text => ({ type:'text', text }))).map(block => {
     if (block.type === 'image') {
@@ -271,7 +271,7 @@ function renderReader() {
       $('reader-page').focus({ preventScroll: true });
     });
     chapterButton.setAttribute('aria-current', String(index === readerChapter));
-    chapterButton.setAttribute('aria-label', `Read chapter ${index + 1}: ${item.title}`);
+    chapterButton.setAttribute('aria-label', `Read section ${index + 1}: ${item.title}`);
     return chapterButton;
   }));
   setReaderFontSize(readerFontSize());
