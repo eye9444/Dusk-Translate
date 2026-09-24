@@ -147,6 +147,12 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
     const blocks = await readerBlocks(await entry.async('string'), path, zip);
     const paragraphs = blocks.filter(block => block.type === 'text').map(block => block.text);
     if (!blocks.length) continue;
+    // A full-page illustration in the spine belongs after the preceding chapter,
+    // not as a fake chapter in the reader navigation.
+    if (!paragraphs.length && chapters.length) {
+      chapters.at(-1).blocks.push(...blocks);
+      continue;
+    }
     chapters.push({ id: item.getAttribute('id') || `chapter-${index + 1}`, title: firstHeading(paragraphs, `Chapter ${chapters.length + 1}`), paragraphs, blocks });
   }
   if (!chapters.length) throw new Error('No readable chapters were found in this EPUB.');
