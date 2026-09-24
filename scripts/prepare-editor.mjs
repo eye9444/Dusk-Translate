@@ -8,8 +8,9 @@ const html = source
   .replace('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', '/editor/jszip.min.js')
   .replace('<title>LN Translator</title>', '<title>DuskTranslate workspace</title>')
   .replace('</head>', '<link rel="stylesheet" href="/editor/adapter.css"></head>')
-  .replace(/<\/body>\s*<\/html>\s*$/, '<script src="/editor/adapter.js"></script></body></html>');
+  .replace(/<\/body>\s*<\/html>\s*$/, '<script src="/editor/adapter.js"></script><script src="/editor/presence.js"></script></body></html>');
 await writeFile('web/public/editor/index.html', html);
 await copyFile('node_modules/jszip/dist/jszip.min.js', 'web/public/editor/jszip.min.js');
 await copyFile('web/editor/adapter.js', 'web/public/editor/adapter.js');
+await copyFile('web/editor/presence.js', 'web/public/editor/presence.js');
 await copyFile('web/editor/adapter.css', 'web/public/editor/adapter.css');

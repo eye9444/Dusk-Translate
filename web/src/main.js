@@ -5,6 +5,7 @@ import './reader.css';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { buildTranslatedEpub, readEpub } from './epub-reader.js';
+import { startProjectPresence } from './presence.js';
 
 const $ = id => document.getElementById(id);
 const authReturn = new URL(location.href);
@@ -16,6 +17,7 @@ let user = null, projects = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
+let projectPresence = null;
 let readerOpen = false, readerProject = null, readerBook = null, readerChapter = 0, readerReturn = 'library';
 let renderedOwner = null;
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
@@ -413,6 +415,9 @@ dictionaryDialog.addEventListener('click',event=>{
 });
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
+  if (e.data.type === 'editor:presence-location' && e.data.projectId === active.id) {
+    projectPresence?.update(e.data.location); return;
+  }
   if (e.data.type === 'editor:findNavigate') {
     focusFindMatch(findReplaceIndex + Number(e.data.delta || 0));
     return;
@@ -437,7 +442,16 @@ window.addEventListener('message', e => {
   }
   if (e.data.projectId !== active.id) return;
   if (e.data.type === 'editor:error') { announceSave(`Could not open book: ${e.data.message}`); return; }
-  if (e.data.type === 'editor:loaded') editorReady=true;
+  if (e.data.type === 'editor:loaded') {
+    editorReady=true;
+    projectPresence?.stop(); projectPresence=null;
+    if (user && isCloud()) {
+      const id=active.id;
+      projectPresence=startProjectPresence(cloud,id,user.id,presence=>{
+        if (active?.id === id) $('editor').contentWindow?.postMessage({type:'host:presence',...presence},location.origin);
+      });
+    }
+  }
   if (e.data.type !== 'editor:state') return;
   try {
     active.snapshot=cleanSnapshot(e.data.snapshot); generation++;
@@ -461,6 +475,7 @@ async function leave({ updateRoute = true } = {}) {
     const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
     if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
   }
+  projectPresence?.stop(); projectPresence=null;
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
   if (updateRoute) navigate('/home');
 }
@@ -492,6 +507,7 @@ async function downloadProject(project) {
 }
 $('backup').onclick=downloadBackup;
 window.addEventListener('beforeunload',e=>{if(active&&(persisted!==generation||streaming)){e.preventDefault();e.returnValue='';}});
+window.addEventListener('pagehide',()=>{projectPresence?.stop();projectPresence=null;});
 window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
 
@@ -868,6 +884,7 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
     if(user?.id!==next?.id){
+      projectPresence?.stop();projectPresence=null;
       if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
       if (!next) navigate('/', true);
       user=next;setTimeout(refresh,0);

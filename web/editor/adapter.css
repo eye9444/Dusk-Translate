@@ -36,4 +36,15 @@ body.eclipse { --muted:#aaa090; }
 }
 
 /* Join the stationary pane controls to the editor chrome instead of floating them below it. */
+#collaborator-presence{display:flex;align-items:center;gap:6px;max-width:150px;overflow:auto;padding:4px;flex-shrink:0}
+#collaborator-presence[hidden]{display:none}
+.collaborator-avatar{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;flex:none;border:2px solid #888;border-radius:50%;font:11px 'DM Mono',monospace;color:var(--ink);background:var(--panel);position:relative}
+.collaborator-avatar[data-online="true"]{border-color:#42b978}
+.collaborator-avatar[data-active="true"]::after{content:'';position:absolute;right:-3px;bottom:-2px;width:8px;height:8px;border-radius:50%;background:#42b978;border:2px solid var(--panel)}
+.collaborator-avatar:focus-visible{outline:1px solid var(--ink);outline-offset:2px}
+.presence-unavailable{font:10px 'DM Mono',monospace;color:var(--muted)}
+#collaborator-cursors{position:fixed;inset:0;pointer-events:none;z-index:30;overflow:hidden}
+.collaborator-caret{position:absolute;border-left:2px solid #42b978;pointer-events:none}
+.collaborator-caret>span{position:absolute;top:0;left:0;transform:translateY(-100%);background:#236b48;color:#fff;padding:2px 5px;font:11px 'DM Mono',monospace;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:600px){#collaborator-presence{max-width:105px}.collaborator-avatar{width:24px;height:24px}}
 @media(min-width:851px){.pane{display:flex;flex-direction:column;padding:0;overflow:hidden}.pane-lbl{flex:none;margin:0;padding:10px 28px}.src-txt,.tl-out{flex:1;min-height:0;overflow:auto;padding:22px 28px}}
