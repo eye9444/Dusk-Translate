@@ -91,6 +91,14 @@ function firstHeading(paragraphs, fallback) {
   return heading || fallback;
 }
 
+function sectionHeading(markup, paragraphs) {
+  const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
+  const heading = cleanText(doc.querySelector('h1,h2,h3')?.textContent || '');
+  if (heading) return heading;
+  const first = paragraphs[0] || '';
+  return /^(chapter\s+\d+|prologue|epilogue|contents|第[一二三四五六七八九十0-9]+[章話])/iu.test(first) ? first.slice(0, 180) : '';
+}
+
 function textOf(node) {
   return node?.textContent?.trim() || '';
 }
@@ -136,7 +144,7 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   const spine = [...opf.querySelectorAll('spine > itemref')];
   if (!spine.length) throw new Error('This EPUB does not contain a readable chapter spine.');
 
-  const chapters = [];
+  const chapters = [], pendingBlocks = [];
   for (const [index, itemref] of spine.entries()) {
     const item = manifest.get(itemref.getAttribute('idref'));
     const href = item?.getAttribute('href');
@@ -144,17 +152,21 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
     const path = archivePath(href, opfDirectory);
     const entry = zip.file(path);
     if (!entry) continue;
-    const blocks = await readerBlocks(await entry.async('string'), path, zip);
+    const markup = await entry.async('string');
+    const blocks = await readerBlocks(markup, path, zip);
     const paragraphs = blocks.filter(block => block.type === 'text').map(block => block.text);
     if (!blocks.length) continue;
-    // A full-page illustration in the spine belongs after the preceding chapter,
-    // not as a fake chapter in the reader navigation.
-    if (!paragraphs.length && chapters.length) {
+    const title = sectionHeading(markup, paragraphs);
+    // EPUB spine files are often continuation fragments or illustration pages.
+    // Keep them in reading order inside the nearest real titled section.
+    if ((!title || !paragraphs.length) && chapters.length) {
       chapters.at(-1).blocks.push(...blocks);
       continue;
     }
-    chapters.push({ id: item.getAttribute('id') || `chapter-${index + 1}`, title: firstHeading(paragraphs, `Chapter ${chapters.length + 1}`), paragraphs, blocks });
+    if ((!title || !paragraphs.length) && !chapters.length) { pendingBlocks.push(...blocks); continue; }
+    chapters.push({ id: item.getAttribute('id') || `section-${index + 1}`, title: title || `Section ${chapters.length + 1}`, paragraphs, blocks:[...pendingBlocks.splice(0), ...blocks] });
   }
+  if (!chapters.length && pendingBlocks.length) chapters.push({ id:'section-1', title:'Section 1', paragraphs:[], blocks:pendingBlocks });
   if (!chapters.length) throw new Error('No readable chapters were found in this EPUB.');
   return { title: metadataTitle, chapters };
 }
