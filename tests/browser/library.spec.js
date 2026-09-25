@@ -272,6 +272,16 @@ test('find and replace supports substring and exact-word matching',async({page})
   await page.locator('#replace-text').fill('Sam');await page.locator('#preview-btn').click();await page.locator('#replace-btn').click();
   await expect(editor.locator('#tl-out')).toHaveText('Charlotte met Sam. A character watched.');
 });
+test('find and replace honors exact case matching',async({page})=>{
+  await create(page);const editor=page.frameLocator('#editor');
+  await editor.locator('#tl-out').fill('Fiancée fiancée FIANCÉE');await editorAction(page,'#host-find-replace');
+  await page.locator('#find-text').fill('fiancée');await page.locator('#preview-btn').click();
+  await expect(page.locator('.match-item')).toHaveCount(3);
+  await page.locator('#case-sensitive').check();await page.locator('#preview-btn').click();
+  await expect(page.locator('.match-item')).toHaveCount(1);
+  await page.locator('#find-text').fill('Fiancée');await page.locator('#preview-btn').click();
+  await expect(page.locator('.match-item')).toHaveCount(1);
+});
 test('consistency findings open and highlight the relevant translation passage',async({page})=>{
   const repeated={chapters:[
     {id:'p-001',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17},
