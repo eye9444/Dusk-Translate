@@ -149,5 +149,24 @@ export const remote = {
   },
   async respondToInvitation(invitationId, accept) {
     return must(await cloud.rpc('respond_to_project_invitation', { target_invitation_id:invitationId, accept_invitation:accept }));
+  },
+  async publicReaderLink(projectId) {
+    const links=must(await cloud.rpc('get_public_reader_link', { target_project_id:projectId }));
+    return links[0]?.token || null;
+  },
+  async enablePublicReaderLink(projectId) {
+    const links=must(await cloud.rpc('enable_public_reader_link', { target_project_id:projectId }));
+    return links[0]?.token;
+  },
+  async disablePublicReaderLink(projectId) {
+    must(await cloud.rpc('disable_public_reader_link', { target_project_id:projectId }));
+  },
+  async openPublicReader(token) {
+    if (!url || !key) throw new Error('Public reader links are not configured.');
+    const shared=createClient(url,key,{ auth:{ persistSession:false, autoRefreshToken:false }, global:{ headers:{ 'x-dusk-share-token':token } } });
+    const rows=must(await shared.rpc('open_public_reader_link', { reader_token:token }));
+    if (!rows.length) throw new Error('This reader link is invalid or has been disabled.');
+    const row=rows[0], file=must(await shared.storage.from('books').download(row.file_path));
+    return { id:row.project_id, owner:'shared', title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, file, archived:false, collaborators:[], dirty:false };
   }
 };

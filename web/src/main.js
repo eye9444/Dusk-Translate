@@ -385,6 +385,23 @@ async function openReader(id, edition = 'original', updateRoute = true) {
     status(errorMessage(error));
   } finally { opening = false; }
 }
+async function openSharedReader(token) {
+  if (active || readerOpen || opening) return;
+  opening = true;
+  try {
+    const project=await remote.openPublicReader(token);
+    if (!project.file || !isEpub(project)) throw new Error('This shared project does not contain an EPUB file.');
+    let file=project.file, edition='SHARED ORIGINAL EDITION';
+    try { file=await buildTranslatedEpub(project.file, project.snapshot); edition='SHARED TRANSLATED EDITION'; }
+    catch { /* An in-progress project remains readable from its original EPUB. */ }
+    await presentReader(file, project.fileName, edition);
+  } catch (error) {
+    prepareReader('Shared EPUB', 'SHARED EDITION');
+    $('reader-chapter-title').textContent='This reader link is unavailable.';
+    $('reader-status').textContent='Reader error';
+    $('reader-content').append(el('p', '', errorMessage(error)));
+  } finally { opening = false; }
+}
 function leaveReader({ updateRoute = true } = {}) {
   if (!readerOpen) return;
   readerBook?.chapters.flatMap(chapter => chapter.blocks || []).filter(block => block.type === 'image').forEach(block => URL.revokeObjectURL(block.src));
@@ -551,6 +568,34 @@ window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
 
 let sharingProject = null;
+function publicReaderUrl(token) { return `${location.origin}/reader?share=${encodeURIComponent(token)}`; }
+function renderPublicReaderLink(token) {
+  const url=$('share-reader-url'), enable=$('share-reader-enable'), copy=$('share-reader-copy'), disable=$('share-reader-disable');
+  const active=Boolean(token); url.value=active?publicReaderUrl(token):'';
+  url.hidden=!active; copy.hidden=!active; disable.hidden=!active; enable.hidden=active;
+}
+async function refreshPublicReaderLink() {
+  if (!sharingProject) return;
+  renderPublicReaderLink(await remote.publicReaderLink(sharingProject.id));
+}
+$('share-reader-enable').onclick=async()=>{
+  if (!sharingProject) return;
+  $('share-reader-enable').disabled=true; $('share-error').textContent='';
+  try { renderPublicReaderLink(await remote.enablePublicReaderLink(sharingProject.id)); }
+  catch(error){$('share-error').textContent=errorMessage(error);}
+  finally {$('share-reader-enable').disabled=false;}
+};
+$('share-reader-copy').onclick=async()=>{
+  try { await navigator.clipboard.writeText($('share-reader-url').value); $('share-reader-copy').textContent='Copied'; setTimeout(()=>$('share-reader-copy').textContent='Copy link',1500); }
+  catch { $('share-reader-url').focus(); $('share-reader-url').select(); document.execCommand('copy'); }
+};
+$('share-reader-disable').onclick=async()=>{
+  if (!sharingProject) return;
+  $('share-reader-disable').disabled=true; $('share-error').textContent='';
+  try { await remote.disablePublicReaderLink(sharingProject.id); renderPublicReaderLink(null); }
+  catch(error){$('share-error').textContent=errorMessage(error);}
+  finally {$('share-reader-disable').disabled=false;}
+};
 function renderCollaborators(members) {
   const list = $('share-members');
   list.replaceChildren();
@@ -610,8 +655,9 @@ async function showShare(project) {
   sharingProject = project; $('share-title').textContent = `Share “${project.title}”`; $('share-form').reset(); $('share-error').textContent = '';
   $('share-members').replaceChildren(el('p','share-empty','Loading collaborators…'));
   $('share-invites').replaceChildren(el('p','share-empty','Loading invitations…'));
+  renderPublicReaderLink(null);
   $('share-dialog').showModal();
-  try { await renderShareMembers(); } catch (error) { $('share-error').textContent = errorMessage(error); }
+  try { await Promise.all([renderShareMembers(),refreshPublicReaderLink()]); } catch (error) { $('share-error').textContent = errorMessage(error); }
 }
 $('share-form').onsubmit = async event => {
   event.preventDefault(); if (!sharingProject || working) return;
@@ -974,8 +1020,9 @@ if(isAuthReturn){
 }
 await refresh();
 async function restoreRoute() {
-  const route = currentRoute(), projectId = new URLSearchParams(location.search).get('project');
+  const route = currentRoute(), parameters = new URLSearchParams(location.search), projectId = parameters.get('project'), sharedToken = parameters.get('share');
   if (route === '/' && (user || guestMode)) { navigate('/home', true); return; }
+  if (route === '/reader' && sharedToken) { await openSharedReader(sharedToken); return; }
   if (!user && !guestMode && route !== '/') { navigate('/', true); await refresh(); return; }
   if (route === '/editor') {
     if (!projectId) { navigate('/home', true); status('Choose a project before opening the editor.'); return; }
