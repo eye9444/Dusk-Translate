@@ -25,11 +25,21 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await db.exec(await readFile('supabase/migrations/202609250001_fix_collaborator_email_type.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202609250002_project_presence.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202609250003_project_invitations_and_roles.sql','utf8'));
+    await db.exec(await readFile('supabase/migrations/202609250004_public_reader_links.sql','utf8'));
     const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',c='33333333-3333-4333-8333-333333333334',id='33333333-3333-4333-8333-333333333333';
     await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('insert into projects(id,owner_id,title,file_name,file_path) values ($1,$2,$3,$4,$5)',[id,a,'A book','book.epub',`${a}/${id}/original`]);
     await db.query("insert into storage.objects(bucket_id,name) values ('books',$1)",[`${a}/${id}/original`]);
     assert.equal((await db.query('select * from projects')).rows.length,1);
+    const sharedToken=(await db.query('select * from enable_public_reader_link($1)',[id])).rows[0].token;
+    assert.equal((await db.query('select * from get_public_reader_link($1)',[id])).rows[0].token,sharedToken);
+    await db.exec(`reset role; set role anon; select set_config('request.headers','{"x-dusk-share-token":"${sharedToken}"}',false);`);
+    assert.equal((await db.query('select * from open_public_reader_link($1)',[sharedToken])).rows[0].project_id,id);
+    assert.equal((await db.query('select * from storage.objects')).rows.length,1);
+    await db.exec(`select set_config('request.headers','{"x-dusk-share-token":"00000000-0000-4000-8000-000000000000"}',false);`);
+    assert.equal((await db.query('select * from open_public_reader_link($1)',['00000000-0000-4000-8000-000000000000'])).rows.length,0);
+    assert.equal((await db.query('select * from storage.objects')).rows.length,0);
+    await db.exec(`reset role; set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`);
     assert.equal((await db.query('update projects set title=$1 where id=$2 and revision=1 returning revision',['Updated',id])).rows[0].revision,2);
     assert.equal((await db.query('update projects set title=$1 where id=$2 and revision=1 returning revision',['Stale',id])).rows.length,0);
     await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);
@@ -88,7 +98,12 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await assert.rejects(db.query('select * from sync_project_presence($1,$2,$3)',[id,b,{}]),/Project access required/);
     assert.equal((await db.query('select * from projects')).rows.length,0);
     assert.equal((await db.query('select * from storage.objects')).rows.length,0);
+    await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
+    await db.query('select disable_public_reader_link($1)',[id]);
     await db.exec('reset role;set role anon;');
+    await db.exec(`select set_config('request.headers','{"x-dusk-share-token":"${sharedToken}"}',false);`);
+    assert.equal((await db.query('select * from open_public_reader_link($1)',[sharedToken])).rows.length,0);
+    assert.equal((await db.query('select * from storage.objects')).rows.length,0);
     await assert.rejects(db.query('select * from projects'),/permission denied/);
   } finally { await db.close(); }
 });
