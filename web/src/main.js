@@ -13,13 +13,14 @@ const authParams = new URLSearchParams(authReturn.hash.slice(1));
 authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
 const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
 let authBusy = false;
-let user = null, projects = [], active = null, working = false;
+let user = null, projects = [], invitations = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
 let readerOpen = false, readerProject = null, readerBook = null, readerChapter = 0, readerReturn = 'library';
 let renderedOwner = null;
+let libraryView = 'projects';
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
@@ -97,16 +98,20 @@ async function refresh() {
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
   $('account').textContent = user ? 'Sign out' : 'Sign in';
   $('storage-caption').textContent=user?'Your personal cloud library':'A library on this device';
+  $('nav-inbox').hidden=!user;
+  if (!user && libraryView === 'inbox') libraryView='projects';
   $('storage-info').textContent = user ? `Signed in as ${user.email}. Cloud books and progress are private to your account. Local projects stay in your browser library.` : 'Saved in this browser, including the original EPUB. Clearing site data removes local projects. Sign in for a cloud library.';
   if(user)status('Refreshing your account library...');
   try {
     cached=await local.list(libraryOwner);
     const result=user?await remote.list():cached;
+    const pendingInvitations=user?await remote.inbox().catch(()=>[]):[];
     if(request !== libraryRequest || libraryOwner !== owner()) return;
     projects=user?result.map(p=>{
       const draft=cached.find(c=>c.id===p.id);
       return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
     }):result;
+    invitations=pendingInvitations;
     status('');render();
   }catch(e){
     if(request !== libraryRequest || libraryOwner !== owner())return;
@@ -115,17 +120,21 @@ async function refresh() {
   }
 }
 function render() {
+  const inboxView = libraryView === 'inbox';
   const archived=$('filter').value==='archived',query=$('search').value.trim().toLowerCase();
   const sorted=[...projects].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
   const view = sorted.filter(p => p.archived === archived && p.title.toLowerCase().includes(query));
   $('active-count').textContent=String(projects.filter(p=>!p.archived).length);
   $('archive-count').textContent=String(projects.filter(p=>p.archived).length);
-  $('collection-title').textContent=archived?'Archived projects':'Active translation projects';
-  $('collection-name').textContent=archived?'Archive':'My library';
-  ['active','archived'].forEach(value=>{
+  $('invite-count').textContent=String(invitations.length);
+  $('collection-title').textContent=inboxView?'Project invitations':archived?'Archived projects':'Active translation projects';
+  $('collection-name').textContent=inboxView?'Invites':archived?'Archive':'My library';
+  ['active','archived','inbox'].forEach(value=>{
     const nav=$('nav-'+value);
-    if(value===$('filter').value)nav.setAttribute('aria-current','page');else nav.removeAttribute('aria-current');
+    if((value === 'inbox' && inboxView) || (value !== 'inbox' && !inboxView && value === $('filter').value)) nav.setAttribute('aria-current','page');else nav.removeAttribute('aria-current');
   });
+  document.querySelector('.filters').hidden=inboxView;
+  if (inboxView) { renderInvitationInbox(); return; }
   const recent=sorted.find(p=>!p.archived);
   $('resume-strip').hidden=!recent||archived||!!query;
   if(recent){
@@ -145,7 +154,8 @@ function render() {
   view.forEach(p => {
     const card = el('article','project-card');
     const details = progress(p.snapshot);
-    const projectLocation = p.owner === 'guest' ? 'ON THIS DEVICE' : p.owner === user?.id ? 'CLOUD' : 'SHARED WITH YOU';
+    const role=p.owner===user?.id?'owner':p.collaborators?.find(member=>member.user_id===user?.id)?.role;
+    const projectLocation = p.owner === 'guest' ? 'ON THIS DEVICE' : p.owner === user?.id ? 'CLOUD' : `SHARED WITH YOU / ${String(role || 'viewer').toUpperCase()}`;
     card.append(el('p',p.owner === user?.id ? 'stamp' : 'stamp shared-stamp',`${p.fileName.split('.').pop().toUpperCase()} / ${projectLocation}`),el('h3','',p.title));
     card.append(el('p','muted',p.snapshot ? `${details.done} of ${details.total} chapters complete` : 'Open to continue your translation'));
     if (p.snapshot) { const bar = document.createElement('progress'); bar.max=100; bar.value=details.percent; bar.setAttribute('aria-label',`${details.percent}% translated`); card.append(bar); }
@@ -160,14 +170,42 @@ function render() {
     translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
     if (!complete && isEpub(p)) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
     actions.append(open,original,translated,button('Export project',() => downloadProject(p)));
-    if (user && p.owner === user.id) actions.append(button('Share',() => showShare(p)),button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    if (p.owner === owner()) {
+      if (user) actions.append(button('Share',() => showShare(p)));
+      actions.append(button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
+    }
     card.append(actions); $('projects').append(card);
   });
 }
+function renderInvitationInbox() {
+  $('resume-strip').hidden=true; $('count').textContent=String(invitations.length); $('projects').replaceChildren();
+  if (!invitations.length) {
+    const box=el('div','empty'),mark=el('span','empty-mark','00');mark.setAttribute('aria-hidden','true');
+    box.append(mark,el('h3','','No pending invitations.'),el('p','','Project invitations sent to your account will appear here.'),button('Back to my library',()=>setCollection('active')));
+    $('projects').append(box); return;
+  }
+  invitations.forEach(invitation=>{
+    const card=el('article','project-card invitation-card');
+    card.append(el('p','stamp','PROJECT INVITATION'),el('h3','',invitation.project_title),el('p','muted',`${invitation.inviter_name} invited you as an ${invitation.role}.`),el('p','stamp',`Sent ${new Date(invitation.created_at).toLocaleDateString()}`));
+    const actions=el('div','card-actions');
+    const accept=button('Accept',async()=>{
+      accept.disabled=true; decline.disabled=true; status('Accepting invitation…');
+      try { await remote.respondToInvitation(invitation.id,true); libraryView='projects'; await refresh(); status('Project added to your library.'); }
+      catch(error){status(errorMessage(error));accept.disabled=false;decline.disabled=false;}
+    }); accept.className='primary';
+    const decline=button('Decline',async()=>{
+      accept.disabled=true; decline.disabled=true;
+      try { await remote.respondToInvitation(invitation.id,false); await refresh(); status('Invitation declined.'); }
+      catch(error){status(errorMessage(error));accept.disabled=false;decline.disabled=false;}
+    });
+    actions.append(accept,decline); card.append(actions); $('projects').append(card);
+  });
+}
 $('filter').onchange = render; $('search').oninput = render; $('refresh').onclick = refresh;
-function setCollection(value){$('filter').value=value;$('search').value='';render();}
+function setCollection(value){libraryView='projects';$('filter').value=value;$('search').value='';render();}
 $('nav-active').onclick=()=>setCollection('active');
 $('nav-archived').onclick=()=>setCollection('archived');
+$('nav-inbox').onclick=()=>{libraryView='inbox';$('search').value='';render();};
 function setLayout(value){
   $('projects').classList.toggle('list-view',value==='list');
   ['grid','list'].forEach(mode=>$('view-'+mode).setAttribute('aria-pressed',String(value===mode)));
@@ -255,6 +293,7 @@ async function openProject(id, updateRoute = true) {
     await acquire(id); status('Opening your book…');
     active = await loadProject(id);
     if (!active) throw new Error('Project not found. Refresh your library.');
+    active.accessRole = active.owner === owner() ? 'owner' : active.collaborators?.find(member => member.user_id === user?.id)?.role || 'viewer';
     generation = active.dirty ? 1 : 0; persisted=0; saveError=''; streaming=false; editorReady=false;
     $('library').hidden=true; $('workspace').hidden=false; document.body.classList.add('workspace-open');
     $('project-title').textContent=active.title; announceSave('Opening…');
@@ -518,21 +557,42 @@ function renderCollaborators(members) {
   if (!members.length) { list.append(el('p','share-empty','No collaborators yet.')); return; }
   members.forEach(member => {
     const row = el('div','share-member'), details = el('div','',member.email);
-    details.append(el('small','',member.role));
+    const role=document.createElement('select'); role.className='share-role';
+    role.setAttribute('aria-label',`Access level for ${member.email}`);
+    ['viewer','editor'].forEach(value=>{const option=document.createElement('option');option.value=value;option.textContent=value==='editor'?'Editor':'Viewer';option.selected=member.role===value;role.append(option);});
+    role.onchange=async()=>{
+      role.disabled=true; remove.disabled=true; $('share-error').textContent='';
+      try { await remote.changeCollaboratorRole(sharingProject.id,member.user_id,role.value); await renderShareMembers(); await refresh(); }
+      catch(error){$('share-error').textContent=errorMessage(error);role.value=member.role;role.disabled=false;remove.disabled=false;}
+    };
     const remove = button('Remove',async() => {
-      remove.disabled = true; $('share-error').textContent = '';
+      role.disabled=true; remove.disabled = true; $('share-error').textContent = '';
       try { await remote.removeCollaborator(sharingProject.id, member.user_id); await renderShareMembers(); await refresh(); }
-      catch (error) { $('share-error').textContent = errorMessage(error); remove.disabled = false; }
+      catch (error) { $('share-error').textContent = errorMessage(error); role.disabled=false;remove.disabled = false; }
     });
-    row.append(details,remove); list.append(row);
+    row.append(details,role,remove); list.append(row);
+  });
+}
+function renderPendingInvitations(invites) {
+  const list=$('share-invites'); list.replaceChildren();
+  if (!invites.length) { list.append(el('p','share-empty','No pending invitations.')); return; }
+  invites.forEach(invitation=>{
+    const row=el('div','share-member'),details=el('div','',invitation.email);
+    details.append(el('small','',`${invitation.role} · sent ${new Date(invitation.created_at).toLocaleDateString()}`));
+    const revoke=button('Revoke',async()=>{
+      revoke.disabled=true; $('share-error').textContent='';
+      try { await remote.revokeInvitation(invitation.id); await renderShareMembers(); }
+      catch(error){$('share-error').textContent=errorMessage(error);revoke.disabled=false;}
+    });
+    row.append(details,revoke);list.append(row);
   });
 }
 async function renderShareMembers() {
   if (!sharingProject) return;
   const projectId = sharingProject.id;
   try {
-    const members = await remote.collaborators(projectId);
-    if (sharingProject?.id === projectId) renderCollaborators(members);
+    const [members,invites] = await Promise.all([remote.collaborators(projectId),remote.invitations(projectId)]);
+    if (sharingProject?.id === projectId) { renderCollaborators(members);renderPendingInvitations(invites); }
   } catch (error) {
     if (sharingProject?.id === projectId) {
       $('share-members').replaceChildren(el('p','share-empty','Could not load collaborators.'),button('Retry',async () => {
@@ -540,6 +600,7 @@ async function renderShareMembers() {
         try { await renderShareMembers(); }
         catch (retryError) { $('share-error').textContent = errorMessage(retryError); }
       }));
+      $('share-invites').replaceChildren();
     }
     throw error;
   }
@@ -548,6 +609,7 @@ async function showShare(project) {
   if (!user || project.owner !== user.id) return;
   sharingProject = project; $('share-title').textContent = `Share “${project.title}”`; $('share-form').reset(); $('share-error').textContent = '';
   $('share-members').replaceChildren(el('p','share-empty','Loading collaborators…'));
+  $('share-invites').replaceChildren(el('p','share-empty','Loading invitations…'));
   $('share-dialog').showModal();
   try { await renderShareMembers(); } catch (error) { $('share-error').textContent = errorMessage(error); }
 }
@@ -555,8 +617,13 @@ $('share-form').onsubmit = async event => {
   event.preventDefault(); if (!sharingProject || working) return;
   working = true; $('share-submit').disabled = true; $('share-error').textContent = '';
   try {
-    await remote.share(sharingProject.id, $('share-email').value.trim());
+    const emails=[...new Set($('share-email').value.split(/[\s,;]+/).map(email=>email.trim().toLowerCase()).filter(Boolean))];
+    if (!emails.length) throw new Error('Enter at least one email address.');
+    const results=await remote.invite(sharingProject.id,emails.map(email=>({email,role:$('share-role').value})));
+    const invited=results.filter(result=>result.outcome==='invited').length;
+    const skipped=results.filter(result=>result.outcome!=='invited').map(result=>`${result.email} (${result.outcome.replace('_',' ')})`);
     $('share-email').value = ''; await renderShareMembers(); await refresh();
+    $('share-error').textContent=skipped.length?`${invited} invitation${invited===1?'':'s'} sent. Skipped: ${skipped.join(', ')}.`:`${invited} invitation${invited===1?'':'s'} sent.`;
   } catch (error) { $('share-error').textContent = errorMessage(error); }
   finally { working = false; $('share-submit').disabled = false; }
 };
