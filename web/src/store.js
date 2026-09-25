@@ -131,5 +131,23 @@ export const remote = {
   },
   async removeCollaborator(projectId, userId) {
     must(await cloud.rpc('remove_project_collaborator', { target_project_id:projectId, target_user_id:userId }));
+  },
+  async invitations(projectId) {
+    return must(await cloud.rpc('list_project_invitations', { target_project_id:projectId }));
+  },
+  async invite(projectId, invitees) {
+    return must(await cloud.rpc('create_project_invitations', { target_project_id:projectId, invitees }));
+  },
+  async revokeInvitation(invitationId) {
+    must(await cloud.rpc('revoke_project_invitation', { target_invitation_id:invitationId }));
+  },
+  async changeCollaboratorRole(projectId, userId, role) {
+    must(await cloud.rpc('update_project_collaborator_role', { target_project_id:projectId, target_user_id:userId, new_role:role }));
+  },
+  async inbox() {
+    return must(await cloud.rpc('list_my_project_invitations'));
+  },
+  async respondToInvitation(invitationId, accept) {
+    return must(await cloud.rpc('respond_to_project_invitation', { target_invitation_id:invitationId, accept_invitation:accept }));
   }
 };

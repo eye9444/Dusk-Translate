@@ -6,8 +6,20 @@ let lastSnapshot = '';
 let lastBusy = false;
 let lastBulkReplacement = null;
 let exportExcluded = [];
+let canEdit = true;
 const send = (type, extra = {}) => parent.postMessage({ type, projectId, ...extra }, location.origin);
 let spellcheckEnabled = true;
+function setAccess(role = 'owner') {
+  canEdit = role !== 'viewer';
+  document.body.classList.toggle('view-only', !canEdit);
+  document.getElementById('tl-out').contentEditable = canEdit && !busy ? 'true' : 'false';
+  ['api-key','model-select','model-import','style-sel','glossary','btn-tl','btn-abort','btn-import','btn-retry','btn-clear'].forEach(id => {
+    const control = document.getElementById(id);
+    if (control) control.disabled = !canEdit;
+  });
+  const status = document.getElementById('key-status');
+  if (!canEdit) { status.textContent = 'Viewer access - read only'; status.className = 'key-status'; }
+}
 function snapshot() {
   const saved = { ...translations };
   if (busy && novel) {
@@ -19,7 +31,7 @@ function snapshot() {
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
   if (libraryButton) libraryButton.disabled = busy;
-  if (!readyForSave || !novel) return;
+  if (!canEdit || !readyForSave || !novel) return;
   const state = snapshot();
   const encoded = JSON.stringify(state);
   if (force || encoded !== lastSnapshot || lastBusy !== busy) {
@@ -81,6 +93,7 @@ function highlightSearchMatch({ findText, caseSensitive, matchMode, matchIndex, 
 document.getElementById('tl-out').addEventListener('input', () => { clearSearchHighlights(); saveManualText(); });
 document.getElementById('tl-out').addEventListener('paste', e => {
   e.preventDefault(); if (busy) return;
+  if (!canEdit) return;
   const text = e.clipboardData.getData('text/plain');
   const selection = getSelection();
   if (selection.rangeCount) {
@@ -242,16 +255,16 @@ renderList = function () {
 const originalSelect = selectCh;
 selectCh = function(i) { if (busy) return; clearSearchHighlights(); originalSelect(i); emit(); };
 const originalClear = clearTl;
-clearTl = function() { if (busy) return; originalClear(); emit(); };
+clearTl = function() { if (!canEdit || busy) return; originalClear(); emit(); };
 const originalImport = importTXT;
-importTXT = function(e) { if (busy) { setStatus('Stop translation before importing text.'); e.target.value=''; return; } originalImport(e); };
+importTXT = function(e) { if (!canEdit || busy) { setStatus(canEdit ? 'Stop translation before importing text.' : 'Viewer access is read-only.'); e.target.value=''; return; } originalImport(e); };
 const originalMark = updateMark;
 updateMark = function(i,text) { if (!text?.trim()) { const mark=document.getElementById('ck'+i); if(mark){mark.textContent='';mark.className='';} return; } originalMark(i,text); };
 const originalRetry = retryTranslation;
-retryTranslation = function() { if (!busy && isReady()) originalRetry(); };
+retryTranslation = function() { if (canEdit && !busy && isReady()) originalRetry(); };
 const originalTranslate = translateCurrent;
 translateCurrent = async function(options) {
-  if (busy || !novel || !isReady()) return;
+  if (!canEdit || busy || !novel || !isReady()) return;
   const out = document.getElementById('tl-out'); out.contentEditable = 'false';
   try { const promise = originalTranslate(options); emit(); await promise; }
   finally { if (!busy) out.contentEditable = 'true'; emit(); }
@@ -262,7 +275,7 @@ abortTranslation = function() {
   setStatus('Stopping and saving partial translation…');
 };
 const originalEndBusy = endBusy;
-endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = 'true'; emit(); };
+endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = canEdit ? 'true' : 'false'; emit(); };
 const originalUpdate = updateProg;
 updateProg = function() { originalUpdate(); emit(); };
 
@@ -382,6 +395,7 @@ window.addEventListener('message', async e => {
   projectId = e.data.project.id;
   try {
     const p = e.data.project;
+    setAccess(p.accessRole);
     projectTitle.textContent = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
@@ -402,7 +416,7 @@ window.addEventListener('message', async e => {
     }
     updateSpellcheckAction();
     initUI(); originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
-    onKeyInput(); readyForSave = true; emit(true); send('editor:loaded');
+    onKeyInput(); setAccess(p.accessRole); readyForSave = true; emit(true); send('editor:loaded');
   } catch(err) { send('editor:error', { message: err.message }); }
 });
 // Prevent legacy drop handlers from replacing the active project's original book.
