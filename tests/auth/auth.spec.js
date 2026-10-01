@@ -41,6 +41,8 @@ test('account creation requires policy consent',async({page})=>{
     return route.fulfill({json:{}});
   });
   await page.goto('/');await page.locator('#account').click();await page.locator('#auth-switch').click();
+  await expect(page.locator('#consent-row')).toBeVisible();
+  await expect(page.locator('#terms-accept')).toHaveAttribute('required','');
   await page.locator('#email').fill('new-reader@example.test');await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
   await expect(page.locator('#terms-accept')).not.toBeChecked();expect(signupRequests).toBe(0);
 });
@@ -74,6 +76,7 @@ for(const mode of ['signin','signup'])test(`Google ${mode} exchanges an ID token
   if(mode==='signup'){await page.locator('#auth-switch').click();await page.locator('#terms-accept').check();}
   await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.locator('#account')).toHaveText('Sign out');
+  await expect(page.locator('#auth-dialog')).not.toBeVisible();
   expect(page.url()).toBe('http://127.0.0.1:4174/home');
   expect(exchange.url.searchParams.get('grant_type')).toBe('id_token');
   expect(exchange.body.provider).toBe('google');
