@@ -1,8 +1,8 @@
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 /** Reject unsupported, empty, or oversized files before parsing or upload. */
 export function validateFile(file) {
   if (!file || !/\.(epub|json|txt|zip)$/i.test(file.name)) throw new Error('Choose an EPUB, source JSON, TXT file, or project backup ZIP.');
-  if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Choose a nonempty file no larger than 20 MB.');
+  if (!file.size || file.size > MAX_FILE_BYTES) throw new Error('Choose a nonempty file no larger than 50 MB.');
 }
 /** Validate the minimal trusted shape used by the editor and persistence layer. */
 export function validateNovel(novel) {

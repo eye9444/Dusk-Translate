@@ -291,7 +291,7 @@ function checkNovel(value) {
 async function parseEpub(blob) {
   epubZip = await JSZip.loadAsync(blob);
   const expanded = Object.values(epubZip.files).reduce((n, f) => n + (f._data?.uncompressedSize || 0), 0);
-  if (expanded > 100 * 1024 * 1024) throw new Error('Expanded EPUB exceeds 100 MB. Please use a smaller book.');
+  if (expanded > 500 * 1024 * 1024) throw new Error('Expanded EPUB exceeds 500 MB. Please use a smaller book.');
   const xml = value => new DOMParser().parseFromString(value, 'application/xml');
   const container = epubZip.file('META-INF/container.xml');
   if (!container) throw new Error('EPUB container is missing.');

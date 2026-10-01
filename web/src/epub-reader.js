@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 
-const MAX_EXPANDED_BYTES = 100 * 1024 * 1024;
+const MAX_EXPANDED_BYTES = 500 * 1024 * 1024;
 const BLOCK_TAGS = new Set(['address', 'article', 'blockquote', 'dd', 'div', 'dl', 'dt', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'td', 'th', 'tr', 'ul']);
 const SKIP_TAGS = new Set(['canvas', 'embed', 'iframe', 'object', 'script', 'style', 'svg', 'template']);
 
@@ -132,7 +132,7 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   if (!file || typeof file.arrayBuffer !== 'function') throw new Error('Choose an EPUB file to open in the reader.');
   const zip = await JSZip.loadAsync(file);
   const expanded = Object.values(zip.files).reduce((total, entry) => total + (entry._data?.uncompressedSize || 0), 0);
-  if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 100 MB.');
+  if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 500 MB.');
 
   const containerEntry = zip.file('META-INF/container.xml');
   if (!containerEntry) throw new Error('This EPUB is missing its container metadata.');
@@ -186,7 +186,7 @@ export async function buildTranslatedEpub(file, snapshot) {
   }
   const zip = await JSZip.loadAsync(file);
   const expanded = Object.values(zip.files).reduce((total, entry) => total + (entry._data?.uncompressedSize || 0), 0);
-  if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 100 MB.');
+  if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 500 MB.');
 
   for (const chapter of selected) {
     const entry = zip.file(chapter.xhtmlPath);

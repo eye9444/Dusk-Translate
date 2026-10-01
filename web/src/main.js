@@ -230,7 +230,7 @@ function showProjectDialog(importing = false) {
   $('new-file').accept = importing ? '.zip,application/zip' : '.epub,.json,.txt,.zip';
   $('new-file-help').innerHTML = importing
     ? 'Choose a project ZIP exported by DuskTranslate. It restores the original book, translations, glossary, and reading position.'
-    : 'EPUB, source JSON, TXT, or backup ZIP · up to 20 MB.<br>Your original file is kept for future exports.';
+    : 'EPUB, source JSON, TXT, or backup ZIP · up to 50 MB.<br>Your original file is kept for future exports.';
   $('create-submit').textContent = importing ? 'Import project' : 'Create project';
   $('project-dialog').showModal();
 }
@@ -249,7 +249,7 @@ $('project-form').onsubmit = async e => {
     if (/\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
-      if (Object.values(archive.files).reduce((n,f)=>n+(f._data?.uncompressedSize||0),0)>100*1024*1024) throw new Error('Expanded backup exceeds 100 MB.');
+      if (Object.values(archive.files).reduce((n,f)=>n+(f._data?.uncompressedSize||0),0)>500*1024*1024) throw new Error('Expanded backup exceeds 500 MB.');
       if (!archive.file('project.json')) throw new Error('This ZIP is not a DuskTranslate project backup.');
       const record = JSON.parse(await archive.file('project.json').async('string'));
       if (typeof record.fileName!=='string' || !/\.(epub|json|txt)$/i.test(record.fileName) || !archive.file(record.fileName.replace(/[\\/]/g,'_'))) throw new Error('Backup original book is missing or invalid.');

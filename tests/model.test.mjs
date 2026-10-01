@@ -21,6 +21,7 @@ test('spellcheck defaults to true and respects false',()=>{
 });
 test('upload boundaries are enforced',()=>{
   assert.throws(()=>validateFile({name:'book.exe',size:10}));
-  assert.throws(()=>validateFile({name:'book.epub',size:21*1024*1024}));
+  assert.doesNotThrow(()=>validateFile({name:'book.epub',size:50*1024*1024}));
+  assert.throws(()=>validateFile({name:'book.epub',size:50*1024*1024+1}));
   assert.doesNotThrow(()=>validateFile({name:'BOOK.EPUB',size:10}));
 });
