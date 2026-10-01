@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.0",
-    "jszip": "3.10.1"
+    "jszip": "3.10.1",
+    "yjs": "^13.6.33"
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
