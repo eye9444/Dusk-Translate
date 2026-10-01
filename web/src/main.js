@@ -939,13 +939,14 @@ function showAuth(mode='signin') {
   $('forgot').hidden=mode==='reset'||mode==='update';
   $('auth-switch').hidden=mode==='update';
   $('remember-row').hidden=mode==='update';$('remember-me').checked=authStorage.remembered();
-  $('consent-row').hidden=mode==='reset'||mode==='update';
+  $('consent-row').hidden=mode!=='signup';
   $('terms-accept').checked=false;
   $('terms-accept').required=mode==='signup';
   resetGoogleButton();
   $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
   setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
+  if(mode==='signin'||mode==='signup')prepareGoogleButton();
 }
 function setAuthBusy(busy) {
   authBusy=busy;
@@ -954,14 +955,14 @@ function setAuthBusy(busy) {
   ['auth-switch','forgot'].forEach(id=>$(id).disabled=busy);
 }
 let googleRenderVersion=0;
-function resetGoogleButton(label='Accept the Terms to continue with Google') {
+function resetGoogleButton(label='Loading Google sign-in...') {
   googleRenderVersion++;
   const placeholder=document.createElement('button');
   placeholder.type='button';placeholder.id='google-auth-placeholder';placeholder.disabled=true;placeholder.textContent=label;
   $('google-auth').replaceChildren(placeholder);
 }
 async function prepareGoogleButton() {
-  if(!cloud||!$('terms-accept').checked)return resetGoogleButton();
+  if(!cloud)return resetGoogleButton('Google sign-in unavailable');
   const version=++googleRenderVersion;
   resetGoogleButton('Loading Google sign-in...');
   try{
@@ -981,7 +982,6 @@ async function prepareGoogleButton() {
 }
 $('terms-accept').onchange=()=>{
   $('auth-message').textContent='';
-  if($('terms-accept').checked)prepareGoogleButton();else resetGoogleButton();
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
