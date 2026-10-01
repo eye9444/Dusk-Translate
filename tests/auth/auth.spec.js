@@ -71,8 +71,7 @@ for(const mode of ['signin','signup'])test(`Google ${mode} exchanges an ID token
     return route.fulfill({json:{}});
   });
   await page.goto('/');await page.locator('#account').click();
-  if(mode==='signup')await page.locator('#auth-switch').click();
-  await page.locator('#terms-accept').check();
+  if(mode==='signup'){await page.locator('#auth-switch').click();await page.locator('#terms-accept').check();}
   await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.locator('#account')).toHaveText('Sign out');
   expect(page.url()).toBe('http://127.0.0.1:4174/home');
@@ -154,7 +153,7 @@ test('account forms fit mobile in both themes',async({page},testInfo)=>{
 
 test('Google disabled on the backend reports the error without leaving the page',async({page,context})=>{
   await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
-  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
+  await page.goto('/');await page.locator('#account').click();
   const originalURL=page.url();
   await expect(page.locator('#auth-message')).toContainText('not enabled yet');
   await expect(page.locator('#auth-submit')).toBeEnabled();

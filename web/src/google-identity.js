@@ -41,6 +41,6 @@ export async function renderGoogleCredentialButton(container, onCredential) {
   container.replaceChildren();
   identity.renderButton(container, {
     type:'standard', theme:'outline', size:'large', text:'continue_with', shape:'rectangular',
-    width:Math.max(240, Math.floor(container.getBoundingClientRect().width))
+    logo_alignment:'left', width:Math.max(240, Math.floor(container.getBoundingClientRect().width))
   });
 }
