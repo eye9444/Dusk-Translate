@@ -3,9 +3,12 @@ import './glass.css';
 import './welcome.css';
 import './reader.css';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
+import { requestGoogleCredential } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
+import { createComments } from './comments.js';
+import { renderRubyParagraph } from './ruby-renderer.js';
 
 const $ = id => document.getElementById(id);
 const authReturn = new URL(location.href);
@@ -28,6 +31,9 @@ const ROUTES = new Set(['/','/home','/editor','/reader']);
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
+const comments = createComments({ cloud, local, getProject: () => active, getUser: () => user,
+  clearFocus: () => $('editor').contentWindow?.postMessage({ type:'host:clearComment', projectId:active?.id }, location.origin),
+  focus: selection => $('editor').contentWindow?.postMessage({ type:'host:commentFocus', projectId:active.id, selection }, location.origin) });
 function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
 function projectRoute(path, id, edition = '') {
   const query = new URLSearchParams({ project:id });
@@ -328,7 +334,7 @@ function renderReader() {
       if (block.alt) figure.append(el('figcaption', '', block.alt));
       return figure;
     }
-    return el('p', '', block.text);
+    return renderRubyParagraph(block);
   }));
   $('reader-chapters').replaceChildren(...readerBook.chapters.map((item, index) => {
     const chapterButton = button(`${String(index).padStart(2, '0')}  ${item.title}`, () => {
@@ -479,6 +485,7 @@ window.addEventListener('message', e => {
     return;
   }
   if (e.data.type === 'editor:action') {
+    if (e.data.action === 'comments' && e.data.projectId === active.id) comments.open(e.data.selection);
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
@@ -532,6 +539,7 @@ async function leave({ updateRoute = true } = {}) {
     if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
   }
   projectPresence?.stop(); projectPresence=null;
+  comments.close();
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
   if (updateRoute) navigate('/home');
 }
@@ -945,21 +953,20 @@ function setAuthBusy(busy) {
   ['auth-switch','forgot'].forEach(id=>$(id).disabled=busy);
   $('google-label').textContent='Continue with Google';
 }
-async function startGoogleOAuth(remember) {
+async function startGoogleSignIn(remember) {
   if(!cloud)throw new Error('Cloud accounts are not configured on this deployment yet.');
   authStorage.choose(remember);
   if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
-  const {error}=await cloud.auth.signInWithOAuth({provider:'google',options:{
-    redirectTo:new URL('/',location.origin).href
-  }});
+  const credential=await requestGoogleCredential();
+  const {error}=await cloud.auth.signInWithIdToken({provider:'google',...credential});
   if(error)throw error;
 }
 $('google-auth').onclick=async()=>{
   if(!cloud||authBusy)return;
   if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
-  setAuthBusy(true);$('google-label').textContent='Redirecting to Google...';$('auth-message').textContent='Taking you to Google. You will return to this page after signing in.';
+  setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='Choose the Google account you want to use.';
   try{
-    await startGoogleOAuth($('remember-me').checked);
+    await startGoogleSignIn($('remember-me').checked);
   }catch(error){
     setAuthBusy(false);$('auth-message').textContent=errorMessage(error);
   }
@@ -997,6 +1004,7 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
     if(user?.id!==next?.id){
+      comments.close();
       projectPresence?.stop();projectPresence=null;
       if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
       if (!next) navigate('/', true);

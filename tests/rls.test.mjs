@@ -27,6 +27,7 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await db.exec(await readFile('supabase/migrations/202609250003_project_invitations_and_roles.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202609250004_public_reader_links.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/202610010002_collaborative_documents.sql','utf8'));
+    await db.exec(await readFile('supabase/migrations/202610010003_project_comments.sql','utf8'));
     const a='11111111-1111-4111-8111-111111111111',b='22222222-2222-4222-8222-222222222222',c='33333333-3333-4333-8333-333333333334',id='33333333-3333-4333-8333-333333333333';
     await db.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('insert into projects(id,owner_id,title,file_name,file_path) values ($1,$2,$3,$4,$5)',[id,a,'A book','book.epub',`${a}/${id}/original`]);
@@ -34,6 +35,9 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('select * from projects')).rows.length,1);
     assert.equal((await db.query("select encode(initialize_project_document($1,decode('0102','hex')),'hex') as seed",[id])).rows[0].seed,'0102');
     assert.equal((await db.query("select encode(initialize_project_document($1,decode('0304','hex')),'hex') as seed",[id])).rows[0].seed,'0102');
+    const commentAnchor={chapterId:'one',pane:'source',start:0,end:5,quote:'Hello',prefix:'',suffix:''};
+    const thread=(await db.query("select write_project_comment($1,'create',null,$2,$3) as id",[id,'Owner comment',commentAnchor])).rows[0].id;
+    const ownerMessage=(await db.query('select list_project_comments($1) as threads',[id])).rows[0].threads[0].messages[0].id;
     await db.exec(`reset role;`);
     await db.query('update projects set snapshot=$1 where id=$2',[JSON.stringify({novel:{chapters:[{id:'one',text:'Hello',privateNote:'SECRET'}]},translations:{one:'World'},comments:['SECRET'],referenceRuby:['SECRET'],glossary:'SECRET'}),id]);
     // Keep legacy revision expectations below independent of fixture setup.
@@ -46,6 +50,7 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('select * from open_public_reader_link($1)',[sharedToken])).rows[0].project_id,id);
     assert.equal(JSON.stringify((await db.query('select * from open_public_reader_link($1)',[sharedToken])).rows).includes('SECRET'),false);
     await assert.rejects(db.query('select * from project_documents'),/permission denied/);
+    await assert.rejects(db.query('select list_project_comments($1)',[id]),/permission denied/);
     assert.equal((await db.query('select * from storage.objects')).rows.length,1);
     await db.exec(`select set_config('request.headers','{"x-dusk-share-token":"00000000-0000-4000-8000-000000000000"}',false);`);
     assert.equal((await db.query('select * from open_public_reader_link($1)',['00000000-0000-4000-8000-000000000000'])).rows.length,0);
@@ -82,6 +87,18 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     assert.equal((await db.query('select * from list_project_invitations($1)',[id])).rows.length,0);
     await assert.rejects(db.query('select * from respond_to_project_invitation($1,$2)',[viewerInviteId,true]),/Invitation not found/);
     await db.query('select * from respond_to_project_invitation($1,$2)',[editorInbox[0].id,true]);
+    await db.query("select write_project_comment($1,'reply',$2,$3)",[id,thread,'<img src=x onerror=alert(1)>']);
+    let comments=(await db.query('select list_project_comments($1) as threads',[id])).rows[0].threads;
+    assert.equal(comments[0].messages.length,2);
+    assert.equal(comments[0].messages[1].author_id,b);
+    await assert.rejects(db.query("select write_project_comment($1,'edit',$2,'Forged edit')",[id,ownerMessage]),/access denied/);
+    await assert.rejects(db.query("select write_project_comment($1,'delete',$2)",[id,ownerMessage]),/access denied/);
+    await assert.rejects(db.query("select write_project_comment($1,'create',null,'Bad', $2)",[id,{...commentAnchor,pane:'invalid'}]),/Invalid comment selection/);
+    await assert.rejects(db.query("select write_project_comment($1,'create',null,'Bad', $2)",[id,{...commentAnchor,quote:{text:'Hello'}}]),/Invalid comment selection/);
+    await assert.rejects(db.query("select write_project_comment($1,'reply',$2,$3)",[id,thread,'a'.repeat(4001)]),/4000/);
+    await db.query("select write_project_comment($1,'resolve',$2)",[id,thread]);
+    assert.equal((await db.query('select list_project_comments($1) as threads',[id])).rows[0].threads[0].resolved,true);
+    await db.query("select write_project_comment($1,'reopen',$2)",[id,thread]);
     await db.query("select append_project_document_update($1,$2,decode('0102','hex'))",[id,b]);
     await db.query("select append_project_document_update($1,$2,decode('0102','hex'))",[id,b]);
     assert.equal((await db.query('select * from project_document_updates')).rows.length,1);
@@ -99,6 +116,8 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     const viewerInbox=(await db.query('select * from list_my_project_invitations()')).rows;
     assert.equal(viewerInbox.length,1);
     await db.query('select * from respond_to_project_invitation($1,$2)',[viewerInbox[0].id,true]);
+    await assert.rejects(db.query('select list_project_comments($1)',[id]),/Editor access required/);
+    await assert.rejects(db.query("select write_project_comment($1,'reply',$2,'Viewer')",[id,thread]),/Editor access required/);
     assert.equal((await db.query('select * from project_document_updates')).rows.length,0);
     assert.equal((await db.query('select * from project_documents')).rows.length,0);
     await assert.rejects(db.query("select append_project_document_update($1,$2,decode('0102','hex'))",[id,c]),/Editor access required/);
@@ -112,6 +131,8 @@ test('Postgres policies isolate owners and revisions reject stale saves',async()
     await db.exec(`select set_config('request.jwt.claim.sub','${a}',false);`);
     await db.query('select remove_project_collaborator($1,$2)',[id,b]);
     await db.query('select remove_project_collaborator($1,$2)',[id,c]);
+    await db.query("select write_project_comment($1,'delete-thread',$2)",[id,thread]);
+    assert.deepEqual((await db.query('select list_project_comments($1) as threads',[id])).rows[0].threads,[]);
     assert.equal((await db.query('select * from sync_project_presence($1,$2,$3)',[id,a,{}])).rows.length,1);
     assert.deepEqual((await db.query('select * from list_project_collaborators($1)',[id])).rows,[]);
     await db.exec(`select set_config('request.jwt.claim.sub','${b}',false);`);

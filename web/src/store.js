@@ -23,9 +23,10 @@ export async function googleAvailable() {
 let database;
 function db() {
   return database ||= new Promise((resolve, reject) => {
-    const request = indexedDB.open('dusktranslate-library', 2);
+    const request = indexedDB.open('dusktranslate-library', 3);
     request.onupgradeneeded = event => {
       const database = request.result;
+      if (event.oldVersion < 3) database.createObjectStore('projectComments', { keyPath: 'cacheKey' });
       const projects = event.oldVersion < 1
         ? database.createObjectStore('projects', { keyPath: 'cacheKey' })
         : request.transaction.objectStore('projects');
@@ -63,6 +64,8 @@ async function transaction(storeNames, mode, work) {
   });
 }
 export const local = {
+  async comments(owner, id) { return (await transaction('projectComments', 'readonly', ({projectComments}) => projectComments.get(`${owner}:${id}`)))?.threads || []; },
+  saveComments(owner, id, threads) { return transaction('projectComments', 'readwrite', ({projectComments}) => projectComments.put({cacheKey:`${owner}:${id}`, threads})); },
   async list(owner) { return (await transaction('projects', 'readonly', ({projects}) => projects.getAll())).filter(p => p.owner === owner); },
   async get(owner, id) {
     const cacheKey = `${owner}:${id}`;
@@ -85,7 +88,7 @@ export const local = {
     delete record.file;
     projects.put(record);
   }); },
-  remove(owner, id) { const cacheKey = `${owner}:${id}`; return transaction(['projects','projectFiles'], 'readwrite', ({projects,projectFiles}) => { projects.delete(cacheKey); projectFiles.delete(cacheKey); }); }
+  remove(owner, id) { const cacheKey = `${owner}:${id}`; return transaction(['projects','projectFiles','projectComments'], 'readwrite', ({projects,projectFiles,projectComments}) => { projects.delete(cacheKey); projectFiles.delete(cacheKey); projectComments.delete(cacheKey); }); }
 };
 function must(result) {
   if (result.error) {

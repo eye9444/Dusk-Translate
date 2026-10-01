@@ -1,4 +1,5 @@
 /* The host owns book imports and project switching. */
+::highlight(dusk-comment){background:#d5a94255;color:inherit}
 html,body{scrollbar-width:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #empty-state, #fi, #fi-epub { display:none!important; }

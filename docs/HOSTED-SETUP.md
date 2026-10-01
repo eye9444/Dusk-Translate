@@ -21,23 +21,24 @@ Auth uses the Supabase browser session. This login session is separate from AI-p
 
 ## Enable Google sign-in and sign-up
 
-The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate. Before redirecting the current tab, the button checks Supabase's public provider settings and explains if Google still needs enabling.
+The same **Continue with Google** button signs in returning users and creates accounts for new users. Email/password sign-up, confirmation, login, and password reset remain available. No separate Google password is collected by DuskTranslate. The button checks Supabase's public provider settings, opens Google's account chooser on the current origin, and exchanges the returned ID token with Supabase.
 
 1. Complete the Supabase account setup above first. Without those environment variables, both email and Google buttons are disabled; the browser-local library still works.
 2. In Google Cloud, configure the OAuth consent screen for your project and create an OAuth client of type **Web application**. If the consent app is in Testing, add your demo users as test users.
-3. Add the exact callback URL shown in Supabase's Google provider settings to the Google client's **Authorized redirect URIs**. It looks like `https://<project-ref>.supabase.co/auth/v1/callback`. This is the Supabase callback, not the Vercel URL.
-4. Enable Google in Supabase Authentication's sign-in providers. Enter the Google client ID and secret there. Never put the Google client secret in source code, `VITE_*` variables, or chat.
-5. Set Supabase's Site URL to `https://dusk-translate.vercel.app/` and allow that URL as a redirect. Add your exact localhost URL for local testing. The SDK may attach an `sb_flow_id` query parameter; if needed, allow `https://dusk-translate.vercel.app/?sb_flow_id=*` as well, without wildcarding unrelated hosts.
-6. Redeploy after setting the two Vercel Supabase variables. Verify with a real Google test account: sign up, sign out, sign back in, reload, and confirm its private library returns. Check another account cannot see its projects.
+3. Add `https://www.dusktranslate.com`, `https://dusktranslate.com`, and each exact development origin to the Google client's **Authorized JavaScript origins**. Do not add paths or trailing slashes to origins.
+4. Keep the exact callback URL shown in Supabase's Google provider settings in the Google client's **Authorized redirect URIs**. It looks like `https://<project-ref>.supabase.co/auth/v1/callback` and remains useful for provider configuration and legacy authorization responses.
+5. Enable Google in Supabase Authentication's sign-in providers. Enter the Google client ID and secret there. Never put the Google client secret in source code, `VITE_*` variables, or chat.
+6. Set `VITE_GOOGLE_CLIENT_ID` in Vercel to the same Web client ID. This identifier is public browser configuration; do not use the client secret. Keep Supabase's Site URL and redirect allowlist configured for the custom domain for email confirmation and password recovery.
+7. Redeploy after setting all three public frontend variables. Verify with a real Google test account: sign up, sign out, sign back in, reload, and confirm its private library returns. Check another account cannot see its projects.
 
-OAuth uses PKCE: the current tab goes to Google and returns to DuskTranslate, where the SDK exchanges the returned code using a verifier kept in that browser. Use the same browser for email confirmation and password-reset links too. Cancelled and expired callbacks display a retry message; callback parameters are removed from the address bar after handling. Local projects are not automatically uploaded when you log in.
+Google Identity Services returns a signed ID token to the page, which is immediately exchanged for a Supabase session. A fresh random nonce is held in memory, while only its SHA-256 digest is sent to Google; the token is never stored by application code. Email confirmation and password recovery continue to use Supabase PKCE links. Cancelled and expired legacy callbacks are still cleaned from the address bar. Local projects are not automatically uploaded when you log in.
 
 ### Brand the Google sign-in screen
 
 Google shows two different pieces of identity and they are configured separately:
 
 - Configure the app name, logo, home page, privacy policy, terms, and authorized domain in the Google Auth Platform **Branding** section. Complete brand verification when Google requests it. This makes the OAuth application identify itself as DuskTranslate.
-- The line that currently says `continue to <project-ref>.supabase.co` comes from Supabase's OAuth callback hostname. Replacing that hostname requires a Supabase custom domain such as `auth.example.com`. Supabase currently offers custom domains as a paid add-on for projects on a paid plan.
+- The direct Google Identity Services flow identifies the configured Google Web client rather than navigating through the Supabase project hostname. A Supabase custom domain is not required for this account chooser.
 
 Before activating a custom domain, add both the existing Supabase callback and the new custom-domain callback to the Google OAuth client's authorized redirect URIs. After activation, Supabase Auth advertises the custom hostname; the original project hostname remains available. Follow the official [Supabase custom-domain guide](https://supabase.com/docs/guides/platform/custom-domains) rather than changing only `redirectTo` in frontend code.
 
@@ -49,7 +50,7 @@ The reading-room home page has Library/Archive navigation, project counts, a lat
 
 The home screen uses a wide frosted-glass window with Manrope UI text and Newsreader headings. Eclipse uses black surfaces and fiery orange accents. Signed-out visitors see a welcome page, not the project menu. An explicit device-only option keeps existing local work accessible without an account. The original vector logo in `web/public/brand/dusk-mark.svg` combines an open book and a setting sun and is also the favicon. Google credential downloads under `supabase/google cloud/` are excluded from Git and Vercel uploads.
 
-**Remember me** keeps Supabase authentication in localStorage when checked and in sessionStorage when unchecked. Unchecked sessions normally end with the browser tab, although browser session-restore features can restore them; explicitly sign out on shared devices. This choice never stores AI keys or removes project files. OAuth and email links must still return to the initiating browser for PKCE.
+**Remember me** keeps Supabase authentication in localStorage when checked and in sessionStorage when unchecked. Unchecked sessions normally end with the browser tab, although browser session-restore features can restore them; explicitly sign out on shared devices. This choice never stores AI keys or removes project files. Email confirmation and password-recovery links must still return to the initiating browser for PKCE.
 
 ## Yomitan dictionary support
 
@@ -67,7 +68,7 @@ Cloud writes first retain a local draft. If syncing fails, the library preserves
 - Rename, archive/restore, and delete are available from the library. Deletion requires confirmation and removes the original file and project progress.
 - One tab may edit a given project at a time. Cloud updates use optimistic revision checks to detect concurrent changes on another device. An unsynced draft is retained on the originating browser. Download a backup before resolving a conflict.
 - Browser-local storage is not permanent backup. Clearing site data removes local projects. Download backup exports the original file and snapshot as a ZIP; create a new project using that ZIP to restore it. This also lets you explicitly move local work into your account library after signing in.
-- Uploads are limited to 20 MB. EPUB expansion is capped at 100 MB in the parser. Large books may exceed a user's browser storage quota or Supabase quota.
+- Uploads are limited to 50 MB. EPUB expansion is capped at 500 MB in the parser. Large books may exceed a user's browser storage quota or Supabase quota.
 - Translation only runs while the page stays open. Interrupted output is saved as partial, not marked complete.
 
 ## Verification
@@ -76,6 +77,6 @@ Cloud writes first retain a local draft. If syncing fails, the library preserves
 
 `npx playwright install chromium` then `npm run test:e2e` verifies real browser project creation, edit persistence, glossary/chapter restoration, original EPUB retention/export, untrusted text rendering, project management, tab locking, and mobile layout. These use synthetic books and do not consume model API credits. Real email delivery and cloud integration require a configured Supabase project.
 
-`npm run test:auth` tests email signup confirmation, rejected credentials, login/logout, password-reset redirects, Google authorization from both account forms, PKCE callback/session restoration, and cancelled or expired callbacks against mocked Supabase responses. These tests do not establish that a live Auth project, Google OAuth client, or mail sender has been configured.
+`npm run test:auth` tests email signup confirmation, rejected credentials, login/logout, password-reset redirects, direct Google ID-token exchange with nonce separation, and cancelled or expired legacy callbacks against mocked Google and Supabase responses. These tests do not establish that a live Auth project, Google OAuth client, or mail sender has been configured.
 
 Official setup references: [password authentication](https://supabase.com/docs/guides/auth/passwords), [row-level security](https://supabase.com/docs/guides/database/postgres/row-level-security), [storage access control](https://supabase.com/docs/guides/storage/security/access-control).
