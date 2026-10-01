@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test('presence avatars and matching remote cursors stay outside editable content',async ({page})=>{
+  await page.setViewportSize({width:390,height:844});
   await page.addInitScript(()=>sessionStorage.setItem('dusk-guest','true'));
   await page.goto('/');
   await page.locator('#new-project').click();
@@ -29,6 +30,10 @@ test('presence avatars and matching remote cursors stay outside editable content
   await expect(editor.locator('.collaborator-avatar[data-online="false"]')).toHaveAttribute('aria-label','Offline Member: Offline');
   await expect(editor.locator('.collaborator-caret')).toHaveCount(1);
   await expect(editor.locator('#src-txt')).not.toContainText('Other Editor');
+  const identity=await editor.locator('.host-identity').boundingBox();
+  const presence=await editor.locator('#collaborator-presence').boundingBox();
+  expect(presence.y).toBeGreaterThanOrEqual(identity.y+identity.height-1);
+  expect(await editor.locator('html').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
   await page.evaluate(()=>{
     window.presenceFixture.members[0].location.fingerprint='different-document';
     document.getElementById('editor').contentWindow.postMessage(window.presenceFixture,location.origin);

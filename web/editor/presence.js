@@ -3,7 +3,8 @@
   const avatars = document.createElement('div');
   avatars.id = 'collaborator-presence'; avatars.hidden = true;
   avatars.setAttribute('aria-label', 'Project collaborators');
-  document.querySelector('.host-header-actions').prepend(avatars);
+  const headerActions = document.querySelector('.host-header-actions');
+  headerActions?.before(avatars);
   const layer = document.createElement('div');
   layer.id = 'collaborator-cursors'; layer.setAttribute('aria-hidden','true');
   document.body.append(layer);
