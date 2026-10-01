@@ -4,7 +4,7 @@ test.beforeEach(async({context})=>{
   await context.route('https://accounts.google.com/gsi/client',route=>route.fulfill({contentType:'application/javascript',body:`
     window.google={accounts:{id:{
       initialize(options){window.__googleOptions=options},
-      prompt(){setTimeout(()=>window.__googleOptions.callback({credential:'mock-google-id-token'}),0)}
+      renderButton(container){const button=document.createElement('button');button.textContent='Continue with Google';button.onclick=()=>window.__googleOptions.callback({credential:'mock-google-id-token'});container.append(button)}
     }}};
   `}));
 });
@@ -89,7 +89,7 @@ for(const separator of ['?','#'])test(`cancelled Google callback ${separator} is
   await page.goto(`/${separator}error=access_denied&error_description=User%20cancelled&sb_flow_id=test-flow`);
   await expect(page.locator('#auth-dialog')).toBeVisible();
   await expect(page.locator('#auth-message')).toContainText('cancelled');
-  await expect(page.locator('#google-auth')).toBeEnabled();
+  await expect(page.locator('#auth-submit')).toBeEnabled();
   await expect(page).toHaveURL('http://127.0.0.1:4174/');
   await page.reload();await expect(page.locator('#auth-dialog')).not.toBeVisible();
 });
@@ -106,7 +106,7 @@ test('failed code exchange stays signed out and offers another attempt',async({p
   await page.route('https://dusk-test.supabase.co/auth/v1/token**',route=>route.fulfill({status:400,json:{code:'bad_code_verifier',msg:'Invalid or expired sign-in code'}}));
   await page.goto('/?code=bad-code');
   await expect(page.locator('#auth-message')).toContainText('Invalid or expired');
-  await expect(page.locator('#google-auth')).toBeEnabled();
+  await expect(page.locator('#auth-submit')).toBeEnabled();
   await expect(page.locator('#account')).toHaveText('Sign in');
   await expect(page).toHaveURL('http://127.0.0.1:4174/');
 });
@@ -156,7 +156,6 @@ test('Google disabled on the backend reports the error without leaving the page'
   await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:false,email:true}}}));
   await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
   const originalURL=page.url();
-  await page.locator('#google-auth').click();
   await expect(page.locator('#auth-message')).toContainText('not enabled yet');
   await expect(page.locator('#auth-submit')).toBeEnabled();
   await expect(page).toHaveURL(originalURL);

@@ -3,7 +3,7 @@ import './glass.css';
 import './welcome.css';
 import './reader.css';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
-import { requestGoogleCredential } from './google-identity.js';
+import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
@@ -942,6 +942,7 @@ function showAuth(mode='signin') {
   $('consent-row').hidden=mode==='reset'||mode==='update';
   $('terms-accept').checked=false;
   $('terms-accept').required=mode==='signup';
+  resetGoogleButton();
   $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
   setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
@@ -949,27 +950,38 @@ function showAuth(mode='signin') {
 function setAuthBusy(busy) {
   authBusy=busy;
   $('auth-form').setAttribute('aria-busy',String(busy));
-  ['auth-submit','google-auth'].forEach(id=>$(id).disabled=busy||!cloud);
+  $('auth-submit').disabled=busy||!cloud;
   ['auth-switch','forgot'].forEach(id=>$(id).disabled=busy);
-  $('google-label').textContent='Continue with Google';
 }
-async function startGoogleSignIn(remember) {
-  if(!cloud)throw new Error('Cloud accounts are not configured on this deployment yet.');
-  authStorage.choose(remember);
-  if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
-  const credential=await requestGoogleCredential();
-  const {error}=await cloud.auth.signInWithIdToken({provider:'google',...credential});
-  if(error)throw error;
+let googleRenderVersion=0;
+function resetGoogleButton(label='Accept the Terms to continue with Google') {
+  googleRenderVersion++;
+  const placeholder=document.createElement('button');
+  placeholder.type='button';placeholder.id='google-auth-placeholder';placeholder.disabled=true;placeholder.textContent=label;
+  $('google-auth').replaceChildren(placeholder);
 }
-$('google-auth').onclick=async()=>{
-  if(!cloud||authBusy)return;
-  if (!$('terms-accept').checked) { $('auth-message').textContent='Please accept the Terms and Privacy Policy before continuing.'; return; }
-  setAuthBusy(true);$('google-label').textContent='Opening Google...';$('auth-message').textContent='Choose the Google account you want to use.';
+async function prepareGoogleButton() {
+  if(!cloud||!$('terms-accept').checked)return resetGoogleButton();
+  const version=++googleRenderVersion;
+  resetGoogleButton('Loading Google sign-in...');
   try{
-    await startGoogleSignIn($('remember-me').checked);
+    if(!await googleAvailable())throw new Error('Google sign-in is not enabled yet. You can use email now; the project owner still needs to connect Google in Supabase.');
+    if(version+1!==googleRenderVersion)return;
+    await renderGoogleCredentialButton($('google-auth'),async credential=>{
+      if(!credential||authBusy)return;
+      authStorage.choose($('remember-me').checked);setAuthBusy(true);$('auth-message').textContent='Signing in with Google...';
+      try{
+        const {error}=await cloud.auth.signInWithIdToken({provider:'google',...credential});
+        if(error)throw error;
+      }catch(error){setAuthBusy(false);$('auth-message').textContent=errorMessage(error);prepareGoogleButton();}
+    });
   }catch(error){
-    setAuthBusy(false);$('auth-message').textContent=errorMessage(error);
+    if(version+1===googleRenderVersion){resetGoogleButton('Google sign-in unavailable');$('auth-message').textContent=errorMessage(error);}
   }
+}
+$('terms-accept').onchange=()=>{
+  $('auth-message').textContent='';
+  if($('terms-accept').checked)prepareGoogleButton();else resetGoogleButton();
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));

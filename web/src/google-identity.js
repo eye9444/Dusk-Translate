@@ -26,23 +26,21 @@ async function digestNonce(nonce) {
   return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-export async function requestGoogleCredential() {
+export async function renderGoogleCredentialButton(container, onCredential) {
   if (!clientId) throw new Error('Google sign-in is not configured on this deployment yet.');
   const identity = await loadGoogleIdentity();
   const nonce = randomNonce();
   const nonceHash = await digestNonce(nonce);
-  return new Promise((resolve, reject) => {
-    identity.initialize({
-      client_id: clientId,
-      nonce: nonceHash,
-      callback: response => response?.credential
-        ? resolve({ token: response.credential, nonce })
-        : reject(new Error('Google sign-in did not return an account. Please try again.'))
-    });
-    identity.prompt(notification => {
-      if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-        reject(new Error('Google could not open the account chooser. Allow sign-in prompts and try again.'));
-      }
-    });
+  identity.initialize({
+    client_id: clientId,
+    nonce: nonceHash,
+    callback: response => onCredential(response?.credential
+      ? { token:response.credential, nonce }
+      : null)
+  });
+  container.replaceChildren();
+  identity.renderButton(container, {
+    type:'standard', theme:'outline', size:'large', text:'continue_with', shape:'rectangular',
+    width:Math.max(240, Math.floor(container.getBoundingClientRect().width))
   });
 }
