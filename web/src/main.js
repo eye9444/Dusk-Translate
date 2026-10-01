@@ -972,8 +972,11 @@ async function prepareGoogleButton() {
       if(!credential||authBusy)return;
       authStorage.choose($('remember-me').checked);setAuthBusy(true);$('auth-message').textContent='Signing in with Google...';
       try{
-        const {error}=await cloud.auth.signInWithIdToken({provider:'google',...credential});
+        const {data,error}=await cloud.auth.signInWithIdToken({provider:'google',...credential});
         if(error)throw error;
+        user=data.user||user;
+        if($('auth-dialog').open)$('auth-dialog').close();
+        setAuthBusy(false);await refresh();
       }catch(error){setAuthBusy(false);$('auth-message').textContent=errorMessage(error);prepareGoogleButton();}
     });
   }catch(error){
