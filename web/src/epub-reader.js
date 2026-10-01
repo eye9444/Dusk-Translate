@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 
 const MAX_EXPANDED_BYTES = 500 * 1024 * 1024;
 const BLOCK_TAGS = new Set(['address', 'article', 'blockquote', 'dd', 'div', 'dl', 'dt', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'td', 'th', 'tr', 'ul']);
-const SKIP_TAGS = new Set(['canvas', 'embed', 'iframe', 'object', 'script', 'style', 'svg', 'template']);
+const SKIP_TAGS = new Set(['canvas', 'embed', 'iframe', 'object', 'script', 'style', 'svg', 'template', 'rt', 'rp']);
 
 function archivePath(path, relativeTo = '') {
   const decoded = decodeURIComponent(path).replace(/\\/g, '/');
@@ -64,13 +64,32 @@ async function readerBlocks(markup, chapterPath, zip) {
   const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
   const root = doc.querySelector('body') || doc.documentElement;
   const blocks = [], base = chapterPath.includes('/') ? chapterPath.slice(0, chapterPath.lastIndexOf('/')) : '';
-  let buffer = '';
-  const flush = () => { const text = cleanText(buffer); if (text) blocks.push({ type:'text', text }); buffer = ''; };
+  let buffer = '', ruby = [];
+  const flush = () => {
+    const text = cleanText(buffer);
+    if (text) blocks.push({ type:'text', text, ruby: ruby.map(item => ({
+      start: Math.min(text.length, buffer.slice(0, item.start).replace(/\s+/g, ' ').trimStart().length),
+      end: Math.min(text.length, buffer.slice(0, item.end).replace(/\s+/g, ' ').trimStart().length),
+      reading: item.reading,
+    })).filter(item => item.end > item.start) });
+    buffer = ''; ruby = [];
+  };
   const walk = async node => {
     if (node.nodeType === Node.TEXT_NODE) { buffer += node.nodeValue || ''; return; }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const tag = node.localName.toLowerCase();
     if (SKIP_TAGS.has(tag)) return;
+    if (tag === 'ruby') {
+      let start = buffer.length;
+      for (const child of node.childNodes) {
+        if (child.nodeType === Node.ELEMENT_NODE && child.localName.toLowerCase() === 'rt') {
+          const reading = cleanText(child.textContent);
+          if (reading && buffer.length > start) ruby.push({ start, end: buffer.length, reading });
+          start = buffer.length;
+        } else await walk(child);
+      }
+      return;
+    }
     if (tag === 'img') {
       // Japanese EPUBs commonly encode punctuation such as "~" as a tiny gaiji image.
       // Keep it inline instead of promoting it into a full-page reader illustration.
@@ -99,6 +118,7 @@ function firstHeading(paragraphs, fallback) {
 
 function sectionHeading(markup, paragraphs) {
   const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
+  doc.querySelectorAll('rt,rp').forEach(node => node.remove());
   const heading = cleanText(doc.querySelector('h1,h2,h3')?.textContent || '');
   if (heading) return heading;
   const first = paragraphs[0] || '';

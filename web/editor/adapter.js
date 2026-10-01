@@ -253,7 +253,7 @@ renderList = function () {
   });
 };
 const originalSelect = selectCh;
-selectCh = function(i) { if (busy) return; clearSearchHighlights(); originalSelect(i); emit(); };
+selectCh = function(i) { if (busy) return; clearSearchHighlights(); originalSelect(i); document.dispatchEvent(new Event('dusk:chapter')); emit(); };
 const originalClear = clearTl;
 clearTl = function() { if (!canEdit || busy) return; originalClear(); emit(); };
 const originalImport = importTXT;
@@ -416,7 +416,7 @@ window.addEventListener('message', async e => {
     }
     updateSpellcheckAction();
     initUI(); originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
-    onKeyInput(); setAccess(p.accessRole); readyForSave = true; emit(true); send('editor:loaded');
+    onKeyInput(); setAccess(p.accessRole); readyForSave = true; emit(true); document.dispatchEvent(new Event('dusk:chapter')); send('editor:loaded');
   } catch(err) { send('editor:error', { message: err.message }); }
 });
 // Prevent legacy drop handlers from replacing the active project's original book.

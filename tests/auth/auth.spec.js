@@ -1,6 +1,12 @@
 import {test,expect} from '@playwright/test';
 test.beforeEach(async({context})=>{
   await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:true,email:true}}}));
+  await context.route('https://accounts.google.com/gsi/client',route=>route.fulfill({contentType:'application/javascript',body:`
+    window.google={accounts:{id:{
+      initialize(options){window.__googleOptions=options},
+      prompt(){setTimeout(()=>window.__googleOptions.callback({credential:'mock-google-id-token'}),0)}
+    }}};
+  `}));
 });
 test('email signup confirmation, login errors, login and logout',async({page})=>{
   const user={id:'11111111-1111-4111-8111-111111111111',email:'reader@example.test',aud:'authenticated',role:'authenticated'};
@@ -49,54 +55,34 @@ test('forgot password gives neutral confirmation and same-origin redirect',async
   await expect(page.locator('#google-option')).toBeHidden();
 });
 
-for(const mode of ['signin','signup'])test(`Google ${mode} starts PKCE in the same tab without email or password`,async({page,context})=>{
-  let authorization;
-  await context.route('https://dusk-test.supabase.co/auth/v1/authorize**',async route=>{
-    authorization=new URL(route.request().url());
-    await route.fulfill({contentType:'text/html',body:'<h1>Mock Google authorization</h1>'});
-  });
-  await page.goto('/');await page.locator('#account').click();
-  if(mode==='signup')await page.locator('#auth-switch').click();
-  await page.locator('#terms-accept').check();
-  await page.getByRole('button',{name:'Continue with Google'}).click();
-  await expect(page.getByRole('heading',{name:'Mock Google authorization'})).toBeVisible();
-  expect(authorization.searchParams.get('provider')).toBe('google');
-  expect(authorization.searchParams.get('code_challenge_method')).toBe('s256');
-  expect(authorization.searchParams.get('code_challenge')).toMatch(/^[\w-]{43}$/);
-  const redirect=new URL(authorization.searchParams.get('redirect_to'));
-  expect(redirect.origin).toBe('http://127.0.0.1:4174');expect(redirect.pathname).toBe('/');
-});
-
-test('Google same-tab callback restores the session and cleans the URL',async({page,context})=>{
-  const user={id:'22222222-2222-4222-8222-222222222222',email:'google@example.test',aud:'authenticated',role:'authenticated',app_metadata:{provider:'google'}};
-  let exchanges=0,callback;
-  await context.route('https://dusk-test.supabase.co/**',async route=>{
+for(const mode of ['signin','signup'])test(`Google ${mode} exchanges an ID token without leaving the site`,async({page})=>{
+  const user={id:'22222222-2222-4222-8222-222222222222',email:'google@example.test',aud:'authenticated',role:'authenticated'};
+  let exchange;
+  await page.route('https://dusk-test.supabase.co/**',async route=>{
     const url=new URL(route.request().url());
     if(url.pathname.endsWith('/settings'))return route.fallback();
-    if(url.pathname.endsWith('/authorize')){
-      callback=new URL(url.searchParams.get('redirect_to'));callback.searchParams.set('code','test-google-code');
-      return route.fulfill({status:302,headers:{location:callback.href}});
-    }
     if(url.pathname.endsWith('/token')){
-      exchanges++;expect(url.searchParams.get('grant_type')).toBe('pkce');
-      const body=route.request().postDataJSON();expect(body.auth_code).toBe('test-google-code');expect(body.code_verifier.length).toBeGreaterThanOrEqual(43);
+      exchange={url,body:route.request().postDataJSON()};
       const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
       const token=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:user.id,exp:Math.floor(Date.now()/1000)+3600})}.test`;
       return route.fulfill({json:{access_token:token,refresh_token:'test-refresh',token_type:'bearer',expires_in:3600,user}});
     }
     if(url.pathname.includes('/rest/v1/projects'))return route.fulfill({json:[]});
-    if(url.pathname.endsWith('/logout'))return route.fulfill({status:204});
-    if(url.pathname.endsWith('/user'))return route.fulfill({json:user});
     return route.fulfill({json:{}});
   });
-  await page.goto('/');await page.locator('#account').click();await page.locator('#terms-accept').check();
-  await page.locator('#google-auth').click();
-  await expect(page).toHaveURL('http://127.0.0.1:4174/home');
+  await page.goto('/');await page.locator('#account').click();
+  if(mode==='signup')await page.locator('#auth-switch').click();
+  await page.locator('#terms-accept').check();
+  await page.getByRole('button',{name:'Continue with Google'}).click();
   await expect(page.locator('#account')).toHaveText('Sign out');
-  await expect(page.locator('#storage-info')).toContainText(user.email);
-  await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);
-  await page.reload();await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');expect(exchanges).toBe(1);
-  await page.locator('#account').click();await expect(page.locator('#storage-label')).toHaveText('THIS BROWSER');
+  expect(page.url()).toBe('http://127.0.0.1:4174/home');
+  expect(exchange.url.searchParams.get('grant_type')).toBe('id_token');
+  expect(exchange.body.provider).toBe('google');
+  expect(exchange.body.id_token).toBe('mock-google-id-token');
+  expect(exchange.body.nonce).toBeTruthy();
+  const googleNonce=await page.evaluate(()=>window.__googleOptions.nonce);
+  expect(googleNonce).toMatch(/^[a-f0-9]{64}$/);
+  expect(googleNonce).not.toBe(exchange.body.nonce);
 });
 
 for(const separator of ['?','#'])test(`cancelled Google callback ${separator} is explained and removed from URL`,async({page})=>{
