@@ -23,7 +23,7 @@
   const selectionTools=document.createElement('div');selectionTools.className='selection-tools';selectionTools.hidden=true;
   const selectionRuby=document.createElement('button');selectionRuby.type='button';selectionRuby.textContent='Ruby';selectionRuby.setAttribute('aria-label','Add ruby text to selection');selectionTools.append(selectionRuby);
   document.body.append(rubyNotes,rubyOverlay,commentGutter,selectionTools); toolMenu.append(comments,ruby);
-  let commentThreads=[],rubyAnnotations=[],hoverLine=null,hoverClearTimer=null;
+  let commentThreads=[],rubyAnnotations=[],hoverLine=null,hoverClearTimer=null,selecting=false,selectionTimer=null;
   const rubyByChapter=new Map();
   const rubyClose=document.createElement('button');rubyClose.type='button';rubyClose.textContent='Close';rubyClose.onclick=()=>{rubyNotes.hidden=true;};
   const selectionForRange=(range,pane,root)=>{const preceding=document.createRange();preceding.selectNodeContents(root);preceding.setEnd(range.startContainer,range.startOffset);const start=preceding.toString().length,end=start+range.toString().length,text=root.textContent;if(end<=start||end-start>2000)return null;return {chapterId:novel.chapters[cur].id,pane,start,end,quote:text.slice(start,end),prefix:text.slice(Math.max(0,start-48),start),suffix:text.slice(end,end+48)};};
@@ -62,17 +62,19 @@
   }
   function capture() {
     const selected = getSelection();
-    if (!novel || !selected?.rangeCount || selected.isCollapsed) return;
+    if (selecting || !novel || !selected?.rangeCount || selected.isCollapsed) { selectionTools.hidden=true; return; }
     const range = selected.getRangeAt(0);
     for (const [pane, id] of [['source','src-txt'], ['translation','tl-out']]) {
       const root = document.getElementById(id);
       if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) continue;
       selection=selectionForRange(range,pane,root);if(!selection)return;
-      const box=range.getBoundingClientRect();selectionTools.style.left=`${Math.min(innerWidth-80,box.right+8)}px`;selectionTools.style.top=`${Math.max(8,box.top-8)}px`;selectionTools.hidden=false;
+      const box=range.getBoundingClientRect();selectionTools.style.left=`${Math.max(30,Math.min(innerWidth-30,box.left+box.width/2))}px`;selectionTools.style.top=`${Math.max(32,box.top-6)}px`;selectionTools.hidden=false;
     }
   }
-  document.addEventListener('selectionchange',()=>{if(getSelection()?.isCollapsed)selectionTools.hidden=true;capture();});
-  for(const [pane,id] of [['source','src-txt'],['translation','tl-out']]){const root=document.getElementById(id);root.addEventListener('mousemove',event=>{clearTimeout(hoverClearTimer);const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);if(!range||!root.contains(range.startContainer))return;const preceding=document.createRange();preceding.selectNodeContents(root);preceding.setEnd(range.startContainer,range.startOffset);hoverLine=lineAt(root,pane,preceding.toString().length);renderCommentGutter();});root.addEventListener('mouseleave',scheduleHoverClear);root.addEventListener('scroll',()=>{renderCommentGutter();renderRubyOverlay();});}
+  document.addEventListener('selectionchange',()=>{clearTimeout(selectionTimer);if(selecting){selectionTools.hidden=true;return;}selectionTimer=setTimeout(capture,60);});
+  document.addEventListener('pointerup',()=>{if(!selecting)return;selecting=false;requestAnimationFrame(capture);});
+  document.addEventListener('pointercancel',()=>{selecting=false;selectionTools.hidden=true;});
+  for(const [pane,id] of [['source','src-txt'],['translation','tl-out']]){const root=document.getElementById(id);root.addEventListener('pointerdown',()=>{selecting=true;selectionTools.hidden=true;});root.addEventListener('mousemove',event=>{clearTimeout(hoverClearTimer);const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);if(!range||!root.contains(range.startContainer))return;const preceding=document.createRange();preceding.selectNodeContents(root);preceding.setEnd(range.startContainer,range.startOffset);hoverLine=lineAt(root,pane,preceding.toString().length);renderCommentGutter();});root.addEventListener('mouseleave',scheduleHoverClear);root.addEventListener('scroll',()=>{renderCommentGutter();renderRubyOverlay();});}
   addEventListener('resize',()=>{renderCommentGutter();renderRubyOverlay();});
   document.addEventListener('dusk:chapter', () => { selection = null;hoverLine=null;selectionTools.hidden=true; comments.hidden = !canEdit; ruby.hidden = !canEdit; rubyNotes.hidden=true; rubyOverlay.replaceChildren();renderCommentGutter();globalThis.CSS?.highlights?.delete('dusk-comment'); });
   comments.onclick = () => { closeToolMenu(); send('editor:action', { action: 'comments', selection }); };
