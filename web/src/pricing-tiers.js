@@ -15,7 +15,7 @@ export const PRICING_TIERS = Object.freeze([
   {
     name: 'Starter',
     description: 'A calm place to begin translating a personal project.',
-    features: ['Personal translation projects', 'Core editor and exports', '7-day free trial'],
+    features: ['Personal translation projects', 'Core editor and exports'],
     priceId: {
       month: 'pri_01m3ytbcem2m6vyat2nrgmx0zk',
       year: 'pri_01m3ytbcp6ye3z08h3t5w2s3wf',
