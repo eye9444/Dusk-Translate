@@ -2,6 +2,7 @@ import './style.css';
 import './glass.css';
 import './welcome.css';
 import './reader.css';
+import { createPricingPage } from './pricing.js';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
@@ -32,7 +33,7 @@ let libraryView = 'projects';
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
 const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
-const ROUTES = new Set(['/','/home','/editor','/reader']);
+const ROUTES = new Set(['/','/home','/editor','/reader','/pricing','/welcome']);
 const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
@@ -42,6 +43,7 @@ const comments = createComments({ cloud, local, getProject: () => active, getUse
   resolveSharedAnchor: anchor => { const location=projectCollaboration?.resolve(anchor); return Number.isInteger(location?.start)&&Number.isInteger(location?.end)?location:null; },
   clearFocus: () => $('editor').contentWindow?.postMessage({ type:'host:clearComment', projectId:active?.id }, location.origin),
   focus: selection => $('editor').contentWindow?.postMessage({ type:'host:commentFocus', projectId:active.id, selection }, location.origin) });
+const pricingPage = createPricingPage({ getUserEmail: () => user?.email || '' });
 function sendRuby(chapterId) {
   if(!active||!projectCollaboration)return;
   $('editor').contentWindow?.postMessage({type:'host:ruby',projectId:active.id,chapterId,annotations:projectCollaboration.ruby(chapterId)},location.origin);
@@ -153,16 +155,87 @@ theme(localStorage.getItem('theme') || 'dusk');
 $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? 'dusk' : 'eclipse');
 document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.closest('dialog').close());
 
+async function billingRequest(path, method = 'GET') {
+  const { data, error } = await cloud.auth.getSession();
+  if (error) throw error;
+  if (!data.session?.access_token) throw new Error('Please sign in again to manage billing.');
+  const response = await fetch(path, {
+    method,
+    headers: { Authorization: 'Bearer ' + data.session.access_token },
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error || 'Billing request failed.');
+  return payload;
+}
+
+async function showBilling() {
+  if (!user) { showAuth(); return; }
+  $('billing-email').textContent = user.email || '';
+  $('billing-plan').textContent = 'Checking your Paddle subscription...';
+  $('billing-detail').textContent = '';
+  $('billing-manage').disabled = true;
+  $('billing-dialog').showModal();
+  try {
+    const billing = await billingRequest('/api/paddle/status');
+    const subscription = billing.subscription;
+    if (!billing.customer) {
+      $('billing-plan').textContent = 'No Paddle subscription yet.';
+      $('billing-detail').textContent = 'Choose a plan when you are ready. Your account remains available on the free tier.';
+      return;
+    }
+    if (!subscription) {
+      $('billing-plan').textContent = 'No current subscription.';
+      $('billing-detail').textContent = 'Use the Paddle portal to review any billing details.';
+      $('billing-manage').disabled = false;
+      return;
+    }
+    $('billing-plan').textContent = subscription.status === 'trialing' ? 'Free trial active' : 'Subscription: ' + subscription.status;
+    $('billing-detail').textContent = subscription.scheduled_change_action
+      ? 'A ' + subscription.scheduled_change_action + ' change is scheduled. Access continues until Paddle changes the subscription status.'
+      : (billing.hasPaidAccess ? 'Paid access is active.' : 'Paid access is not active for this subscription status.');
+    $('billing-manage').disabled = false;
+  } catch (error) {
+    $('billing-plan').textContent = errorMessage(error);
+  }
+}
+
+$('billing-manage').onclick = async () => {
+  $('billing-manage').disabled = true;
+  try {
+    const portal = await billingRequest('/api/paddle/portal', 'POST');
+    location.assign(portal.url);
+  } catch (error) {
+    $('billing-detail').textContent = errorMessage(error);
+    $('billing-manage').disabled = false;
+  }
+};
+
+async function signOut() {
+  const { error } = await cloud.auth.signOut();
+  if (error) { status(error.message); return; }
+  user = null; guestMode = false; sessionStorage.removeItem('dusk-guest');
+  $('billing-dialog').close(); navigate('/', true); await refresh();
+}
+
+$('billing-signout').onclick = signOut;
+
 async function refresh() {
   if (currentRoute() === '/' && (user || guestMode)) navigate('/home', true);
+  const route = currentRoute();
+  const showingPricing = route === '/pricing';
+  const showingSubscriptionWelcome = route === '/welcome';
   const request = ++libraryRequest;
   const libraryOwner = owner();
   let cached = [];
-  $('welcome').hidden=Boolean(user)||guestMode;
-  $('library').hidden=Boolean(active)||(!user&&!guestMode);
+  $('welcome').hidden=showingPricing||showingSubscriptionWelcome||Boolean(user)||guestMode;
+  $('subscription-welcome').hidden=!showingSubscriptionWelcome;
+  $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
+  if(showingPricing){await pricingPage.show();return;}
+  pricingPage.hide();
+  if(showingSubscriptionWelcome)return;
   if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
-  $('account').textContent = user ? 'Sign out' : 'Sign in';
+  $('account').textContent = user ? 'Account' : 'Sign in';
   $('storage-caption').textContent=user?'Your personal cloud library':'A library on this device';
   $('nav-inbox').hidden=!user;
   if (!user && libraryView === 'inbox') libraryView='projects';
@@ -1117,10 +1190,7 @@ $('terms-accept').onchange=()=>{
 };
 // A browser Back navigation may restore the page while the OAuth button is busy.
 window.addEventListener('pageshow',()=>setAuthBusy(false));
-$('account').onclick=async()=>{
-  if(user){const {error}=await cloud.auth.signOut();if(error){status(error.message);return;}user=null;guestMode=false;sessionStorage.removeItem('dusk-guest');navigate('/',true);await refresh();}
-  else showAuth();
-};
+$('account').onclick=()=>user?showBilling():showAuth();
 $('auth-switch').onclick=()=>showAuth(authMode==='signup'?'signin':'signup');
 $('forgot').onclick=()=>showAuth('reset');
 $('auth-form').onsubmit=async e=>{
@@ -1175,7 +1245,8 @@ async function restoreRoute() {
   const route = currentRoute(), parameters = new URLSearchParams(location.search), projectId = parameters.get('project'), sharedToken = parameters.get('share');
   if (route === '/' && (user || guestMode)) { navigate('/home', true); return; }
   if (route === '/reader' && sharedToken) { await openSharedReader(sharedToken); return; }
-  if (!user && !guestMode && route !== '/') { navigate('/', true); await refresh(); return; }
+  if (!user && !guestMode && !['/','/pricing','/welcome'].includes(route)) { navigate('/', true); await refresh(); return; }
+  if (route === '/pricing' || route === '/welcome') return;
   if (route === '/editor') {
     if (!projectId) { navigate('/home', true); status('Choose a project before opening the editor.'); return; }
     await openProject(projectId, false);
@@ -1193,7 +1264,7 @@ async function restoreRoute() {
 window.addEventListener('popstate', async () => {
   if (active) await leave({ updateRoute:false });
   else if (readerOpen) leaveReader({ updateRoute:false });
-  else await restoreRoute();
+  else { await restoreRoute(); await refresh(); }
 });
 await restoreRoute();
 if(authError){showAuth();$('auth-message').textContent=authError;}

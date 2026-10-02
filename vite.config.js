@@ -5,6 +5,8 @@ const page = name => fileURLToPath(new URL(`./web/${name}`, import.meta.url));
 
 export default defineConfig({
   root: 'web',
+  // Keep the documented root-level .env files consistent with Vercel variables.
+  envDir: fileURLToPath(new URL('.', import.meta.url)),
   build: {
     outDir: '../dist',
     emptyOutDir: true,
