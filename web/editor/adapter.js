@@ -443,7 +443,7 @@ window.addEventListener('message', async e => {
   } catch(err) { send('editor:error', { message: err.message }); }
 });
 // Prevent legacy drop handlers from replacing the active project's original book.
-window.addEventListener('drop', e => { e.preventDefault(); e.stopImmediatePropagation(); setStatus('Create a new project from the library to load another book.'); }, true);
+window.addEventListener('drop', e => { e.preventDefault(); e.stopImmediatePropagation(); hideStatus(); }, true);
 document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); toggleDevMode(); } });
 setInterval(() => emit(), 1000);
 window.addEventListener('pagehide', () => { clearInterval(projectOpenPing); emit(true); });

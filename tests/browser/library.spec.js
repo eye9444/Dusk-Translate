@@ -243,6 +243,12 @@ test('EPUB image manager is exposed safely from the editor',async({page})=>{
   await expect(page.locator('#images-status')).toContainText('requires a cloud project');
   await expect(page.locator('#images-preview')).toBeChecked();
 });
+test('accidental drops do not leave the standalone editor warning visible',async({page})=>{
+  await create(page,'Drop warning');const editor=page.frameLocator('#editor');
+  await editor.locator('body').evaluate(body=>body.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:new DataTransfer()})));
+  await expect(editor.locator('#statusbar')).not.toHaveClass(/show/);
+  await expect(editor.locator('#statusbar')).not.toContainText('Create a new project');
+});
 test('selected text exposes the contextual ruby action',async({page})=>{
   await create(page,'Ruby selection');const editor=page.frameLocator('#editor');
   await editor.locator('#src-txt').evaluate(root=>{const range=document.createRange();range.selectNodeContents(root);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);});
