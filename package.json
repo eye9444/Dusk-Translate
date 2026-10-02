@@ -12,6 +12,8 @@
     "test:auth": "playwright test --config=config/playwright.auth.config.js"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.5",
+    "@paddle/paddle-node-sdk": "^3.10.0",
     "@supabase/supabase-js": "^2.57.0",
     "jszip": "3.10.1",
     "yjs": "^13.6.33"

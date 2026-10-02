@@ -21,11 +21,34 @@
     <symbol id="i-theme" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 5v14M12 2V1M12 23v-1M2 12H1M23 12h-1"/></symbol>
   </defs></svg>
   <div class="app-window">
-    <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="#" id="brand" aria-label="DuskTranslate home"><img class="app-logo" src="/brand/dusk-mark.svg" width="38" height="38" alt=""><span class="brand-copy"><strong>DuskTranslate</strong><span>YOUR PERSONAL READING ROOM</span></span></a><nav aria-label="Account and appearance"><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
+    <header class="masthead"><div class="window-lights" aria-hidden="true"><i></i><i></i><i></i></div><a href="/" id="brand" aria-label="DuskTranslate home"><img class="app-logo" src="/brand/dusk-mark.svg" width="38" height="38" alt=""><span class="brand-copy"><strong>DuskTranslate</strong><span>YOUR PERSONAL READING ROOM</span></span></a><nav aria-label="Account and appearance"><a class="pricing-nav-link" href="/pricing">Plans</a><button id="theme" aria-label="Switch color theme"><svg class="icon"><use href="#i-theme"/></svg></button><button id="account">Sign in</button></nav></header>
     <section id="welcome" class="welcome" aria-labelledby="welcome-title">
-      <div class="welcome-copy"><p class="eyebrow">EPUB TRANSLATION / SAVED PROJECTS / AI PROVIDERS</p><h1 id="welcome-title">Translate books.<br>Keep every <em>chapter organized.</em></h1><p class="welcome-intro">Import EPUB, TXT, or JSON files. Translate chapter by chapter, edit the output, maintain a glossary, and save your progress locally or to your account.</p><div class="welcome-actions"><button class="primary" id="welcome-signin">Sign in to your library <span aria-hidden="true">↗</span></button><button id="welcome-signup">Create an account</button><button id="welcome-reader">Open EPUB reader</button></div><p class="welcome-private">Projects can sync to your account. API keys remain in the current session.</p><button class="guest-link" id="welcome-guest">Use locally without an account</button></div>
+      <div class="welcome-copy"><p class="eyebrow">EPUB TRANSLATION / SAVED PROJECTS / AI PROVIDERS</p><h1 id="welcome-title">Translate books.<br>Keep every <em>chapter organized.</em></h1><p class="welcome-intro">Import EPUB, TXT, or JSON files. Translate chapter by chapter, edit the output, maintain a glossary, and save your progress locally or to your account.</p><div class="welcome-actions"><button class="primary" id="welcome-signin">Sign in to your library <span aria-hidden="true">↗</span></button><button id="welcome-signup">Create an account</button><a class="button-link" href="/pricing">View plans</a><button id="welcome-reader">Open EPUB reader</button></div><p class="welcome-private">Projects can sync to your account. API keys remain in the current session.</p><button class="guest-link" id="welcome-guest">Use locally without an account</button></div>
       <div class="welcome-art" aria-label="Two translated pages crossing the orbit of an eclipsed sun"><div class="dusk-orbit" aria-hidden="true"><i class="orbit-moon"></i></div><div class="specimen source-page"><span>01 / ORIGINAL</span><p lang="ja">物語は、<br>ここから。</p><small>JAPANESE</small></div><div class="specimen translated-page"><img src="/brand/dusk-mark.svg" width="42" height="42" alt="DuskTranslate logo"><span>02 / A NEW PERSPECTIVE</span><p>The story<br>starts <em>here.</em></p><small>ENGLISH</small></div><span class="art-caption">DIFFERENT WORDS. SAME WORLD.</span></div>
       <div class="welcome-notes"><p><span>01</span>Import EPUB, TXT, or JSON.</p><p><span>02</span>Translate, edit, and export.</p><p><span>03</span>Resume saved projects.</p></div>
+    </section>
+    <section id="pricing" class="pricing-page" hidden aria-labelledby="pricing-title">
+      <header class="pricing-heading">
+        <p class="eyebrow">DUSKTRANSLATE PLANS</p>
+        <h1 id="pricing-title">Choose a quieter way to <em>keep translating.</em></h1>
+        <p>Every plan starts with a seven-day trial. Prices are supplied directly by Paddle for your location.</p>
+      </header>
+      <div class="pricing-controls">
+        <div class="billing-toggle" role="group" aria-label="Billing period">
+          <button type="button" data-billing-term="month" aria-pressed="true">Monthly</button>
+          <button type="button" data-billing-term="year" aria-pressed="false">Yearly</button>
+        </div>
+        <p id="pricing-location" aria-live="polite"></p>
+      </div>
+      <p id="pricing-status" role="status" aria-live="polite"></p>
+      <div id="pricing-tiers" class="pricing-grid" aria-live="polite"></div>
+      <p class="pricing-footnote">Checkout is securely provided by Paddle. Taxes and payment methods are confirmed in checkout.</p>
+    </section>
+    <section id="subscription-welcome" class="subscription-welcome" hidden aria-labelledby="subscription-welcome-title">
+      <p class="eyebrow">WELCOME TO DUSKTRANSLATE</p>
+      <h1 id="subscription-welcome-title">Your subscription is <em>ready.</em></h1>
+      <p>Thank you for supporting DuskTranslate. Return to your library to continue your project.</p>
+      <a class="button-link primary-link" href="/home">Open your library <span aria-hidden="true">↗</span></a>
     </section>
     <main id="library" hidden>
       <aside class="sidebar" aria-label="Library navigation">
@@ -81,6 +104,12 @@
     <div class="dialog-actions"><button type="button" data-close>Close</button><button class="primary" id="auth-submit">Sign in</button></div>
     <div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div>
   </form></dialog>
+  <dialog id="billing-dialog" aria-labelledby="billing-title"><section class="billing-panel">
+    <p class="eyebrow">ACCOUNT &amp; BILLING</p><h2 id="billing-title">Your plan</h2>
+    <p id="billing-email"></p><p id="billing-plan" role="status">Checking your Paddle subscription...</p>
+    <p id="billing-detail" class="field-hint"></p>
+    <div class="dialog-actions"><button type="button" id="billing-manage" class="primary" disabled>Manage billing</button><button type="button" id="billing-signout">Sign out</button><button type="button" data-close>Close</button></div>
+  </section></dialog>
   <dialog id="manage-dialog"><form id="manage-form"><h2 id="manage-title">Rename project</h2><label id="rename-label">New title<input id="rename-title" maxlength="120" required></label><p id="manage-info"></p><p id="manage-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="manage-submit">Save</button></div></form></dialog>
   <dialog id="share-dialog" aria-labelledby="share-title"><form id="share-form"><p class="eyebrow">PROJECT COLLABORATION</p><h2 id="share-title">Share project</h2><p id="share-info">Invite accounts to this project. Editors can save changes; viewers can only open and read. Only you can manage access.</p><label>Email addresses<textarea id="share-email" autocomplete="email" required placeholder="translator@example.com&#10;editor@example.com" rows="3"></textarea><span class="field-hint">One email per line or separate addresses with commas.</span></label><label>Access level<select id="share-role"><option value="editor">Editor - can translate and edit</option><option value="viewer">Viewer - read-only</option></select></label><p id="share-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="share-submit">Send invites</button></div><section class="share-members" aria-labelledby="share-members-title"><p class="eyebrow" id="share-members-title">CURRENT COLLABORATORS</p><div id="share-members" role="list"></div></section><section class="share-members" aria-labelledby="share-invites-title"><p class="eyebrow" id="share-invites-title">PENDING INVITATIONS</p><div id="share-invites" role="list"></div></section><section class="share-members" aria-labelledby="share-reader-title"><p class="eyebrow" id="share-reader-title">ANYONE WITH THE LINK</p><p class="share-reader-help">Give anyone a read-only EPUB reader link. Complete projects open translated; in-progress projects open the original. You can revoke it at any time.</p><div id="share-reader-actions"><button type="button" id="share-reader-enable">Enable reader link</button><input id="share-reader-url" aria-label="Public reader link" readonly hidden><button type="button" id="share-reader-copy" hidden>Copy link</button><button type="button" id="share-reader-disable" hidden>Disable link</button></div></section></form></dialog>
   <dialog id="export-settings-dialog" aria-labelledby="export-settings-title"><form id="export-settings-form"><p class="eyebrow">FINAL EXPORT</p><h2 id="export-settings-title">Choose exported chapters</h2><p>Unchecked chapters stay in your project but are omitted from TXT exports and the translated EPUB.</p><div id="export-chapters" class="export-chapters"></div><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" type="submit">Save export selection</button></div></form></dialog>
