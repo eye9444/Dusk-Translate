@@ -26,6 +26,7 @@ test(`selected-text comments persist, navigate, reply and resolve safely at ${wi
   await page.getByRole('textbox',{name:'Reply to thread'}).fill('Agreed');
   await page.getByRole('button',{name:'Post reply'}).click();
   await expect(page.locator('.comment-message')).toHaveCount(2);
+  await expect(editor.getByRole('button',{name:'2 comments on this line'})).toBeVisible();
   await page.locator('.comment-quote').click();
   await expect.poll(() => editor.locator('#src-txt').evaluate(() => CSS.highlights.has('dusk-comment'))).toBe(true);
   await page.getByRole('button',{name:'Resolve thread'}).click();
@@ -34,6 +35,7 @@ test(`selected-text comments persist, navigate, reply and resolve safely at ${wi
   await page.getByRole('button',{name:'Reopen thread'}).click();
   await expect(page.getByRole('button',{name:'Resolve thread'})).toBeVisible();
   await page.getByRole('button',{name:'Close comments'}).click();
+  await expect(editor.getByRole('button',{name:'2 comments on this line'})).toHaveCSS('opacity','0.35');
   await expect.poll(() => editor.locator('#src-txt').evaluate(() => CSS.highlights.has('dusk-comment'))).toBe(false);
   await page.reload(); await page.getByRole('button',{name:'Open project',exact:true}).click();
   await editor.locator('#host-tools').click(); await editor.locator('#host-comments').click();

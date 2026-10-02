@@ -4,7 +4,7 @@ import './comments.css';
 const node = (tag, text, className = '') => { const element = document.createElement(tag); element.textContent = text; element.className = className; return element; };
 const control = (label, action) => { const element = node('button', label); element.type = 'button'; element.onclick = action; return element; };
 
-export function createComments({ cloud, local, getProject, getUser, focus, clearFocus = () => {} }) {
+export function createComments({ cloud, local, getProject, getUser, focus, clearFocus = () => {}, makeAnchor = value => value, resolveSharedAnchor = () => null, onThreads = () => {} }) {
   const panel = node('aside', '', 'comments-panel'); panel.hidden = true;
   panel.setAttribute('aria-label', 'Project comments');
   const header = node('div', '', 'comments-header');
@@ -32,19 +32,19 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     return result.data;
   }
   async function refresh() {
-    if (!project || panel.hidden || writing) return;
+    if (!project || writing) return;
     const current = project, version = ++request;
     try {
       const value = current.owner === 'guest' ? await local.comments('guest', current.id) : await rpc('list_project_comments', { target_project_id: current.id });
-      if (version !== request || project !== current || panel.hidden) return;
+      if (version !== request || project !== current) return;
       if (!Array.isArray(value)) throw new Error('Could not read project comments.');
       threads = value; loaded = true; status.textContent = '';
-      submit.disabled = !anchor || !editable();
+      onThreads(value); submit.disabled = panel.hidden || !anchor || !editable();
       const next = JSON.stringify(value);
       // Avoid replacing focused reply fields on every polling tick.
-      if (next !== fingerprint && !list.contains(document.activeElement)) { render(); fingerprint = next; }
+      if (!panel.hidden && next !== fingerprint && !list.contains(document.activeElement)) { render(); fingerprint = next; }
     } catch (error) {
-      if (project !== current || panel.hidden) return;
+      if (project !== current) return;
       loaded = false; fingerprint = ''; submit.disabled = true; status.textContent = error.message;
       list.replaceChildren(control('Retry loading comments', refresh));
     }
@@ -55,9 +55,9 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     if (!visible.length) list.append(node('p', 'No comments yet.'));
     for (const thread of visible) {
       const card = node('article', '', 'comment-thread');
-      const location = locateCommentAnchor(thread.anchor, textFor(thread.anchor));
+      const location = resolveSharedAnchor(thread.anchor) || locateCommentAnchor(thread.anchor, textFor(thread.anchor));
       const jump = control(`${thread.anchor.chapterId}: ${thread.anchor.quote}`, () => {
-        const latest = locateCommentAnchor(thread.anchor, textFor(thread.anchor));
+        const latest = resolveSharedAnchor(thread.anchor) || locateCommentAnchor(thread.anchor, textFor(thread.anchor));
         if (latest) focus({ ...thread.anchor, ...latest });
         else status.textContent = 'This passage has changed. The original quote is preserved here.';
       });
@@ -86,13 +86,14 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     writing = true; submit.disabled = true; status.textContent = 'Saving comment…';
     const current = project;
     try {
-      if (current.owner !== 'guest') await rpc('write_project_comment', { target_project_id: current.id, action, target_id: targetId, comment_body: body, comment_anchor: action === 'create' ? anchor : null });
+      const savedAnchor=action==='create'?makeAnchor(anchor):null;
+      if (current.owner !== 'guest') await rpc('write_project_comment', { target_project_id: current.id, action, target_id: targetId, comment_body: body, comment_anchor: savedAnchor });
       else {
         const next = structuredClone(threads), time = new Date().toISOString();
         const message = () => ({ id: crypto.randomUUID(), author_id: 'guest', author_name: 'You', body: body.trim(), created_at: time });
         if (action === 'create') {
           if (!anchor) throw new Error('Select text before posting.');
-          next.push({ id: crypto.randomUUID(), author_id: 'guest', anchor, resolved: false, created_at: time, messages: [message()] });
+          next.push({ id: crypto.randomUUID(), author_id: 'guest', anchor:savedAnchor, resolved: false, created_at: time, messages: [message()] });
         } else if (['reply', 'resolve', 'reopen', 'delete-thread'].includes(action)) {
           const index = next.findIndex(thread => thread.id === targetId), thread = next[index];
           if (!thread) throw new Error('Thread no longer exists.');
@@ -115,7 +116,7 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     } catch (error) { if (current === project) status.textContent = error.message; }
     finally { writing = false; submit.disabled = !loaded || !anchor || !editable(); }
   }
-  function close() { clearFocus(); panel.hidden = true; clearInterval(timer); timer = null; request++; project = null; document.body.classList.remove('comments-open'); }
+  function close() { clearFocus(); panel.hidden = true; anchor=null; document.body.classList.remove('comments-open'); }
   resolved.onchange = render;
   form.onsubmit = event => { event.preventDefault(); write('create', null, input.value); };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) close(); });
@@ -127,8 +128,10 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
       project = next; anchor = selection || null; panel.hidden = false; document.body.classList.add('comments-open');
       quote.textContent = anchor?.quote || 'Select text in either pane to start a thread.';
       input.disabled = !anchor; submit.disabled = true; status.textContent = 'Loading comments…';
-      await refresh(); clearInterval(timer); if (!panel.hidden) timer = setInterval(refresh, 5000);
+      await refresh();
     },
+    async watch(next=getProject()) { if(!next)return;if(project?.id!==next.id){threads=[];fingerprint='';loaded=false;}project=next;await refresh();clearInterval(timer);timer=setInterval(refresh,5000); },
+    stop(){close();clearInterval(timer);timer=null;request++;project=null;threads=[];onThreads([]);},
     close,
   };
 }

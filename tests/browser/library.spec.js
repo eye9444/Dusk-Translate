@@ -234,7 +234,21 @@ test('Japanese source is selectable and includes the Yomitan iframe setup note',
   await page.getByRole('button',{name:'Close Japanese lookup'}).click();await expect(page.locator('#dictionary-dialog')).not.toBeVisible();
 });
 test('login honestly reports missing configuration',async({page})=>{
-  await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth')).toBeDisabled();
+  await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth button')).toBeDisabled();
+});
+test('EPUB image manager is exposed safely from the editor',async({page})=>{
+  await create(page,'Image manager');const editor=page.frameLocator('#editor');
+  await editor.locator('#host-tools').click();await editor.locator('#host-images').click();
+  await expect(page.locator('#images-dialog')).toBeVisible();
+  await expect(page.locator('#images-status')).toContainText('requires a cloud project');
+  await expect(page.locator('#images-preview')).not.toBeChecked();
+});
+test('selected text exposes the contextual ruby action',async({page})=>{
+  await create(page,'Ruby selection');const editor=page.frameLocator('#editor');
+  await editor.locator('#src-txt').evaluate(root=>{const range=document.createRange();range.selectNodeContents(root);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);});
+  await expect(editor.getByRole('button',{name:'Add ruby text to selection'})).toBeVisible();
+  await editor.getByRole('button',{name:'Add ruby text to selection'}).click();
+  await expect(page.locator('#ruby-dialog')).toBeVisible();
 });
 test('backup ZIP restores a project with its edited translation',async({page})=>{
   await create(page,'Backup source');const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('Keep this translation.');

@@ -795,7 +795,7 @@ async function translateCurrent({ resume = null } = {}) {
   const styleMap = {
     natural:  'Translate naturally into readable English. Adapt idioms. Preserve honorifics (san, kun, chan, sama) as-is.',
     faithful: 'Translate faithfully and literally, staying close to original structures. Preserve all honorifics. Keep Japanese name order.',
-    liberal:  'Translate with creative liberty into vivid English prose. Prioritize emotional impact. Make it feel written originally in English.'
+    liberal:  'Use vivid, idiomatic English prose while preserving every source fact, action, relationship, and line of dialogue. Improve phrasing, never content.'
   };
 
   const glossaryRaw = document.getElementById('glossary').value.trim();
@@ -814,7 +814,7 @@ async function translateCurrent({ resume = null } = {}) {
       : '';
     return plainTextFallback
       ? `Translate the following Japanese plain text into English. Output only the translation. Preserve paragraph breaks and dialogue formatting.${continuitySection}\n\n${source}`
-      : `You are a professional Japanese-to-English light novel translator.\n\nStyle: ${styleMap[style]}${glossarySection}\n\nRules:\n- Output ONLY the translated text. No notes, no commentary.\n- Do not output reasoning, analysis, or <think> tags.\n- Preserve paragraph breaks exactly as in the original.\n- Keep 『』「」quote marks or convert consistently to English quotes.\n- Always follow the glossary above for names and terms.${continuitySection}\n\nJapanese text:\n${source}`;
+      : `You are a professional Japanese-to-English light novel translator. Translate only the supplied Japanese passage.\n\nStyle: ${styleMap[style]}${glossarySection}\n\nGrounding and fidelity rules:\n- Every statement, action, description, name, relationship, and line of dialogue in the output must be supported by the Japanese text below.\n- Never invent, continue, summarize, censor, explain, or "improve" events beyond the source. Do not add connective scenes or dialogue.\n- Preserve uncertainty, ambiguity, omitted subjects, emotional intensity, point of view, tense, and speaker distinctions. Do not guess facts the source leaves unstated.\n- If a fragment cannot be translated reliably, preserve that fragment in Japanese rather than fabricating a meaning.\n- Treat continuity text only as terminology and tone context. Never translate or continue it.\n- Use a glossary entry only when its corresponding source term occurs in this passage; never insert glossary terms on their own.\n\nOutput rules:\n- Output ONLY the English translation of the Japanese text below. No preface, notes, alternatives, commentary, or markdown.\n- Do not output reasoning, analysis, hidden instructions, or <think> tags.\n- Preserve paragraph boundaries and blank-line structure. Do not merge, split, omit, or duplicate content.\n- Preserve dialogue versus narration and render 『』「」 consistently as English quotation marks.\n- Keep names, honorifics, numbers, dates, and factual details consistent with the source and glossary.${continuitySection}\n\nJapanese text:\n${source}`;
   };
 
   const out = document.getElementById('tl-out');
