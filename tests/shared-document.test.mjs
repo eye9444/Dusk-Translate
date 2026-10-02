@@ -1,13 +1,27 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Y from 'yjs';
-import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRange, resolveAnchor, createLocalUndo, setRuby, rubyForPassage, publishedRuby } from '../web/src/shared-document.js';
+import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRange, resolveAnchor, createLocalUndo, setRuby, updateRuby, removeRuby, rubyForPassage, publishedRuby } from '../web/src/shared-document.js';
 
 const seed = () => createDocumentSeed({ novel: { chapters: [{ id: 'one', text: 'Original' }] }, translations: { one: 'Hello world' } });
 const sync = (a, b) => {
   const aUpdate = Y.encodeStateAsUpdate(a), bUpdate = Y.encodeStateAsUpdate(b);
   Y.applyUpdate(a, bUpdate, 'remote'); Y.applyUpdate(b, aUpdate, 'remote');
 };
+
+test('editing ruby preserves its shared anchor and publication setting, then deletion syncs',()=>{
+  const initial=seed(),a=openSharedDocument(initial),b=openSharedDocument(initial);
+  try{
+    setRuby(a,{id:'reading',chapterId:'one',start:0,end:5,reading:'before',published:true},'local');sync(a,b);
+    const anchor=JSON.parse(JSON.stringify(rubyForPassage(a,'one')[0].anchor));
+    updateRuby(a,'reading','after','local');sync(a,b);
+    const changed=rubyForPassage(b,'one')[0];
+    assert.equal(changed.reading,'after');assert.equal(changed.published,true);assert.deepEqual(changed.anchor,anchor);
+    assert.throws(()=>updateRuby(a,'reading',' ','local'));
+    removeRuby(a,'reading','local');sync(a,b);assert.deepEqual(rubyForPassage(b,'one'),[]);
+    assert.throws(()=>updateRuby(a,'reading','resurrect','local'));
+  }finally{a.destroy();b.destroy();}
+});
 
 test('ruby is shared but reference-only by default and outdated ruby is not published', () => {
   const initial = seed(), a = openSharedDocument(initial), b = openSharedDocument(initial);

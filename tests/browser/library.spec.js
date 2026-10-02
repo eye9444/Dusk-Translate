@@ -241,7 +241,7 @@ test('EPUB image manager is exposed safely from the editor',async({page})=>{
   await editor.locator('#host-tools').click();await editor.locator('#host-images').click();
   await expect(page.locator('#images-dialog')).toBeVisible();
   await expect(page.locator('#images-status')).toContainText('requires a cloud project');
-  await expect(page.locator('#images-preview')).not.toBeChecked();
+  await expect(page.locator('#images-preview')).toBeChecked();
 });
 test('selected text exposes the contextual ruby action',async({page})=>{
   await create(page,'Ruby selection');const editor=page.frameLocator('#editor');
