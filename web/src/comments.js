@@ -38,9 +38,9 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
       const value = current.owner === 'guest' ? await local.comments('guest', current.id) : await rpc('list_project_comments', { target_project_id: current.id });
       if (version !== request || project !== current) return;
       if (!Array.isArray(value)) throw new Error('Could not read project comments.');
-      threads = value; loaded = true; status.textContent = '';
-      onThreads(value); submit.disabled = panel.hidden || !anchor || !editable();
-      const next = JSON.stringify(value);
+      threads = value.filter(thread=>Array.isArray(thread.messages)&&thread.messages.length); loaded = true; status.textContent = '';
+      onThreads(threads); submit.disabled = panel.hidden || !anchor || !editable();
+      const next = JSON.stringify(threads);
       // Avoid replacing focused reply fields on every polling tick.
       if (!panel.hidden && next !== fingerprint && !list.contains(document.activeElement)) { render(); fingerprint = next; }
     } catch (error) {
@@ -103,7 +103,10 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
         } else {
           const thread = next.find(thread => thread.messages.some(message => message.id === targetId));
           if (!thread) throw new Error('Comment no longer exists.');
-          if (action === 'delete') thread.messages = thread.messages.filter(message => message.id !== targetId);
+          if (action === 'delete') {
+            thread.messages = thread.messages.filter(message => message.id !== targetId);
+            if (!thread.messages.length) next.splice(next.indexOf(thread), 1);
+          }
           else Object.assign(thread.messages.find(message => message.id === targetId), { body: body.trim(), edited_at: time });
         }
         if (next.length > 1000 || next.reduce((sum, thread) => sum + thread.messages.length, 0) > 5000) throw new Error('Project comment limit reached.');
