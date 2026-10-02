@@ -74,7 +74,7 @@
   document.addEventListener('selectionchange',()=>{if(getSelection()?.isCollapsed)selectionTools.hidden=true;capture();});
   for(const [pane,id] of [['source','src-txt'],['translation','tl-out']]){const root=document.getElementById(id);root.addEventListener('mousemove',event=>{clearTimeout(hoverClearTimer);const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);if(!range||!root.contains(range.startContainer))return;const preceding=document.createRange();preceding.selectNodeContents(root);preceding.setEnd(range.startContainer,range.startOffset);hoverLine=lineAt(root,pane,preceding.toString().length);renderCommentGutter();});root.addEventListener('mouseleave',scheduleHoverClear);root.addEventListener('scroll',()=>{renderCommentGutter();renderRubyOverlay();});}
   addEventListener('resize',()=>{renderCommentGutter();renderRubyOverlay();});
-  document.addEventListener('dusk:chapter', () => { selection = null;hoverLine=null;selectionTools.hidden=true; comments.hidden = !canEdit; ruby.hidden = !canEdit; rubyNotes.hidden=true; rubyOverlay.replaceChildren();renderCommentGutter();globalThis.CSS?.highlights?.delete('dusk-comment'); globalThis.CSS?.highlights?.delete('dusk-ruby'); });
+  document.addEventListener('dusk:chapter', () => { selection = null;hoverLine=null;selectionTools.hidden=true; comments.hidden = !canEdit; ruby.hidden = !canEdit; rubyNotes.hidden=true; rubyOverlay.replaceChildren();renderCommentGutter();globalThis.CSS?.highlights?.delete('dusk-comment'); });
   comments.onclick = () => { closeToolMenu(); send('editor:action', { action: 'comments', selection }); };
   ruby.onclick = () => { closeToolMenu();if(!selection&&rubyNotes.childElementCount>1){rubyNotes.hidden=!rubyNotes.hidden;return;}send('editor:action', { action: 'ruby', selection }); };
   selectionRuby.onclick=()=>{selectionTools.hidden=true;send('editor:action',{action:'ruby',selection});};
@@ -86,8 +86,6 @@
       rubyByChapter.set(chapterId,incoming);
       rubyAnnotations=[...rubyByChapter.values()].flat();
       const current=rubyAnnotations.filter(item=>item.chapterId===novel?.chapters[cur]?.id&&item.location?.status!=='unanchored');
-      const ranges=current.map(item=>textRange(document.getElementById(item.pane==='source'?'src-txt':'tl-out'),item.location.start,item.location.end)).filter(Boolean);
-      if(globalThis.CSS?.highlights)CSS.highlights.set('dusk-ruby',new Highlight(...ranges));
       rubyNotes.replaceChildren(...current.map(item=>{const row=document.createElement('div'),text=document.createElement('span'),remove=document.createElement('button');text.textContent=`${item.location.quote} · ${item.reading}${item.published?' · published':''}`;remove.type='button';remove.textContent='Remove';remove.onclick=()=>send('editor:action',{action:'removeRuby',rubyId:item.id});row.append(text,remove);return row;}));
       rubyNotes.append(rubyClose);if(!current.length)rubyNotes.hidden=true;renderRubyOverlay();return;
     }

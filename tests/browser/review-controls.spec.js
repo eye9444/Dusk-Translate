@@ -29,6 +29,8 @@ test('ruby for other chapters does not clear readings or open the remove panel',
   await page.evaluate(data=>document.getElementById('editor').contentWindow.postMessage(data,location.origin),fixture);
   await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
   await expect(editor.locator('#ruby-notes')).toBeHidden();
+  await expect.poll(()=>editor.locator('#src-txt').evaluate(()=>CSS.highlights.has('dusk-ruby'))).toBe(false);
+  expect(await editor.locator('#src-txt').evaluate(node=>getComputedStyle(node,'::selection').backgroundColor)).toBe('rgba(239, 138, 73, 0.4)');
   await page.evaluate(data=>{for(let i=0;i<10;i++)document.getElementById('editor').contentWindow.postMessage({...data,chapterId:'other-chapter',annotations:[]},location.origin);},fixture);
   await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
   await expect(editor.locator('#ruby-notes')).toBeHidden();

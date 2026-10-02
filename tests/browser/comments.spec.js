@@ -44,7 +44,11 @@ test(`selected-text comments persist, navigate, reply and resolve safely at ${wi
   await page.getByRole('textbox',{name:'Edit comment text'}).fill('Corrected note');
   await page.getByRole('button',{name:'Save comment',exact:true}).click();
   await expect(page.locator('.comment-message').first()).toContainText('Corrected note');
-  await page.getByRole('button',{name:'Delete thread'}).click();
+  await page.getByRole('button',{name:'Delete comment'}).first().click();
+  await expect(page.locator('.comment-message')).toHaveCount(1);
+  await expect(editor.getByRole('button',{name:'1 comments on this line'})).toBeVisible();
+  await page.getByRole('button',{name:'Delete comment'}).click();
   await expect(page.locator('.comment-thread')).toHaveCount(0);
+  await expect(editor.locator('.line-comment.has-comments')).toHaveCount(0);
 });
 }
