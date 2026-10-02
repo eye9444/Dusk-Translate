@@ -22,7 +22,7 @@ async function selectTestModel(editor) {
     onKeyInput();
   });
 }
-async function editorAction(page,id) {const editor=page.frameLocator('#editor');await editor.locator(id === '#host-library' ? '#host-menu' : '#host-tools').click();await editor.locator(id).click();}
+async function editorAction(page,id) {const editor=page.frameLocator('#editor'),navigationActions=new Set(['#host-library','#host-save','#host-backup']);await editor.locator(navigationActions.has(id) ? '#host-menu' : '#host-tools').click();await editor.locator(id).click();}
 async function leave(page) {await editorAction(page,'#host-library');await expect(page.locator('#library')).toBeVisible();}
 test('saves manual edits, glossary, current chapter; keys never persist',async({page})=>{
   await create(page);

@@ -156,8 +156,8 @@ const editorMenu = document.createElement('div'); editorMenu.className = 'host-m
 const menuButton = document.createElement('button'); menuButton.id = 'host-menu'; menuButton.className = 'host-menu-button'; menuButton.type = 'button'; menuButton.setAttribute('aria-label','Open project navigation'); menuButton.setAttribute('aria-expanded','false');
 for (let i=0;i<3;i++) menuButton.append(document.createElement('i'));
 const navigationMenu = document.createElement('div'); navigationMenu.id = 'host-menu-popover'; navigationMenu.className = 'host-menu-popover'; navigationMenu.hidden = true;
-const navigationAction = document.createElement('button'); navigationAction.id='host-library'; navigationAction.type='button'; navigationAction.textContent='Back to library'; navigationAction.onclick=()=>{navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action:'library'});};
-navigationMenu.append(navigationAction);
+const navigationAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');send('editor:action',{action});}; return button; };
+navigationMenu.append(navigationAction('host-library','Back to library','library'),navigationAction('host-save','Save now','save'),navigationAction('host-backup','Export project','backup'));
 editorMenu.append(menuButton,navigationMenu);
 
 const toolsWrap=document.createElement('div');toolsWrap.className='host-tools-wrap';
@@ -180,7 +180,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
   lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
-toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
+toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
