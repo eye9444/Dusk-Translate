@@ -23,10 +23,14 @@ export async function googleAvailable() {
 let database;
 function db() {
   return database ||= new Promise((resolve, reject) => {
-    const request = indexedDB.open('dusktranslate-library', 3);
+    const request = indexedDB.open('dusktranslate-library', 4);
     request.onupgradeneeded = event => {
       const database = request.result;
       if (event.oldVersion < 3) database.createObjectStore('projectComments', { keyPath: 'cacheKey' });
+      if (event.oldVersion < 4) {
+        const updates = database.createObjectStore('documentUpdates', { keyPath:'operationId' });
+        updates.createIndex('projectId', 'projectId');
+      }
       const projects = event.oldVersion < 1
         ? database.createObjectStore('projects', { keyPath: 'cacheKey' })
         : request.transaction.objectStore('projects');
@@ -64,6 +68,9 @@ async function transaction(storeNames, mode, work) {
   });
 }
 export const local = {
+  async documentUpdates(projectId) { return transaction('documentUpdates','readonly',({documentUpdates})=>documentUpdates.index('projectId').getAll(projectId)); },
+  queueDocumentUpdate(projectId,operationId,payload) { return transaction('documentUpdates','readwrite',({documentUpdates})=>documentUpdates.put({projectId,operationId,payload,createdAt:new Date().toISOString()})); },
+  removeDocumentUpdate(operationId) { return transaction('documentUpdates','readwrite',({documentUpdates})=>documentUpdates.delete(operationId)); },
   async comments(owner, id) { return (await transaction('projectComments', 'readonly', ({projectComments}) => projectComments.get(`${owner}:${id}`)))?.threads || []; },
   saveComments(owner, id, threads) { return transaction('projectComments', 'readwrite', ({projectComments}) => projectComments.put({cacheKey:`${owner}:${id}`, threads})); },
   async list(owner) { return (await transaction('projects', 'readonly', ({projects}) => projects.getAll())).filter(p => p.owner === owner); },
@@ -102,6 +109,24 @@ function fromRow(row) {
   return { id:row.id, owner:row.owner_id, title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, archived:row.archived, updatedAt:row.updated_at, createdAt:row.created_at, revision:row.revision, collaborators:row.project_collaborators || [], dirty:false };
 }
 export const remote = {
+  async imageAssets(projectId){return must(await cloud.from('project_image_assets').select('*').eq('project_id',projectId));},
+  async registerImage(projectId,id,path,bytes,mime){return must(await cloud.rpc('register_project_image',{target_project_id:projectId,image_id:id,image_epub_path:path,image_original_bytes:bytes,image_original_mime:mime}));},
+  async uploadImage(path,file){must(await cloud.storage.from('books').upload(path,file,{contentType:file.type,upsert:true}));},
+  async setImageReplacement(projectId,id,path,metadata){return must(await cloud.rpc('set_project_image_replacement',{target_project_id:projectId,image_id:id,object_name:path,image_bytes:metadata.bytes,image_mime:metadata.mime,image_width:metadata.width,image_height:metadata.height}));},
+  async clearImageReplacement(projectId,id){return must(await cloud.rpc('clear_project_image_replacement',{target_project_id:projectId,image_id:id}));},
+  async downloadImage(path){return must(await cloud.storage.from('books').download(path));},
+  async deleteImage(path){if(path)must(await cloud.storage.from('books').remove([path]));},
+  async initializeDocument(projectId, seed) {
+    return postgresToBytes(must(await cloud.rpc('initialize_project_document',{target_project_id:projectId,initial_state:bytesToPostgres(seed)})));
+  },
+  async documentUpdates(projectId, since = null) {
+    let query=cloud.from('project_document_updates').select('update_id,payload,created_at').eq('project_id',projectId).order('created_at',{ascending:true}).order('update_id',{ascending:true});
+    if(since)query=query.gte('created_at',since);
+    return must(await query).map(row=>({operationId:row.update_id,payload:postgresToBytes(row.payload),createdAt:row.created_at}));
+  },
+  async appendDocumentUpdate(projectId, operationId, payload) {
+    must(await cloud.rpc('append_project_document_update',{target_project_id:projectId,operation_id:operationId,update_bytes:bytesToPostgres(payload)}));
+  },
   async list() { return must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').order('updated_at', { ascending:false })).map(fromRow); },
   async create(p) {
     const path = `${p.owner}/${p.id}/original`;
@@ -173,3 +198,13 @@ export const remote = {
     return { id:row.project_id, owner:'shared', title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, file, archived:false, collaborators:[], dirty:false };
   }
 };
+
+function bytesToPostgres(bytes) {
+  return `\\x${[...bytes].map(value=>value.toString(16).padStart(2,'0')).join('')}`;
+}
+function postgresToBytes(value) {
+  if(typeof value!=='string'||!/^\\x[0-9a-f]*$/i.test(value))throw new Error('Invalid collaborative update payload.');
+  const hex=value.slice(2),bytes=new Uint8Array(hex.length/2);
+  for(let index=0;index<bytes.length;index++)bytes[index]=Number.parseInt(hex.slice(index*2,index*2+2),16);
+  return bytes;
+}

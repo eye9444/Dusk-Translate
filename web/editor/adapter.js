@@ -48,7 +48,13 @@ function saveManualText() {
   if (value.trim()) translations[id] = value;
   else delete translations[id];
   delete partialResumes[id];
+  send('editor:text-edit',{chapterId:id,value});
   updateMark(cur, value); updateProg(); emit();
+}
+
+function restoreCaret(root,offset){
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let remaining=offset,node;
+  while((node=walker.nextNode())){if(remaining<=node.textContent.length){const range=document.createRange();range.setStart(node,remaining);range.collapse(true);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);return;}remaining-=node.textContent.length;}
 }
 const clearSearchHighlights = () => {
   if (findNavigator) findNavigator.hidden = true;
@@ -174,7 +180,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
   lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
-toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
+toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'),menuAction('host-save','Save now','save'),menuAction('host-backup','Export project','backup'));
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
@@ -278,6 +284,7 @@ const originalEndBusy = endBusy;
 endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = canEdit ? 'true' : 'false'; emit(); };
 const originalUpdate = updateProg;
 updateProg = function() { originalUpdate(); emit(); };
+doEpubExport = function(){ if(!canEdit||busy)return;send('editor:action',{action:'exportEpub'}); };
 
 function checkNovel(value) {
   if (!Array.isArray(value?.chapters) || !value.chapters.length) throw new Error('This file has no readable chapters.');
@@ -337,6 +344,22 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
+  if (e.data.type === 'host:sharedText') {
+    if(!novel||typeof e.data.value!=='string')return;
+    const chapterIndex=novel.chapters.findIndex(chapter=>chapter.id===e.data.chapterId);
+    if(chapterIndex<0)return;
+    if(e.data.value)translations[e.data.chapterId]=e.data.value;else delete translations[e.data.chapterId];
+    updateMark(chapterIndex,e.data.value);updateProg();
+    if(chapterIndex===cur&&!busy){
+      const out=document.getElementById('tl-out');
+      if(out.textContent!==e.data.value){
+        const selection=getSelection(),focused=document.activeElement===out&&selection.rangeCount;
+        const offset=focused?Math.min(selection.focusOffset,e.data.value.length):0;
+        out.textContent=e.data.value;if(focused)restoreCaret(out,offset);
+      }
+    }
+    return;
+  }
   if (e.data.type === 'host:clearFind') { clearSearchHighlights(); return; }
   if (e.data.type === 'host:exportSettings') {
     const ids = new Set(novel?.chapters.map(chapter => chapter.id));

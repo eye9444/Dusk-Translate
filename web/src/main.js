@@ -9,6 +9,8 @@ import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
 import { renderRubyParagraph } from './ruby-renderer.js';
+import { startCollaboration } from './collaboration.js';
+import { listEpubImages, validateReplacement, applyImageReplacements } from './image-assets.js';
 
 const $ = id => document.getElementById(id);
 const authReturn = new URL(location.href);
@@ -21,6 +23,9 @@ let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError 
 let authMode = 'signin', manage = null, releaseLock = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
+let projectCollaboration = null;
+let pendingRubySelection = null;
+let imageDialogAssets = [], imageDialogUrls = [];
 let readerOpen = false, readerProject = null, readerBook = null, readerChapter = 0, readerReturn = 'library';
 let renderedOwner = null;
 let libraryView = 'projects';
@@ -32,8 +37,54 @@ const owner = () => user?.id || 'guest';
 const isCloud = () => active && active.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
 const comments = createComments({ cloud, local, getProject: () => active, getUser: () => user,
+  onThreads: threads => $('editor').contentWindow?.postMessage({type:'host:comments',projectId:active?.id,threads:threads.map(thread=>{const location=projectCollaboration?.resolve(thread.anchor);return Number.isInteger(location?.start)?{...thread,anchor:{...thread.anchor,...location}}:thread;})},location.origin),
+  makeAnchor: selection => projectCollaboration?.anchor(selection) || selection,
+  resolveSharedAnchor: anchor => { const location=projectCollaboration?.resolve(anchor); return Number.isInteger(location?.start)&&Number.isInteger(location?.end)?location:null; },
   clearFocus: () => $('editor').contentWindow?.postMessage({ type:'host:clearComment', projectId:active?.id }, location.origin),
   focus: selection => $('editor').contentWindow?.postMessage({ type:'host:commentFocus', projectId:active.id, selection }, location.origin) });
+function sendRuby(chapterId) {
+  if(!active||!projectCollaboration)return;
+  $('editor').contentWindow?.postMessage({type:'host:ruby',projectId:active.id,annotations:projectCollaboration.ruby(chapterId)},location.origin);
+}
+function openRuby(selection){
+  $('ruby-error').textContent='';pendingRubySelection=null;
+  if(!projectCollaboration){$('ruby-error').textContent='Ruby text is available after cloud collaboration connects.';$('ruby-dialog').showModal();return;}
+  if(!selection||!['source','translation'].includes(selection.pane)||selection.end<=selection.start){$('ruby-error').textContent='Select the base text in the source or translation pane first.';$('ruby-dialog').showModal();return;}
+  pendingRubySelection=selection;$('ruby-base').textContent=selection.quote;$('ruby-reading').value='';$('ruby-published').checked=false;$('ruby-dialog').showModal();$('ruby-reading').focus();
+}
+$('ruby-form').onsubmit=event=>{event.preventDefault();if(!pendingRubySelection||!projectCollaboration)return;try{projectCollaboration.addRuby(pendingRubySelection,$('ruby-reading').value,$('ruby-published').checked);sendRuby(pendingRubySelection.chapterId);$('ruby-dialog').close();pendingRubySelection=null;}catch(error){$('ruby-error').textContent=errorMessage(error);}};
+function clearImageUrls(){for(const url of imageDialogUrls)URL.revokeObjectURL(url);imageDialogUrls=[];}
+async function replacementRows(project=active){return project&&isCloud() ? remote.imageAssets(project.id) : [];}
+async function projectFileWithReplacements(project){
+  if(!project||project.owner==='guest'||!/\.epub$/i.test(project.fileName))return project?.file;
+  const rows=await remote.imageAssets(project.id),replacements=[];
+  for(const row of rows.filter(item=>item.replacement_path))replacements.push({epubPath:row.epub_path,file:await remote.downloadImage(row.replacement_path)});
+  return applyImageReplacements(project.file,replacements);
+}
+async function renderImageAssets(){
+  clearImageUrls();const previews=$('images-preview').checked,rows=await replacementRows(),byPath=new Map(rows.map(row=>[row.epub_path,row]));
+  $('images-list').replaceChildren();
+  for(const asset of imageDialogAssets){
+    const row=byPath.get(asset.epubPath),card=el('article','image-asset'),title=el('strong','',asset.name),meta=el('small','',`${asset.mime} · ${(asset.bytes.length/1024).toFixed(1)} KB${row?.replacement_path?' · replaced':''}`),actions=el('div','image-asset-actions');
+    if(previews&&asset.replaceable){const source=row?.replacement_path?await remote.downloadImage(row.replacement_path):new Blob([asset.bytes],{type:asset.mime}),url=URL.createObjectURL(source),image=document.createElement('img');image.src=url;image.alt=asset.name;image.loading='lazy';imageDialogUrls.push(url);card.append(image);}
+    else if(previews&&!asset.replaceable)card.append(el('small','','Preview blocked for this image format. Download the original to inspect it safely.'));
+    actions.append(button('Download',async()=>{const file=row?.replacement_path?await remote.downloadImage(row.replacement_path):new Blob([asset.bytes],{type:asset.mime});download(asset.name,file);}));
+    if(active.accessRole!=='viewer'&&asset.replaceable){const label=el('label','','Replace'),input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{$('images-status').textContent='Validating replacement…';const checked=await validateReplacement(file,asset.bytes.length);let record=row;if(!record)record=await remote.registerImage(active.id,crypto.randomUUID(),asset.epubPath,asset.bytes.length,asset.mime);const ext=checked.mime==='image/png'?'png':checked.mime==='image/jpeg'?'jpg':'webp',path=`${active.owner}/${active.id}/images/${record.id}/replacement.${ext}`;await remote.uploadImage(path,file);await remote.setImageReplacement(active.id,record.id,path,checked);$('images-status').textContent='Replacement saved.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}finally{input.value='';}};label.append(input);actions.append(label);}
+    if(row?.replacement_path&&active.accessRole!=='viewer')actions.append(button('Restore original',async()=>{try{const old=row.replacement_path;await remote.clearImageReplacement(active.id,row.id);await remote.deleteImage(old);$('images-status').textContent='Original restored.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}}));
+    card.append(title,meta,actions);$('images-list').append(card);
+  }
+}
+async function showImages(){
+  $('images-status').textContent='Reading EPUB images…';$('images-list').replaceChildren();$('images-dialog').showModal();
+  try{if(!isCloud())throw new Error('Image replacement currently requires a cloud project.');if(!isEpub(active))throw new Error('This project does not contain an EPUB.');imageDialogAssets=await listEpubImages(active.file);$('images-status').textContent=`${imageDialogAssets.length} image assets found.`;await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}
+}
+async function exportTranslatedEpub(){
+  if(!active||!isEpub(active))return;
+  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const source=await projectFileWithReplacements(active),file=await buildTranslatedEpub(source,active.snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
+  catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
+}
+$('images-preview').onchange=()=>renderImageAssets().catch(error=>$('images-status').textContent=errorMessage(error));
+$('images-dialog').addEventListener('close',clearImageUrls);
 function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
 function projectRoute(path, id, edition = '') {
   const query = new URLSearchParams({ project:id });
@@ -383,7 +434,8 @@ async function openReader(id, edition = 'original', updateRoute = true) {
   try {
     const project = await loadProject(id);
     if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
-    const file = edition === 'translated' ? await buildTranslatedEpub(project.file, project.snapshot) : project.file;
+    const projectFile=await projectFileWithReplacements(project);
+    const file = edition === 'translated' ? await buildTranslatedEpub(projectFile, project.snapshot) : projectFile;
     await presentReader(file, project.fileName, edition === 'translated' ? 'TRANSLATED EDITION' : 'ORIGINAL EDITION', project);
     if (updateRoute) navigate(projectRoute('/reader', id, edition));
     status('');
@@ -465,6 +517,23 @@ async function flush() {
   await saveTask; saveTask=null;
 }
 let draftQueue = Promise.resolve();
+let pendingCollaborativeEdits = [];
+
+function queueCollaborativeTranslations(snapshot) {
+  if (!active || !isCloud() || active.accessRole === 'viewer') return;
+  const edits=(snapshot.novel?.chapters || []).map(chapter=>({
+    projectId:active.id,
+    chapterId:chapter.id,
+    value:String(snapshot.translations?.[chapter.id] || '').replace(/…PARTIAL$/u,'')
+  }));
+  if(projectCollaboration){
+    for(const edit of edits)projectCollaboration.edit(edit.chapterId,edit.value);
+  }else{
+    const latest=new Map(pendingCollaborativeEdits.filter(edit=>edit.projectId===active.id).map(edit=>[edit.chapterId,edit]));
+    for(const edit of edits)latest.set(edit.chapterId,edit);
+    pendingCollaborativeEdits=[...pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id),...latest.values()];
+  }
+}
 function openDictionary() {
   if (!active) return;
   const dialog=$('dictionary-dialog');
@@ -478,7 +547,17 @@ dictionaryDialog.addEventListener('click',event=>{
 window.addEventListener('message', e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
   if (e.data.type === 'editor:presence-location' && e.data.projectId === active.id) {
-    projectPresence?.update(e.data.location); return;
+    projectPresence?.update(e.data.location);
+    if(typeof e.data.location?.chapterId==='string')sendRuby(e.data.location.chapterId);
+    return;
+  }
+  if(e.data.type==='editor:text-edit'&&e.data.projectId===active.id){
+    if(typeof e.data.chapterId==='string'&&typeof e.data.value==='string'){
+      const edit={projectId:active.id,chapterId:e.data.chapterId,value:e.data.value};
+      if(projectCollaboration)projectCollaboration.edit(edit.chapterId,edit.value);
+      else pendingCollaborativeEdits.push(edit);
+    }
+    return;
   }
   if (e.data.type === 'editor:findNavigate') {
     focusFindMatch(findReplaceIndex + Number(e.data.delta || 0));
@@ -486,6 +565,10 @@ window.addEventListener('message', e => {
   }
   if (e.data.type === 'editor:action') {
     if (e.data.action === 'comments' && e.data.projectId === active.id) comments.open(e.data.selection);
+    if (e.data.action === 'ruby' && e.data.projectId === active.id) openRuby(e.data.selection);
+    if (e.data.action === 'images' && e.data.projectId === active.id) showImages();
+    if (e.data.action === 'exportEpub' && e.data.projectId === active.id) exportTranslatedEpub();
+    if (e.data.action === 'removeRuby' && typeof e.data.rubyId==='string' && projectCollaboration) projectCollaboration.removeRuby(e.data.rubyId);
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
@@ -507,17 +590,50 @@ window.addEventListener('message', e => {
   if (e.data.type === 'editor:error') { announceSave(`Could not open book: ${e.data.message}`); return; }
   if (e.data.type === 'editor:loaded') {
     editorReady=true;
+    comments.watch(active).catch(error=>announceSave(`Comments unavailable: ${errorMessage(error)}`));
     projectPresence?.stop(); projectPresence=null;
     if (user && isCloud()) {
       const id=active.id;
       projectPresence=startProjectPresence(cloud,id,user.id,presence=>{
         if (active?.id === id) $('editor').contentWindow?.postMessage({type:'host:presence',...presence},location.origin);
       });
+      if(active.accessRole!=='viewer'){
+        projectCollaboration?.stop();projectCollaboration=null;
+        const project=active;
+        startCollaboration({project,local,remote,onStatus:message=>{if(active===project)announceSave(message);},onRuby:(chapterId)=>{if(active===project)sendRuby(chapterId);},onText:(chapterId,value)=>{
+          if(active!==project)return;
+          const previous=active.snapshot.translations?.[chapterId]||'';
+          if(previous===value)return;
+          active.snapshot.translations ||= {};
+          if(value)active.snapshot.translations[chapterId]=value;else delete active.snapshot.translations[chapterId];
+          $('editor').contentWindow?.postMessage({type:'host:sharedText',projectId:active.id,chapterId,value},location.origin);
+          generation++;active.dirty=true;
+          const draft={...active,updatedAt:new Date().toISOString()};
+          draftQueue=draftQueue.catch(()=>{}).then(()=>local.patch(draft)).catch(error=>announceSave(`Could not save local draft: ${errorMessage(error)}`));
+          if(!saveTimer)saveTimer=setTimeout(async()=>{saveTimer=null;await draftQueue;await flush();},1200);
+        }}).then(controller=>{
+          if(active!==project){controller.stop();return;}
+          projectCollaboration=controller;
+          for(const chapter of project.snapshot.novel.chapters)sendRuby(chapter.id);
+          const queued=pendingCollaborativeEdits.filter(edit=>edit.projectId===project.id);
+          pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==project.id);
+          for(const edit of queued)controller.edit(edit.chapterId,edit.value);
+        }).catch(error=>{if(active===project)announceSave(`Collaboration unavailable: ${errorMessage(error)}`);});
+      }
     }
   }
   if (e.data.type !== 'editor:state') return;
   try {
-    active.snapshot=cleanSnapshot(e.data.snapshot); generation++;
+    const next=cleanSnapshot(e.data.snapshot);
+    queueCollaborativeTranslations(next);
+    if(projectCollaboration){
+      next.translations ||= {};
+      for(const chapter of next.novel?.chapters || []){
+        const value=projectCollaboration.text(chapter.id);
+        if(value)next.translations[chapter.id]=value;else delete next.translations[chapter.id];
+      }
+    }
+    active.snapshot=next; generation++;
     streaming=Boolean(e.data.busy); $('back').disabled=streaming;
     active.dirty=isCloud();
     const draft={...active,updatedAt:new Date().toISOString()};
@@ -527,19 +643,20 @@ window.addEventListener('message', e => {
     if (!saveTimer) saveTimer=setTimeout(async()=>{saveTimer=null;await draftQueue;await flush();},1200);
   } catch(err) { announceSave(errorMessage(err)); }
 });
-async function saveNow() { saveError=''; await draftQueue; await flush(); }
+async function saveNow() { saveError=''; await projectCollaboration?.flush();await draftQueue; await flush(); }
 $('save-now').onclick = saveNow;
 async function leave({ updateRoute = true } = {}) {
   if (!active || streaming || closing) return;
   closing=true; clearTimeout(saveTimer); saveTimer=null;
-  await draftQueue; saveError=''; await flush();
+  await projectCollaboration?.flush();await draftQueue; saveError=''; await flush();
   if (saveError) {
     const cached=await local.get(owner(),active.id);
     const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
     if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
   }
-  projectPresence?.stop(); projectPresence=null;
-  comments.close();
+  projectPresence?.stop(); projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
+  pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id);
+  comments.stop();
   $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
   if (updateRoute) navigate('/home');
 }
@@ -571,7 +688,7 @@ async function downloadProject(project) {
 }
 $('backup').onclick=downloadBackup;
 window.addEventListener('beforeunload',e=>{if(active&&(persisted!==generation||streaming)){e.preventDefault();e.returnValue='';}});
-window.addEventListener('pagehide',()=>{projectPresence?.stop();projectPresence=null;});
+window.addEventListener('pagehide',()=>{projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;});
 window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
 
@@ -1019,8 +1136,8 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
     if(user?.id!==next?.id){
-      comments.close();
-      projectPresence?.stop();projectPresence=null;
+      comments.stop();
+      projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
       if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
       if (!next) navigate('/', true);
       user=next;setTimeout(refresh,0);
