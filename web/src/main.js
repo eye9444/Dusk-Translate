@@ -746,7 +746,15 @@ async function leave({ updateRoute = true } = {}) {
   if (updateRoute) navigate('/home');
 }
 $('back').onclick=leave;
-$('brand').onclick=e=>{e.preventDefault();if(active)leave();else if(readerOpen)leaveReader();else if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');refresh();}};
+$('brand').onclick=e=>{
+  if(e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;
+  e.preventDefault();
+  if(active){leave();return;}
+  if(readerOpen){leaveReader();return;}
+  if(!user){guestMode=false;sessionStorage.removeItem('dusk-guest');}
+  navigate(user?'/home':'/');
+  refresh();
+};
 async function downloadBackup() {
   if (!active) return;
   await draftQueue; await flush();
