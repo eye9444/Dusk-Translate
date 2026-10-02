@@ -10,11 +10,29 @@
   const selectionRuby=document.createElement('button');selectionRuby.type='button';selectionRuby.textContent='Ruby';selectionRuby.setAttribute('aria-label','Add ruby text to selection');selectionTools.append(selectionRuby);
   document.body.append(rubyNotes,rubyOverlay,commentGutter,selectionTools); toolMenu.append(comments,ruby);
   let commentThreads=[],rubyAnnotations=[],hoverLine=null,hoverClearTimer=null;
+  const rubyByChapter=new Map();
+  const rubyClose=document.createElement('button');rubyClose.type='button';rubyClose.textContent='Close';rubyClose.onclick=()=>{rubyNotes.hidden=true;};
   const selectionForRange=(range,pane,root)=>{const preceding=document.createRange();preceding.selectNodeContents(root);preceding.setEnd(range.startContainer,range.startOffset);const start=preceding.toString().length,end=start+range.toString().length,text=root.textContent;if(end<=start||end-start>2000)return null;return {chapterId:novel.chapters[cur].id,pane,start,end,quote:text.slice(start,end),prefix:text.slice(Math.max(0,start-48),start),suffix:text.slice(end,end+48)};};
   function lineAt(root,pane,offset){const text=root.textContent,start=text.lastIndexOf('\n',Math.max(0,offset-1))+1,next=text.indexOf('\n',offset),end=next<0?text.length:next;if(end<=start)return null;return {chapterId:novel.chapters[cur].id,pane,start,end,quote:text.slice(start,end),prefix:text.slice(Math.max(0,start-48),start),suffix:text.slice(end,end+48)};}
-  const scheduleHoverClear=()=>{clearTimeout(hoverClearTimer);hoverClearTimer=setTimeout(()=>{hoverLine=null;renderCommentGutter();},240);};
+  const scheduleHoverClear=()=>{clearTimeout(hoverClearTimer);hoverClearTimer=setTimeout(()=>{if(commentGutter.querySelector(':hover')||commentGutter.contains(document.activeElement))return;hoverLine=null;renderCommentGutter();},240);};
   function marker(selection,count=0,hover=false){const root=document.getElementById(selection.pane==='source'?'src-txt':'tl-out'),range=textRange(root,selection.start,selection.end);if(!range)return null;const rect=range.getClientRects()[0]||range.getBoundingClientRect(),pane=root.closest('.pane').getBoundingClientRect(),button=document.createElement('button'),svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');button.type='button';button.className=`line-comment${hover?' is-hover':''}${count?' has-comments':''}`;button.style.left=`${pane.right-67}px`;button.style.top=`${Math.max(pane.top+38,rect.top)}px`;button.setAttribute('aria-label',count?`${count} comments on this line`:'Comment on this line');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M5 5.5h14v10H9.5L5 19.5v-14Z');svg.append(path);button.append(svg);if(count)button.dataset.count=String(count);button.onpointerenter=()=>clearTimeout(hoverClearTimer);button.onpointerleave=scheduleHoverClear;button.onclick=()=>send('editor:action',{action:'comments',selection});return button;}
-  function renderCommentGutter(){if(!novel)return;const chapterId=novel.chapters[cur].id,groups=new Map();for(const thread of commentThreads.filter(item=>!item.resolved&&item.anchor?.chapterId===chapterId)){const anchor=thread.anchor,key=`${anchor.pane}:${anchor.start}:${anchor.end}`,entry=groups.get(key)||{anchor,count:0};entry.count+=(thread.messages?.length||1);groups.set(key,entry);}const nodes=[...groups.values()].map(entry=>marker(entry.anchor,entry.count)).filter(Boolean);if(hoverLine&&!groups.has(`${hoverLine.pane}:${hoverLine.start}:${hoverLine.end}`)){const node=marker(hoverLine,0,true);if(node)nodes.push(node);}commentGutter.replaceChildren(...nodes);}
+  function renderCommentGutter(){
+    if(!novel)return;
+    const chapterId=novel.chapters[cur].id,groups=new Map();
+    for(const thread of commentThreads.filter(item=>!item.resolved&&item.anchor?.chapterId===chapterId)){
+      const anchor=thread.anchor,key=`${anchor.pane}:${anchor.start}:${anchor.end}`,entry=groups.get(key)||{anchor,count:0};entry.count+=(thread.messages?.length||1);groups.set(key,entry);
+    }
+    if(hoverLine){const key=`${hoverLine.pane}:${hoverLine.start}:${hoverLine.end}`;if(!groups.has(key))groups.set(key,{anchor:hoverLine,count:0});}
+    const retained=new Set();
+    for(const [key,entry] of groups){
+      const candidate=marker(entry.anchor,entry.count,!entry.count);if(!candidate)continue;
+      const identity=`${chapterId}:${key}:${entry.count}`;
+      const existing=[...commentGutter.children].find(node=>node.dataset.key===identity);
+      if(existing){existing.style.cssText=candidate.style.cssText;retained.add(existing);}
+      else{candidate.dataset.key=identity;commentGutter.append(candidate);retained.add(candidate);}
+    }
+    for(const node of [...commentGutter.children])if(!retained.has(node))node.remove();
+  }
   function renderRubyOverlay(){if(!novel)return;rubyOverlay.replaceChildren(...rubyAnnotations.filter(item=>item.chapterId===novel.chapters[cur].id&&item.location?.status!=='unanchored').map(item=>{const root=document.getElementById(item.pane==='source'?'src-txt':'tl-out'),range=textRange(root,item.location.start,item.location.end);if(!range)return null;const rect=range.getClientRects()[0]||range.getBoundingClientRect(),bounds=root.getBoundingClientRect();if(rect.bottom<bounds.top||rect.top>bounds.bottom)return null;const reading=document.createElement('span');reading.className='inline-ruby-reading';reading.textContent=item.reading;reading.style.left=`${rect.left+rect.width/2}px`;reading.style.top=`${rect.top}px`;return reading;}).filter(Boolean));}
   function capture() {
     const selected = getSelection();
@@ -32,17 +50,20 @@
   addEventListener('resize',()=>{renderCommentGutter();renderRubyOverlay();});
   document.addEventListener('dusk:chapter', () => { selection = null;hoverLine=null;selectionTools.hidden=true; comments.hidden = !canEdit; ruby.hidden = !canEdit; rubyNotes.hidden=true; rubyOverlay.replaceChildren();renderCommentGutter();globalThis.CSS?.highlights?.delete('dusk-comment'); globalThis.CSS?.highlights?.delete('dusk-ruby'); });
   comments.onclick = () => { closeToolMenu(); send('editor:action', { action: 'comments', selection }); };
-  ruby.onclick = () => { closeToolMenu(); send('editor:action', { action: 'ruby', selection }); };
+  ruby.onclick = () => { closeToolMenu();if(!selection&&rubyNotes.childElementCount>1){rubyNotes.hidden=!rubyNotes.hidden;return;}send('editor:action', { action: 'ruby', selection }); };
   selectionRuby.onclick=()=>{selectionTools.hidden=true;send('editor:action',{action:'ruby',selection});};
   window.addEventListener('message', event => {
     if(event.origin===location.origin&&event.source===parent&&event.data?.type==='host:comments'&&event.data.projectId===projectId){commentThreads=Array.isArray(event.data.threads)?event.data.threads:[];renderCommentGutter();return;}
     if(event.origin===location.origin&&event.source===parent&&event.data?.type==='host:ruby'&&event.data.projectId===projectId){
-      rubyAnnotations=Array.isArray(event.data.annotations)?event.data.annotations:[];
+      const incoming=Array.isArray(event.data.annotations)?event.data.annotations:[];
+      const chapterId=event.data.chapterId||incoming[0]?.chapterId||novel?.chapters[cur]?.id;
+      rubyByChapter.set(chapterId,incoming);
+      rubyAnnotations=[...rubyByChapter.values()].flat();
       const current=rubyAnnotations.filter(item=>item.chapterId===novel?.chapters[cur]?.id&&item.location?.status!=='unanchored');
       const ranges=current.map(item=>textRange(document.getElementById(item.pane==='source'?'src-txt':'tl-out'),item.location.start,item.location.end)).filter(Boolean);
       if(globalThis.CSS?.highlights)CSS.highlights.set('dusk-ruby',new Highlight(...ranges));
       rubyNotes.replaceChildren(...current.map(item=>{const row=document.createElement('div'),text=document.createElement('span'),remove=document.createElement('button');text.textContent=`${item.location.quote} · ${item.reading}${item.published?' · published':''}`;remove.type='button';remove.textContent='Remove';remove.onclick=()=>send('editor:action',{action:'removeRuby',rubyId:item.id});row.append(text,remove);return row;}));
-      rubyNotes.hidden=!current.length;renderRubyOverlay();return;
+      rubyNotes.append(rubyClose);if(!current.length)rubyNotes.hidden=true;renderRubyOverlay();return;
     }
     if (event.origin === location.origin && event.source === parent && event.data?.type === 'host:clearComment' && event.data.projectId === projectId) globalThis.CSS?.highlights?.delete('dusk-comment');
     if (event.origin !== location.origin || event.source !== parent || event.data?.type !== 'host:commentFocus' || event.data.projectId !== projectId || busy) return;
