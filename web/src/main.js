@@ -44,7 +44,7 @@ const comments = createComments({ cloud, local, getProject: () => active, getUse
   focus: selection => $('editor').contentWindow?.postMessage({ type:'host:commentFocus', projectId:active.id, selection }, location.origin) });
 function sendRuby(chapterId) {
   if(!active||!projectCollaboration)return;
-  $('editor').contentWindow?.postMessage({type:'host:ruby',projectId:active.id,annotations:projectCollaboration.ruby(chapterId)},location.origin);
+  $('editor').contentWindow?.postMessage({type:'host:ruby',projectId:active.id,chapterId,annotations:projectCollaboration.ruby(chapterId)},location.origin);
 }
 function openRuby(selection){
   $('ruby-error').textContent='';pendingRubySelection=null;
@@ -85,6 +85,13 @@ async function exportTranslatedEpub(){
 }
 $('images-preview').onchange=()=>renderImageAssets().catch(error=>$('images-status').textContent=errorMessage(error));
 $('images-dialog').addEventListener('close',()=>{if($('image-preview-dialog').open)$('image-preview-dialog').close();$('image-preview-full').removeAttribute('src');clearImageUrls();});
+for(const id of ['images-dialog','image-preview-dialog']){
+  const dialog=$(id);
+  let beganOutside=false;
+  const outside=event=>{const box=dialog.getBoundingClientRect();return event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom;};
+  dialog.addEventListener('pointerdown',event=>{beganOutside=event.target===dialog&&outside(event);});
+  dialog.addEventListener('click',event=>{if(beganOutside&&event.target===dialog&&outside(event))dialog.close();beganOutside=false;});
+}
 function currentRoute() { const path = location.pathname.replace(/\/+$/, '') || '/'; return ROUTES.has(path) ? path : '/'; }
 function projectRoute(path, id, edition = '') {
   const query = new URLSearchParams({ project:id });
