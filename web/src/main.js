@@ -83,6 +83,8 @@ async function exportTranslatedEpub(){
   try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const source=await projectFileWithReplacements(active),file=await buildTranslatedEpub(source,active.snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
   catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
 }
+$('images-preview').defaultChecked=true;
+$('images-preview').checked=true;
 $('images-preview').onchange=()=>renderImageAssets().catch(error=>$('images-status').textContent=errorMessage(error));
 $('images-dialog').addEventListener('close',()=>{if($('image-preview-dialog').open)$('image-preview-dialog').close();$('image-preview-full').removeAttribute('src');clearImageUrls();});
 for(const id of ['images-dialog','image-preview-dialog']){
@@ -575,7 +577,10 @@ window.addEventListener('message', e => {
     if (e.data.action === 'ruby' && e.data.projectId === active.id) openRuby(e.data.selection);
     if (e.data.action === 'images' && e.data.projectId === active.id) showImages();
     if (e.data.action === 'exportEpub' && e.data.projectId === active.id) exportTranslatedEpub();
-    if (e.data.action === 'removeRuby' && typeof e.data.rubyId==='string' && projectCollaboration) projectCollaboration.removeRuby(e.data.rubyId);
+    if (['removeRuby','updateRuby'].includes(e.data.action) && e.data.projectId===active.id && active.accessRole!=='viewer' && typeof e.data.rubyId==='string' && projectCollaboration) {
+      try{if(e.data.action==='updateRuby')projectCollaboration.updateRuby(e.data.rubyId,e.data.reading);else projectCollaboration.removeRuby(e.data.rubyId);}
+      catch(error){announceSave(errorMessage(error));}
+    }
     if (e.data.action === 'library') leave();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();

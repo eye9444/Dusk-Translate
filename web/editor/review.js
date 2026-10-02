@@ -4,7 +4,21 @@
   const comments = document.createElement('button'); comments.id = 'host-comments'; comments.type = 'button'; comments.textContent = 'Comments';
   const ruby = document.createElement('button'); ruby.id = 'host-ruby'; ruby.type = 'button'; ruby.textContent = 'Ruby text';
   const rubyNotes = document.createElement('div'); rubyNotes.id = 'ruby-notes'; rubyNotes.className = 'ruby-notes'; rubyNotes.hidden = true;
-  const rubyOverlay=document.createElement('div');rubyOverlay.className='ruby-overlay';rubyOverlay.setAttribute('aria-hidden','true');
+  const rubyOverlay=document.createElement('div');rubyOverlay.className='ruby-overlay';
+  const rubyEditor=document.createElement('form');rubyEditor.className='inline-ruby-editor';rubyEditor.hidden=true;
+  const rubyInput=document.createElement('input');rubyInput.setAttribute('aria-label','Edit ruby reading');rubyInput.maxLength=500;rubyInput.required=true;
+  const rubySave=document.createElement('button');rubySave.type='submit';rubySave.textContent='Save';
+  const rubyDelete=document.createElement('button');rubyDelete.type='button';rubyDelete.textContent='Delete';
+  const rubyCancel=document.createElement('button');rubyCancel.type='button';rubyCancel.textContent='Cancel';rubyCancel.onclick=()=>{rubyEditor.hidden=true;};
+  rubyEditor.append(rubyInput,rubySave,rubyDelete,rubyCancel);document.body.append(rubyEditor);
+  let editingRubyId=null;
+  function editRuby(item,node){if(!canEdit)return;editingRubyId=item.id;rubyInput.value=item.reading;const box=node.getBoundingClientRect();rubyEditor.hidden=false;rubyEditor.style.left=`${Math.max(8,Math.min(innerWidth-rubyEditor.offsetWidth-8,box.left))}px`;rubyEditor.style.top=`${Math.max(8,Math.min(innerHeight-rubyEditor.offsetHeight-8,box.bottom+4))}px`;selectionTools.hidden=true;rubyInput.focus();rubyInput.select();}
+  rubyEditor.onsubmit=event=>{event.preventDefault();if(!canEdit||!rubyInput.value.trim())return;send('editor:action',{action:'updateRuby',rubyId:editingRubyId,reading:rubyInput.value});rubyEditor.hidden=true;};
+  rubyDelete.onclick=()=>{if(!canEdit)return;send('editor:action',{action:'removeRuby',rubyId:editingRubyId});rubyEditor.hidden=true;};
+  rubyEditor.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();rubyEditor.hidden=true;}});
+  document.addEventListener('dusk:chapter',()=>{rubyEditor.hidden=true;});
+  document.addEventListener('scroll',event=>{if(['src-txt','tl-out'].includes(event.target.id))rubyEditor.hidden=true;},true);
+  document.addEventListener('pointerdown',event=>{if(!rubyEditor.contains(event.target)&&!event.target.closest('.inline-ruby-reading'))rubyEditor.hidden=true;});
   const commentGutter=document.createElement('div');commentGutter.className='comment-gutter';
   const selectionTools=document.createElement('div');selectionTools.className='selection-tools';selectionTools.hidden=true;
   const selectionRuby=document.createElement('button');selectionRuby.type='button';selectionRuby.textContent='Ruby';selectionRuby.setAttribute('aria-label','Add ruby text to selection');selectionTools.append(selectionRuby);
@@ -33,7 +47,19 @@
     }
     for(const node of [...commentGutter.children])if(!retained.has(node))node.remove();
   }
-  function renderRubyOverlay(){if(!novel)return;rubyOverlay.replaceChildren(...rubyAnnotations.filter(item=>item.chapterId===novel.chapters[cur].id&&item.location?.status!=='unanchored').map(item=>{const root=document.getElementById(item.pane==='source'?'src-txt':'tl-out'),range=textRange(root,item.location.start,item.location.end);if(!range)return null;const rect=range.getClientRects()[0]||range.getBoundingClientRect(),bounds=root.getBoundingClientRect();if(rect.bottom<bounds.top||rect.top>bounds.bottom)return null;const reading=document.createElement('span');reading.className='inline-ruby-reading';reading.textContent=item.reading;reading.style.left=`${rect.left+rect.width/2}px`;reading.style.top=`${rect.top}px`;return reading;}).filter(Boolean));}
+  function renderRubyOverlay(){
+    if(!novel)return;
+    const retained=new Set();
+    for(const item of rubyAnnotations.filter(item=>item.chapterId===novel.chapters[cur].id&&item.location?.status!=='unanchored')){
+      const root=document.getElementById(item.pane==='source'?'src-txt':'tl-out'),range=textRange(root,item.location.start,item.location.end);if(!range)continue;
+      const rect=range.getClientRects()[0]||range.getBoundingClientRect(),bounds=root.getBoundingClientRect();if(rect.top<bounds.top+10||rect.top>bounds.bottom)continue;
+      let reading=[...rubyOverlay.children].find(node=>node.dataset.id===item.id);
+      if(!reading){reading=document.createElement('button');reading.type='button';reading.className='inline-ruby-reading';reading.dataset.id=item.id;rubyOverlay.append(reading);}
+      reading.textContent=item.reading;reading.disabled=!canEdit;reading.setAttribute('aria-label',`Edit ruby: ${item.reading}`);reading.onclick=()=>editRuby(item,reading);reading.style.left=`${rect.left+rect.width/2}px`;reading.style.top=`${rect.top}px`;retained.add(reading);
+    }
+    for(const node of [...rubyOverlay.children])if(!retained.has(node))node.remove();
+    if(!rubyEditor.hidden&&![...retained].some(node=>node.dataset.id===editingRubyId))rubyEditor.hidden=true;
+  }
   function capture() {
     const selected = getSelection();
     if (!novel || !selected?.rangeCount || selected.isCollapsed) return;

@@ -80,6 +80,13 @@ export function removeRuby(doc, id, origin) {
   doc.transact(() => doc.getMap('ruby').delete(id), origin);
 }
 
+export function updateRuby(doc, id, reading, origin) {
+  const existing=doc.getMap('ruby').get(id);
+  if(!existing)throw new Error('This ruby has been deleted.');
+  if(typeof reading!=='string'||!reading.trim()||reading.length>500)throw new Error('Ruby must contain between 1 and 500 characters.');
+  doc.transact(()=>doc.getMap('ruby').set(id,{...existing,reading:reading.trim()}),origin);
+}
+
 export function rubyForPassage(doc, chapterId, pane = 'translation', { publishedOnly = false } = {}) {
   return [...doc.getMap('ruby').values()]
     .filter(ruby => ruby.chapterId === chapterId && ruby.pane === pane && (!publishedOnly || ruby.published === true))
