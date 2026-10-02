@@ -19,7 +19,7 @@ function buildCards(root, onSubscribe) {
       <p class="pricing-card-description"></p>
       <p class="pricing-price" data-price-for="${tier.name}">Loading price...</p>
       <p class="pricing-period" data-period-for="${tier.name}"></p>
-      <p class="pricing-trial">Includes a 7-day free trial</p>
+      ${tier.name === 'Starter' ? '<p class="pricing-trial pricing-trial-empty" aria-hidden="true"></p>' : '<p class="pricing-trial">Includes a 7-day free trial</p>'}
       <ul class="pricing-features"></ul>
       <button type="button" class="pricing-subscribe" data-subscribe-to="${tier.name}">Choose ${tier.name}</button>
     `;
