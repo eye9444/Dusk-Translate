@@ -251,8 +251,11 @@ test('accidental drops do not leave the standalone editor warning visible',async
 });
 test('selected text exposes the contextual ruby action',async({page})=>{
   await create(page,'Ruby selection');const editor=page.frameLocator('#editor');
-  await editor.locator('#src-txt').evaluate(root=>{const range=document.createRange();range.selectNodeContents(root);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);});
+  await editor.locator('#src-txt').evaluate(root=>{root.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));const range=document.createRange();range.selectNodeContents(root);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);});
+  await expect(editor.getByRole('button',{name:'Add ruby text to selection'})).toBeHidden();
+  await editor.locator('#src-txt').evaluate(()=>document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true})));
   await expect(editor.getByRole('button',{name:'Add ruby text to selection'})).toBeVisible();
+  expect(await editor.locator('#src-txt').evaluate(()=>{const selectionBox=getSelection().getRangeAt(0).getBoundingClientRect(),buttonBox=document.querySelector('.selection-tools').getBoundingClientRect();return buttonBox.bottom<=selectionBox.top+1;})).toBe(true);
   await editor.getByRole('button',{name:'Add ruby text to selection'}).click();
   await expect(page.locator('#ruby-dialog')).toBeVisible();
 });
