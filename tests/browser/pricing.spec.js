@@ -5,14 +5,18 @@ test('pricing route renders Paddle-backed tiers and switches billing periods', a
 
   await expect(page).toHaveURL(/\/pricing$/);
   await expect(page.locator('#pricing')).toBeVisible();
-  await expect(page.locator('.pricing-card')).toHaveCount(3);
-  await expect(page.locator('[data-period-for="Advanced"]')).toHaveText('per month');
-  await expect(page.locator('[data-price-for="Pro"]')).not.toHaveText('Price unavailable');
-  await expect(page.getByRole('button', { name: 'Yearly', exact: true })).toBeVisible();
+  const pricing = page.locator('#pricing');
+  await expect(pricing.locator('.pricing-card')).toHaveCount(2);
+  await pricing.getByRole('button', { name: 'Teams', exact: true }).click();
+  await expect(pricing.locator('[data-tier="Teams"]')).toBeVisible();
+  await expect(pricing.locator('[data-tier="Pro"]')).toBeHidden();
+  await expect(pricing.locator('[data-period-for="Teams"]')).toHaveText('per month');
+  await expect(pricing.locator('[data-price-for="Pro"]')).not.toHaveText('Price unavailable');
+  await expect(pricing.getByRole('button', { name: 'Yearly', exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Yearly', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Yearly', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('[data-period-for="Advanced"]')).toHaveText('per year');
+  await pricing.getByRole('button', { name: 'Yearly', exact: true }).click();
+  await expect(pricing.getByRole('button', { name: 'Yearly', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expect(pricing.locator('[data-period-for="Teams"]')).toHaveText('per year');
 });
 
 test('subscription welcome route is available without a signed-in session', async ({ page }) => {

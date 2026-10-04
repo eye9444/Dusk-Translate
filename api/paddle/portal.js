@@ -1,4 +1,4 @@
-import { getPaddle } from '../../server/paddle.js';
+import { getPaddle, getPaddleEnvironment } from '../../server/paddle.js';
 import { requireAuthenticatedUser, getSupabaseAdmin } from '../../server/supabase.js';
 
 export default async function handler(request, response) {
@@ -14,7 +14,9 @@ export default async function handler(request, response) {
     const { data: customer, error: customerError } = await admin
       .from('customers')
       .select('customer_id')
-      .ilike('email', user.email)
+      .eq('user_id', user.id)
+      .eq('environment', getPaddleEnvironment())
+      .order('created_at', { ascending: true })
       .limit(1)
       .maybeSingle();
     if (customerError) throw customerError;

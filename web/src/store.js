@@ -23,7 +23,7 @@ export async function googleAvailable() {
 let database;
 function db() {
   return database ||= new Promise((resolve, reject) => {
-    const request = indexedDB.open('dusktranslate-library', 4);
+    const request = indexedDB.open('dusktranslate-library', 5);
     request.onupgradeneeded = event => {
       const database = request.result;
       if (event.oldVersion < 3) database.createObjectStore('projectComments', { keyPath: 'cacheKey' });
@@ -31,6 +31,7 @@ function db() {
         const updates = database.createObjectStore('documentUpdates', { keyPath:'operationId' });
         updates.createIndex('projectId', 'projectId');
       }
+      if(event.oldVersion<5){const images=database.createObjectStore('localImages',{keyPath:'cacheKey'});images.createIndex('projectId','projectId');}
       const projects = event.oldVersion < 1
         ? database.createObjectStore('projects', { keyPath: 'cacheKey' })
         : request.transaction.objectStore('projects');
@@ -68,6 +69,9 @@ async function transaction(storeNames, mode, work) {
   });
 }
 export const local = {
+  async imageAssets(projectId){return transaction('localImages','readonly',({localImages})=>localImages.index('projectId').getAll(projectId));},
+  putImage(projectId,epubPath,file,metadata){return transaction('localImages','readwrite',({localImages})=>localImages.put({cacheKey:`${projectId}:${epubPath}`,projectId,epub_path:epubPath,replacement_path:'local',replacement:file,...metadata}));},
+  removeImage(projectId,epubPath){return transaction('localImages','readwrite',({localImages})=>localImages.delete(`${projectId}:${epubPath}`));},
   async documentUpdates(projectId) { return transaction('documentUpdates','readonly',({documentUpdates})=>documentUpdates.index('projectId').getAll(projectId)); },
   queueDocumentUpdate(projectId,operationId,payload) { return transaction('documentUpdates','readwrite',({documentUpdates})=>documentUpdates.put({projectId,operationId,payload,createdAt:new Date().toISOString()})); },
   removeDocumentUpdate(operationId) { return transaction('documentUpdates','readwrite',({documentUpdates})=>documentUpdates.delete(operationId)); },
@@ -95,7 +99,7 @@ export const local = {
     delete record.file;
     projects.put(record);
   }); },
-  remove(owner, id) { const cacheKey = `${owner}:${id}`; return transaction(['projects','projectFiles','projectComments'], 'readwrite', ({projects,projectFiles,projectComments}) => { projects.delete(cacheKey); projectFiles.delete(cacheKey); projectComments.delete(cacheKey); }); }
+  remove(owner, id) { const cacheKey = `${owner}:${id}`; return transaction(['projects','projectFiles','projectComments','localImages'], 'readwrite', ({projects,projectFiles,projectComments,localImages}) => { projects.delete(cacheKey); projectFiles.delete(cacheKey); projectComments.delete(cacheKey);const keys=localImages.index('projectId').getAllKeys(id);keys.onsuccess=()=>keys.result.forEach(key=>localImages.delete(key)); }); }
 };
 function must(result) {
   if (result.error) {
@@ -108,16 +112,38 @@ function must(result) {
 function fromRow(row) {
   return { id:row.id, owner:row.owner_id, title:row.title, fileName:row.file_name, filePath:row.file_path, snapshot:row.snapshot, archived:row.archived, updatedAt:row.updated_at, createdAt:row.created_at, revision:row.revision, collaborators:row.project_collaborators || [], dirty:false };
 }
+async function documentRequest(body){
+ const {data,error}=await cloud.auth.getSession();if(error)throw error;
+ if(!data.session)throw new Error('Sign in to edit cloud projects.');
+ const response=await fetch('/api/project-document',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+data.session.access_token},body:JSON.stringify(body)});
+ const result=await response.json();if(!response.ok)throw new Error(result.error||'Document update failed.');return result;
+}
 export const remote = {
+  async readerLinkStatus(projectId){return must(await cloud.rpc('reader_link_status',{target_project:projectId}));},
+  async capacity(){return must(await cloud.rpc('account_cloud_capacity'));},
+  async seatSelection(projectId){return must(await cloud.rpc('project_seat_selection',{target_project:projectId}));},
+  async readerComments(token,chapterId){return must(await cloud.rpc('list_reader_comments',{reader_token:token,target_chapter:chapterId}));},
+  async writeReaderComment(token,chapterId,operation,values={}){return must(await cloud.rpc('write_reader_comment',{
+    reader_token:token,target_chapter:chapterId,operation,comment_id:values.id||null,body_text:values.body||null,
+    passage_quote:values.quote||null,text_version:values.version||null}));},
+  async setReaderCommenting(projectId,enabled){must(await cloud.rpc('set_reader_commenting',{target_project:projectId,enabled}));},
+  async setInstructions(projectId,instructions){must(await cloud.rpc('set_project_instructions',{target_project:projectId,instructions}));},
+  async entitlements(projectId){return must(await cloud.rpc('project_entitlements',{target_project:projectId}));},
+  async selectProjects(ids){must(await cloud.rpc('select_editable_projects',{selected:ids}));},
+  async configureLaunch(projectId,selected=null,instructions=null){must(await cloud.rpc('configure_project_launch',{target_project:projectId,selected,instructions}));},
   async imageAssets(projectId){return must(await cloud.from('project_image_assets').select('*').eq('project_id',projectId));},
   async registerImage(projectId,id,path,bytes,mime){return must(await cloud.rpc('register_project_image',{target_project_id:projectId,image_id:id,image_epub_path:path,image_original_bytes:bytes,image_original_mime:mime}));},
-  async uploadImage(path,file){must(await cloud.storage.from('books').upload(path,file,{contentType:file.type,upsert:true}));},
+  async uploadImage(path,file){
+    must(await cloud.rpc('reserve_cloud_upload',{target_project:path.split('/')[1],object_name:path,upload_bytes:file.size}));
+    try { must(await cloud.storage.from('books').upload(path,file,{contentType:file.type,upsert:true})); }
+    finally { await cloud.rpc('release_cloud_upload',{target_object:path}); }
+  },
   async setImageReplacement(projectId,id,path,metadata){return must(await cloud.rpc('set_project_image_replacement',{target_project_id:projectId,image_id:id,object_name:path,image_bytes:metadata.bytes,image_mime:metadata.mime,image_width:metadata.width,image_height:metadata.height}));},
   async clearImageReplacement(projectId,id){return must(await cloud.rpc('clear_project_image_replacement',{target_project_id:projectId,image_id:id}));},
   async downloadImage(path){return must(await cloud.storage.from('books').download(path));},
   async deleteImage(path){if(path)must(await cloud.storage.from('books').remove([path]));},
   async initializeDocument(projectId, seed) {
-    return postgresToBytes(must(await cloud.rpc('initialize_project_document',{target_project_id:projectId,initial_state:bytesToPostgres(seed)})));
+    return postgresToBytes((await documentRequest({action:'initialize',projectId})).seed);
   },
   async documentUpdates(projectId, since = null) {
     let query=cloud.from('project_document_updates').select('update_id,payload,created_at').eq('project_id',projectId).order('created_at',{ascending:true}).order('update_id',{ascending:true});
@@ -125,13 +151,16 @@ export const remote = {
     return must(await query).map(row=>({operationId:row.update_id,payload:postgresToBytes(row.payload),createdAt:row.created_at}));
   },
   async appendDocumentUpdate(projectId, operationId, payload) {
-    must(await cloud.rpc('append_project_document_update',{target_project_id:projectId,operation_id:operationId,update_bytes:bytesToPostgres(payload)}));
+    await documentRequest({action:'append',projectId,operationId,payload:bytesToPostgres(payload)});
   },
   async list() { return must(await cloud.from('projects').select('id,owner_id,title,file_name,file_path,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').order('updated_at', { ascending:false })).map(fromRow); },
   async create(p) {
     const path = `${p.owner}/${p.id}/original`;
-    must(await cloud.storage.from('books').upload(path,p.file,{contentType:'application/octet-stream'}));
+    must(await cloud.rpc('reserve_cloud_upload',{target_project:p.id,object_name:path,upload_bytes:p.file.size}));
+    try { must(await cloud.storage.from('books').upload(path,p.file,{contentType:'application/octet-stream'})); }
+    catch(error){await cloud.rpc('release_cloud_upload',{target_object:path});throw error;}
     const result = await cloud.from('projects').insert({id:p.id,owner_id:p.owner,title:p.title,file_name:p.fileName,file_path:path,snapshot:cleanSnapshot(p.snapshot)}).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision,project_collaborators(user_id,role)').single();
+    await cloud.rpc('release_cloud_upload',{target_object:path});
     if (result.error) { await cloud.storage.from('books').remove([path]); must(result); }
     return { ...fromRow(result.data), file:p.file };
   },

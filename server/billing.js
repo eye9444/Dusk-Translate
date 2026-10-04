@@ -1,4 +1,5 @@
 import { getSupabaseAdmin } from './supabase.js';
+import { getPaddleEnvironment } from './paddle.js';
 
 const ACCESS_STATUSES = new Set(['active', 'trialing']);
 
@@ -70,6 +71,12 @@ async function upsertCompletedTransaction(event) {
  * @param {PaddleEvent} event
  */
 export async function processPaddleEvent(event) {
+  const supported = /^(customer\.(created|updated)|subscription\.(created|updated|canceled|trialing|activated|paused|past_due|resumed)|transaction\.completed)$/;
+  if (!supported.test(event.eventType)) return;
+  const customerId = event.eventType.startsWith('customer.') ? event.data.id : event.data.customerId;
+  await runRpc('ensure_paddle_customer_environment', {
+    target_customer_id: customerId, target_environment: getPaddleEnvironment(),
+  });
   switch (event.eventType) {
     case 'customer.created':
     case 'customer.updated':
@@ -84,11 +91,20 @@ export async function processPaddleEvent(event) {
     case 'subscription.past_due':
     case 'subscription.resumed':
       await upsertSubscription(event);
+      if (event.data.transactionId) await bindCheckout(event.data.transactionId, customerId);
       return;
     case 'transaction.completed':
       await upsertCompletedTransaction(event);
+      await bindCheckout(event.data.id, customerId);
       return;
     default:
       return;
   }
+}
+
+async function bindCheckout(transactionId, customerId) {
+  await runRpc('bind_paddle_checkout', {
+    target_transaction_id: transactionId, target_customer_id: customerId,
+    target_environment: getPaddleEnvironment(),
+  });
 }

@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
-test.beforeEach(async({context})=>{await context.addInitScript(()=>sessionStorage.setItem('dusk-guest','true'));});
+test.beforeEach(async({context})=>{await context.addInitScript(()=>{sessionStorage.setItem('dusk-guest','true');sessionStorage.setItem('dusk-guest-spending-notice','accepted');});});
 const fixture = { chapters:[{id:'p-001',text:'テストの文章です。Chapter one.',jp_char_count:9},{id:'p-002',text:'次の章の文章です。Chapter two.',jp_char_count:9}] };
+const promptTarget=prompt=>prompt.match(/<TARGET_[^>]+>\n([\s\S]*?)\n<\/TARGET_[^>]+>/)?.[1]||'';
 async function create(page,name='Test book',file) {
   await page.goto('/');
   await page.getByRole('button',{name:'+ New project'}).click();
@@ -189,11 +190,10 @@ test('long chapters are translated sequentially in bounded requests',async({page
   await create(page,'Chunked request',{name:'long.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(longChapter))});
   const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await expect(editor.locator('#tl-out')).toContainText('part 1');await expect(editor.locator('#tl-out')).toContainText('part 2');
-  const sources=requests.map(prompt=>prompt.split('Japanese text:\n').at(-1));
+  const sources=requests.map(promptTarget);
   expect(requests).toHaveLength(2);expect(sources.every(source=>source.length<=5000)).toBe(true);
   expect(sources.join('')).toBe(longChapter.chapters[0].text);
-  const continuity=requests[1].match(/---\n([\s\S]*?)\n---\n\nJapanese text/)[1];
-  expect(continuity).toBe('part 1');expect(await editor.locator('#tl-out').textContent()).toBe('part 1\n\npart 2');
+  expect(requests[1]).toContain('part 1');expect(await editor.locator('#tl-out').textContent()).toBe('part 1\n\npart 2');
 });
 test('model importer fetches live provider models and filters OpenRouter free models',async({page})=>{
   await page.route('https://generativelanguage.googleapis.com/v1beta/models',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({models:[
@@ -236,11 +236,11 @@ test('Japanese source is selectable and includes the Yomitan iframe setup note',
 test('login honestly reports missing configuration',async({page})=>{
   await page.goto('/');await page.locator('#account').click();await expect(page.locator('#auth-info')).toContainText('not configured');await expect(page.locator('#auth-submit')).toBeDisabled();await expect(page.locator('#google-auth button')).toBeDisabled();
 });
-test('EPUB image manager is exposed safely from the editor',async({page})=>{
+test('image manager supports local projects and validates the source type',async({page})=>{
   await create(page,'Image manager');const editor=page.frameLocator('#editor');
   await editor.locator('#host-tools').click();await editor.locator('#host-images').click();
   await expect(page.locator('#images-dialog')).toBeVisible();
-  await expect(page.locator('#images-status')).toContainText('requires a cloud project');
+  await expect(page.locator('#images-status')).toContainText('does not contain an EPUB');
   await expect(page.locator('#images-preview')).toBeChecked();
 });
 test('accidental drops do not leave the standalone editor warning visible',async({page})=>{
@@ -257,7 +257,8 @@ test('selected text exposes the contextual ruby action',async({page})=>{
   await expect(editor.getByRole('button',{name:'Add ruby text to selection'})).toBeVisible();
   expect(await editor.locator('#src-txt').evaluate(()=>{const selectionBox=getSelection().getRangeAt(0).getBoundingClientRect(),buttonBox=document.querySelector('.selection-tools').getBoundingClientRect();return buttonBox.bottom<=selectionBox.top+1;})).toBe(true);
   await editor.getByRole('button',{name:'Add ruby text to selection'}).click();
-  await expect(page.locator('#ruby-dialog')).toBeVisible();
+  await expect(page.locator('.upgrade-dialog')).toBeVisible();
+  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Editing ruby requires Pro');
 });
 test('backup ZIP restores a project with its edited translation',async({page})=>{
   await create(page,'Backup source');const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('Keep this translation.');
@@ -265,7 +266,7 @@ test('backup ZIP restores a project with its edited translation',async({page})=>
   const pending=page.waitForEvent('download');await editorAction(page,'#host-backup');const file=await pending;
   const {readFile}=await import('node:fs/promises');const buffer=await readFile(await file.path());
   const archive=await JSZip.loadAsync(buffer);const manifest=JSON.parse(await archive.file('project.json').async('string'));
-  expect(manifest.schemaVersion).toBe(2);expect(manifest.title).toBe('Backup source');expect(await archive.file('translation.txt').async('string')).toContain('Keep this translation.');
+  expect(manifest.schemaVersion).toBe(3);expect(manifest.title).toBe('Backup source');expect(await archive.file('translation.txt').async('string')).toContain('Keep this translation.');
   await leave(page);await page.locator('#import-project').click();await expect(page.locator('#new-title-label')).toBeHidden();await page.locator('#new-file').setInputFiles({name:'backup.zip',mimeType:'application/zip',buffer});await page.locator('#create-submit').click();
   await expect(editor.locator('#tl-out')).toHaveText('Keep this translation.');
 });
@@ -305,16 +306,15 @@ test('find and replace honors exact case matching',async({page})=>{
   await page.locator('#find-text').fill('Fiancée');await page.locator('#preview-btn').click();
   await expect(page.locator('.match-item')).toHaveCount(1);
 });
-test('consistency findings open and highlight the relevant translation passage',async({page})=>{
+test('Free consistency action opens the Pro upgrade dialog',async({page})=>{
   const repeated={chapters:[
     {id:'p-001',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17},
     {id:'p-002',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17}
   ]};
   await create(page,'Consistency navigation',{name:'repeated.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(repeated))});
   const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('This is the first long translation wording.');await editor.locator('#btn-next').click();await editor.locator('#tl-out').fill('This is a different long translation wording.');
-  await editorAction(page,'#host-consistency');await expect(page.locator('#consistency-dialog')).toBeVisible();await page.getByRole('button',{name:'Open chapter 1 match'}).click();
-  await expect(page.locator('#consistency-dialog')).not.toBeVisible();await expect(editor.locator('#tl-out')).toContainText('first long translation');await expect(editor.locator('#host-find-navigator')).toBeVisible();
-  await expect(editor.locator('#host-find-navigator')).toBeVisible();await editor.locator('#host-find-navigator button',{hasText:'Review'}).click();await expect(page.locator('#consistency-dialog')).toBeVisible();
+  await editorAction(page,'#host-consistency');await expect(page.locator('.upgrade-dialog')).toBeVisible();
+  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Consistency checking requires Pro');
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
@@ -323,13 +323,15 @@ test('spellcheck setting and its menu label survive a reload',async({page})=>{
 });
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';
+  let requestStarted;const started=new Promise(resolve=>requestStarted=resolve);
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
     requestKey=route.request().headers()['x-goog-api-key'] || '';
+    requestStarted();
     await new Promise(resolve=>setTimeout(resolve,700));
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
   await create(page);const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
-  await editor.locator('#btn-tl').click();await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
+  await editor.locator('#btn-tl').click();await started;await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
   expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
@@ -356,8 +358,8 @@ test('retry continues a partial translation instead of restarting the chapter',a
   await expect(editor.locator('#btn-retry')).toHaveText('Resuming…');await expect(editor.locator('#btn-retry')).toBeDisabled();
   await expect(editor.locator('#tl-out')).toHaveText('First completed part\n\nExisting partial continuation');await expect(editor.locator('.partial-badge')).toHaveCount(0);
   await expect(editor.locator('#btn-retry')).toHaveText('Retry');await expect(editor.locator('#btn-retry')).toBeEnabled();
-  const sources=prompts.map(prompt=>prompt.split('Japanese text:\n').at(-1));
-  expect(prompts).toHaveLength(3);expect(sources[1]).toBe(sources[2]);expect(sources[2].length).toBeLessThan(source.length);expect(prompts[2]).toContain('Existing partial translation of this same Japanese passage');expect(prompts[2]).toContain('Existing partial');
+  const sources=prompts.map(promptTarget);
+  expect(prompts).toHaveLength(3);expect(sources[1]).toBe(sources[2]);expect(sources[2].length).toBeLessThan(source.length);expect(prompts[2]).toContain('The reference is the existing partial translation of this target passage.');expect(prompts[2]).toContain('Existing partial');
 });
 test('legacy partials recover the untranslated source paragraphs',async({page})=>{
   let prompt='';

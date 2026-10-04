@@ -129,16 +129,29 @@ function textOf(node) {
   return node?.textContent?.trim() || '';
 }
 
-function injectTranslation(markup, translation) {
+function appendRubyText(doc,parent,text,annotations=[],offset=0){
+  let cursor=0;
+  for(const item of annotations.filter(item=>item.start>=offset&&item.end<=offset+text.length).sort((a,b)=>a.start-b.start)){
+    const start=item.start-offset,end=item.end-offset;if(start<cursor||end<=start)continue;
+    parent.append(doc.createTextNode(text.slice(cursor,start)));
+    const ruby=doc.createElementNS('http://www.w3.org/1999/xhtml','ruby'),rt=doc.createElementNS('http://www.w3.org/1999/xhtml','rt');
+    ruby.append(doc.createTextNode(text.slice(start,end)));rt.textContent=item.reading;ruby.append(rt);parent.append(ruby);cursor=end;
+  }
+  parent.append(doc.createTextNode(text.slice(cursor)));
+}
+
+function injectTranslation(markup, translation, ruby=[]) {
   const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
   const body = doc.querySelector('body');
   if (!body || doc.querySelector('parsererror')) throw new Error('A translated EPUB chapter contains invalid XHTML.');
   // Keep the book's local illustrations available in the translated reader edition.
   const images = [...body.querySelectorAll('img')].map(image => image.cloneNode(true));
   body.replaceChildren();
-  for (const block of translation.split(/\n\n+/).map(cleanText).filter(Boolean)) {
+  let searchFrom=0;
+  for (const raw of translation.split(/\n\n+/).filter(block=>block.trim())) {
+    const block=raw.trim(),offset=translation.indexOf(block,searchFrom);searchFrom=offset+block.length;
     const paragraph = doc.createElementNS('http://www.w3.org/1999/xhtml', 'p');
-    paragraph.textContent = block;
+    appendRubyText(doc,paragraph,block,ruby,offset);
     body.append(paragraph);
   }
   images.forEach(image => body.append(image));
@@ -212,7 +225,7 @@ export async function buildTranslatedEpub(file, snapshot) {
     const entry = zip.file(chapter.xhtmlPath);
     if (!entry) throw new Error(`The original EPUB chapter ${chapter.id} is missing.`);
     const translation = translations[chapter.id].replace(/…PARTIAL$/, '').trim();
-    zip.file(chapter.xhtmlPath, injectTranslation(await entry.async('string'), translation));
+    zip.file(chapter.xhtmlPath, injectTranslation(await entry.async('string'), translation,snapshot.publishedRuby?.[chapter.id]||[]));
   }
   const opfPath = snapshot.novel._epubOpfPath;
   const opfEntry = opfPath && zip.file(opfPath);

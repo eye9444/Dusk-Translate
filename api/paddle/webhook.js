@@ -5,7 +5,13 @@ export const config = { api: { bodyParser: false } };
 
 async function rawBody(request) {
   const chunks = [];
-  for await (const chunk of request) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  let length = 0;
+  for await (const chunk of request) {
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    length += bytes.length;
+    if (length > 2_000_000) throw new Error('Webhook body too large.');
+    chunks.push(bytes);
+  }
   return Buffer.concat(chunks).toString('utf8');
 }
 
@@ -17,7 +23,9 @@ export default async function handler(request, response) {
   }
 
   const signature = request.headers['paddle-signature'];
-  const body = await rawBody(request);
+  let body;
+  try { body = await rawBody(request); }
+  catch { return response.status(413).json({ error: 'Invalid webhook body.' }); }
   if (typeof signature !== 'string' || !body) {
     response.status(400).json({ error: 'Missing Paddle signature or request body.' });
     return;
@@ -29,7 +37,8 @@ export default async function handler(request, response) {
     await processPaddleEvent(event);
     response.status(200).json({ received: true });
   } catch (error) {
-    console.error('Paddle webhook rejected or failed to process.', error);
+    // Do not log SDK request objects, authorization headers, or customer payloads.
+    console.error('Paddle webhook verification or persistence failed.');
     // Any non-2xx response asks Paddle to retry an at-least-once delivery.
     response.status(500).json({ error: 'Webhook processing failed.' });
   }

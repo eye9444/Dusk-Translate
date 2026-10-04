@@ -7,6 +7,52 @@ let lastBusy = false;
 let lastBulkReplacement = null;
 let exportExcluded = [];
 let canEdit = true;
+let cloudProject = false;
+globalThis.DuskCapabilities = {};
+let quotaMeterState=null;
+function renderQuotaMeter() {
+  if(!quotaMeterState)return;
+  let meter=document.getElementById('host-quota-meter');
+  if(!meter){
+    meter=document.createElement('span');meter.id='host-quota-meter';
+    meter.style.cssText='font-size:11px;line-height:1.4;white-space:normal;color:inherit;';
+    document.getElementById('btn-tl').parentElement.append(meter);
+  }
+  const q=quotaMeterState;
+  if(q.local){meter.textContent='Local: no daily app limit';return;}
+  if(q.readOnly){meter.textContent='Read-only project';return;}
+  if(q.unavailable){meter.textContent='Usage unavailable - retry before translating';return;}
+  if(q.unlimited){meter.textContent='Cloud: no daily app limit';return;}
+  const seconds=Math.max(0,Math.ceil((Date.parse(q.resetAt)-Date.now())/1000));
+  const countdown=`${Math.floor(seconds/3600)}h ${Math.floor(seconds%3600/60)}m`;
+  meter.textContent=`${Number(q.completed||0).toLocaleString()} / 30,000 today`+
+    (q.reserved ? ` (${Number(q.reserved).toLocaleString()} reserved)` : '')+
+    ` - ${Number(q.remaining||0).toLocaleString()} remaining - resets in ${countdown}`;
+  meter.title=`Daily allowance resets at ${new Date(q.resetAt).toLocaleString()} (00:00 UTC). Provider charges are separate.`;
+}
+setInterval(renderQuotaMeter,1000);
+function setEntitlements(rights = {tier:'free',capabilities:{}}) {
+  globalThis.DuskCapabilities = rights.capabilities || {};
+  globalThis.DuskCustomInstructions = rights.capabilities?.customPrompt ? rights.customInstructions || '' : '';
+  const importButton=document.getElementById('btn-import');
+  if(importButton)importButton.hidden=cloudProject && rights.tier==='free';
+  globalThis.DuskCanImportTranslation=!cloudProject || rights.tier!=='free';
+  for(const [id,feature,label,required] of [
+    ['host-consistency','consistency','Check consistency','Pro'],
+    ['host-export-settings','exportSelection','Choose exported chapters','Pro'],
+    ['host-custom-prompt','customPrompt','Translation instructions','Teams'],
+    ['host-ruby','rubyEdit','Ruby text','Pro'],
+    ['host-selection-ruby','rubyEdit','Ruby','Pro'],
+  ]){
+    const button=document.getElementById(id);if(!button)continue;
+    button.textContent=label;
+    if(!rights.capabilities?.[feature]){
+      const crown=document.createElement('span');
+      crown.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l5 5 4-7 4 7 5-5-2 13H5z" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+      crown.append(document.createTextNode(' '+required));crown.style.marginLeft='8px';button.append(crown);
+    }
+  }
+}
 const send = (type, extra = {}) => parent.postMessage({ type, projectId, ...extra }, location.origin);
 let spellcheckEnabled = true;
 function setAccess(role = 'owner') {
@@ -181,6 +227,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
 toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
+toolMenu.append(menuAction('host-custom-prompt','Translation instructions','customPrompt'));
 const editorIdentity = document.createElement('div'); editorIdentity.className = 'host-identity';
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
@@ -202,6 +249,27 @@ keyBar.append(headerActions);
 
 // Search results stay navigable after the host's review dialog is dismissed.
 const translationActions = document.querySelector('.pane:not(.pane-left) .pane-lbl .acts');
+let linkedScrolling = false;
+try { linkedScrolling = localStorage.getItem('dusk-linked-scrolling') === 'true'; } catch {}
+const linkedScroll = DuskLinkedScroll(document.getElementById('src-txt'), document.getElementById('tl-out'), linkedScrolling);
+const linkedScrollButton = document.createElement('button');
+linkedScrollButton.type = 'button';
+linkedScrollButton.id = 'host-linked-scroll';
+linkedScrollButton.className = 'btn';
+linkedScrollButton.title = 'Link Japanese and English scrolling by relative position';
+const updateLinkedScrollButton = () => {
+  linkedScrollButton.textContent = linkedScrolling ? 'Linked scrolling: on' : 'Link scrolling';
+  linkedScrollButton.setAttribute('aria-pressed', String(linkedScrolling));
+};
+linkedScrollButton.onclick = () => {
+  linkedScrolling = !linkedScrolling;
+  linkedScroll.setEnabled(linkedScrolling);
+  try { localStorage.setItem('dusk-linked-scrolling', String(linkedScrolling)); } catch {}
+  updateLinkedScrollButton();
+};
+updateLinkedScrollButton();
+document.querySelector('.controls').append(linkedScrollButton);
+document.addEventListener('dusk:chapter', () => linkedScroll.reset());
 const findNavigator = document.createElement('div'); findNavigator.id='host-find-navigator'; findNavigator.className='find-navigator'; findNavigator.hidden=true;
 const findPrevious = document.createElement('button'); findPrevious.type='button'; findPrevious.className='btn sm'; findPrevious.textContent='←'; findPrevious.setAttribute('aria-label','Previous search match');
 const findPosition = document.createElement('output'); findPosition.setAttribute('aria-live','polite');
@@ -259,21 +327,69 @@ renderList = function () {
   });
 };
 const originalSelect = selectCh;
-selectCh = function(i) { if (busy) return; clearSearchHighlights(); originalSelect(i); document.dispatchEvent(new Event('dusk:chapter')); emit(); };
+selectCh = function(i) { if (busy || preparingTranslation) return; clearSearchHighlights(); originalSelect(i); document.dispatchEvent(new Event('dusk:chapter')); emit(); };
 const originalClear = clearTl;
 clearTl = function() { if (!canEdit || busy) return; originalClear(); emit(); };
 const originalImport = importTXT;
-importTXT = function(e) { if (!canEdit || busy) { setStatus(canEdit ? 'Stop translation before importing text.' : 'Viewer access is read-only.'); e.target.value=''; return; } originalImport(e); };
+importTXT = function(e) { if(globalThis.DuskCanImportTranslation===false){setStatus('Translated TXT import requires your own paid plan in cloud projects.');e.target.value='';return;} if (!canEdit || busy || preparingTranslation) { setStatus(canEdit ? 'Stop translation before importing text.' : 'Viewer access is read-only.'); e.target.value=''; return; } originalImport(e); };
 const originalMark = updateMark;
 updateMark = function(i,text) { if (!text?.trim()) { const mark=document.getElementById('ck'+i); if(mark){mark.textContent='';mark.className='';} return; } originalMark(i,text); };
 const originalRetry = retryTranslation;
 retryTranslation = function() { if (canEdit && !busy && isReady()) originalRetry(); };
 const originalTranslate = translateCurrent;
+const launchRequests = new Map();
+function requestLaunch(action, values={}) {
+  return new Promise((resolve,reject)=>{
+    const requestId=crypto.randomUUID();
+    const timer=setTimeout(()=>{launchRequests.delete(requestId);reject(new Error('Cloud services did not respond. Translation is paused; please retry.'));},45000);
+    launchRequests.set(requestId,{resolve,reject,timer});
+    send('editor:launch',{requestId,action,...values});
+  });
+}
+window.addEventListener('message',event=>{
+  if(event.origin!==location.origin || event.source!==parent || event.data?.type!=='host:launch')return;
+  const pending=launchRequests.get(event.data.requestId);if(!pending)return;
+  clearTimeout(pending.timer);launchRequests.delete(event.data.requestId);
+  if(event.data.error)pending.reject(new Error(event.data.error));else pending.resolve(event.data.result);
+});
+let preparingTranslation=false;
+let activeAttempt=null;
+let spendingTimer;
+const spendingInput=document.getElementById('api-key');
+const showSpendingNotice=()=>{if(spendingInput.value.trim())requestLaunch('spending').then(result=>{if(!result.accepted){spendingInput.value='';onKeyInput();}}).catch(error=>setStatus(error.message));};
+spendingInput.addEventListener('input',()=>{clearTimeout(spendingTimer);spendingTimer=setTimeout(showSpendingNotice,700);});
+spendingInput.addEventListener('blur',()=>{clearTimeout(spendingTimer);showSpendingNotice();});
+async function checkTranslationLease() {
+  if(!activeAttempt || activeAttempt.unlimited)return;
+  try { await requestLaunch('heartbeat',activeAttempt); }
+  catch(error){abortCtrl?.abort();throw error;}
+}
+const originalOpenRouter=translateOpenRouter;
+translateOpenRouter=async function(...args){await checkTranslationLease();return originalOpenRouter(...args);};
+const originalAIStudio=translateAIStudio;
+translateAIStudio=async function(...args){await checkTranslationLease();return originalAIStudio(...args);};
 translateCurrent = async function(options) {
-  if (!canEdit || busy || !novel || !isReady()) return;
+  if (!canEdit || busy || preparingTranslation || !novel || !isReady()) return;
+  preparingTranslation=true;
+  const chapterId=novel.chapters[cur].id;
+  const attemptId=crypto.randomUUID();
+  let heartbeat,completed=false;
   const out = document.getElementById('tl-out'); out.contentEditable = 'false';
-  try { const promise = originalTranslate(options); emit(); await promise; }
-  finally { if (!busy) out.contentEditable = 'true'; emit(); }
+  try {
+    emit(true);
+    const reservation=await requestLaunch('reserve',{attemptId,chapterId});
+    activeAttempt={attemptId,chapterId,unlimited:reservation.unlimited};
+    if(!reservation.unlimited)heartbeat=setInterval(()=>checkTranslationLease().catch(error=>setStatus(error.message)),60000);
+    const promise = originalTranslate(options);emit();completed=await promise===true;
+    emit(true);
+    if(!reservation.unlimited)await requestLaunch(completed?'commit':'release',{attemptId,chapterId});
+  } catch(error) {
+    setStatus(error.message);
+    if(activeAttempt && !activeAttempt.unlimited && !completed)requestLaunch('release',{attemptId,chapterId}).catch(()=>{});
+  } finally {
+    clearInterval(heartbeat);activeAttempt=null;preparingTranslation=false;
+    if (!busy) out.contentEditable = 'true';emit();
+  }
 };
 abortTranslation = function() {
   if (!busy) return;
@@ -281,10 +397,10 @@ abortTranslation = function() {
   setStatus('Stopping and saving partial translation…');
 };
 const originalEndBusy = endBusy;
-endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = canEdit ? 'true' : 'false'; emit(); };
+endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = canEdit && !preparingTranslation ? 'true' : 'false'; emit(); };
 const originalUpdate = updateProg;
 updateProg = function() { originalUpdate(); emit(); };
-doEpubExport = function(){ if(!canEdit||busy)return;send('editor:action',{action:'exportEpub'}); };
+doEpubExport = function(){ if(busy)return;send('editor:action',{action:'exportEpub'}); };
 
 function checkNovel(value) {
   if (!Array.isArray(value?.chapters) || !value.chapters.length) throw new Error('This file has no readable chapters.');
@@ -341,6 +457,8 @@ injectTranslation = function(original, translated) {
 
 window.addEventListener('message', async e => {
   if (e.origin !== location.origin || e.source !== parent) return;
+  if(e.data.type==='host:quota' && e.data.projectId===projectId){quotaMeterState=e.data.quota;renderQuotaMeter();return;}
+  if(e.data.type==='host:entitlements' && e.data.projectId===projectId){setEntitlements(e.data.entitlements);return;}
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }
@@ -362,6 +480,7 @@ window.addEventListener('message', async e => {
   }
   if (e.data.type === 'host:clearFind') { clearSearchHighlights(); return; }
   if (e.data.type === 'host:exportSettings') {
+    if(!globalThis.DuskCapabilities.exportSelection)return;
     const ids = new Set(novel?.chapters.map(chapter => chapter.id));
     exportExcluded = [...new Set(Array.isArray(e.data.exportExcluded) ? e.data.exportExcluded : [])].filter(id => ids.has(id));
     emit(true); setStatus(`${exportExcluded.length} chapter${exportExcluded.length === 1 ? '' : 's'} excluded from final exports.`); setTimeout(hideStatus, 3000);
@@ -418,6 +537,7 @@ window.addEventListener('message', async e => {
   projectId = e.data.project.id;
   try {
     const p = e.data.project;
+    cloudProject=p.owner!=='guest';setEntitlements(p.entitlements);
     setAccess(p.accessRole);
     projectTitle.textContent = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;

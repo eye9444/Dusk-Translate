@@ -1,0 +1,26 @@
+.spending-notice,.quota-dialog{width:min(540px,calc(100vw - 32px));line-height:1.65}
+.spending-notice footer,.quota-dialog footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.spending-notice label{display:flex;align-items:center;gap:9px}
+.spending-notice label[hidden]{display:none}
+.upgrade-dialog{width:min(1050px,calc(100vw - 24px));max-height:90dvh;overflow:auto}
+.upgrade-dialog>header{position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel,#19150f);z-index:1}
+.upgrade-dialog .pricing-page{padding:12px 0;border:0;background:none;min-height:0}
+.upgrade-dialog .pricing-card{padding:18px}.upgrade-dialog .pricing-price{font-size:30px}
+.upgrade-dialog .pricing-card-description{min-height:0}
+@media(max-width:700px){.upgrade-dialog .pricing-grid{grid-template-columns:1fr}}
+.pricing-page .pricing-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pricing-plan-toggle{display:flex;gap:8px;margin:20px 0}
+.pricing-plan-toggle button{flex:1;padding:10px;border:1px solid var(--accent,#f67635);border-radius:6px;background:transparent;color:inherit;cursor:pointer}
+.pricing-plan-toggle button[aria-pressed="true"]{background:var(--accent,#f67635);color:#17120e}
+.pricing-plan[hidden]{display:none}
+.capacity-dialog{width:min(650px,calc(100vw - 32px));max-height:85dvh;overflow:auto}
+.capacity-dialog label{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.capacity-dialog footer{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}
+.quota-dialog textarea{box-sizing:border-box;width:100%;background:var(--panel);color:inherit;padding:12px}
+#reader-comments{border-top:1px solid var(--border);margin-top:48px;padding-top:24px;font-size:15px}
+#reader-comments textarea{box-sizing:border-box;width:100%;margin:8px 0;background:var(--panel);color:var(--text);border:1px solid var(--border);padding:12px}
+.reader-comment{padding:18px 0;border-bottom:1px solid var(--border);overflow-wrap:anywhere}
+.reader-comment p,.reader-comment blockquote{white-space:pre-wrap}
+.reader-comment button{margin:8px 8px 0 0}
+.reader-comment blockquote{margin:12px 0;padding-left:12px;border-left:2px solid var(--accent)}
+@media(max-width:700px){.pricing-page .pricing-grid{grid-template-columns:1fr}}

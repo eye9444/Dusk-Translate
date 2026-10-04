@@ -1,4 +1,5 @@
 import {test,expect} from '@playwright/test';
+import JSZip from 'jszip';
 test.beforeEach(async({context})=>{
   await context.route('https://dusk-test.supabase.co/auth/v1/settings',route=>route.fulfill({json:{external:{google:true,email:true}}}));
   await context.route('https://accounts.google.com/gsi/client',route=>route.fulfill({contentType:'application/javascript',body:`
@@ -31,8 +32,8 @@ test('email signup confirmation, login errors, login and logout',async({page})=>
   await page.locator('#auth-switch').click();await page.locator('#password').fill('WrongPassword123');await page.locator('#auth-submit').click();
   await expect(page.locator('#auth-message')).toContainText('Invalid login');
   await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
-  await expect(page.locator('#account')).toHaveText('Sign out');await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');
-  await page.locator('#account').click();await expect(page.locator('#storage-label')).toHaveText('THIS BROWSER');
+  await expect(page.locator('#account')).toHaveText('Account');await expect(page.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');
+  await page.locator('#account').click();await page.locator('#billing-signout').click();await expect(page.locator('#storage-label')).toHaveText('THIS BROWSER');
 });
 test('account creation requires policy consent',async({page})=>{
   let signupRequests=0;
@@ -57,6 +58,35 @@ test('forgot password gives neutral confirmation and same-origin redirect',async
   await expect(page.locator('#google-option')).toBeHidden();
 });
 
+test('paid users can keep ruby and replacement images in a device-only project',async({page})=>{
+  const user={id:'33333333-3333-4333-8333-333333333333',email:'local@example.test',aud:'authenticated',role:'authenticated'};
+  const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');
+  await page.route('**/api/paddle/status',route=>route.fulfill({json:{tier:'advanced',provisioning:'ready'}}));
+  await page.route('https://dusk-test.supabase.co/**',async route=>{
+    const url=new URL(route.request().url());
+    if(url.pathname.endsWith('/settings'))return route.fallback();
+    if(url.pathname.endsWith('/token'))return route.fulfill({json:{access_token:`${b64({alg:'HS256'})}.${b64({sub:user.id,exp:Math.floor(Date.now()/1000)+3600})}.test`,refresh_token:'test-refresh',token_type:'bearer',expires_in:3600,user}});
+    if(url.pathname.endsWith('/user'))return route.fulfill({json:user});
+    if(url.pathname.includes('/rest/v1/projects'))return route.fulfill({json:[]});
+    return route.fulfill({json:[]});
+  });
+  await page.goto('/');await page.locator('#account').click();await page.locator('#email').fill(user.email);await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
+  const zip=new JSZip(),png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
+  zip.file('mimetype','application/epub+zip');zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OEBPS/book.opf"/></rootfiles></container>');
+  zip.file('OEBPS/book.opf','<package><manifest><item href="one.xhtml" media-type="application/xhtml+xml" id="one"/><item href="cover.png" media-type="image/png" id="cover"/></manifest><spine><itemref idref="one"/></spine></package>');
+  zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><body><p>東京です。</p><img src="cover.png"/></body></html>');zip.file('OEBPS/cover.png',png);
+  await page.locator('#new-project').click();await page.locator('#new-title').fill('Local paid project');await page.locator('#new-local').check();
+  await page.locator('#new-file').setInputFiles({name:'local.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});await page.locator('#create-submit').click();
+  const editor=page.frameLocator('#editor');await expect(editor.locator('#src-txt')).toContainText('東京');
+  await editor.locator('#src-txt').evaluate(root=>{root.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true}));const range=document.createRange();range.selectNodeContents(root);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new PointerEvent('pointerup',{bubbles:true}));});
+  await editor.getByRole('button',{name:'Add ruby text to selection'}).click();await page.locator('#ruby-reading').fill('とうきょう');await page.locator('#ruby-published').check();await page.locator('#ruby-form').getByRole('button',{name:'Set ruby text'}).click();
+  await editor.locator('#host-tools').click();await editor.locator('#host-images').click();const replacement=page.locator('.image-asset input[type=file]');await replacement.setInputFiles({name:'replacement.png',mimeType:'image/png',buffer:png});await expect(page.locator('#images-status')).toContainText('Replacement saved');
+  const stored=await page.evaluate(async()=>{const request=indexedDB.open('dusktranslate-library');const db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));const tx=db.transaction(['projects','localImages']);const projects=tx.objectStore('projects').getAll(),images=tx.objectStore('localImages').getAll();return Promise.all([new Promise(resolve=>projects.onsuccess=()=>resolve(projects.result)),new Promise(resolve=>images.onsuccess=()=>resolve(images.result))]);});
+  expect(stored[0][0].storage).toBe('local');expect(stored[0][0].localDocument).toBeTruthy();expect(stored[1]).toHaveLength(1);
+  await page.getByRole('button',{name:'Close book images'}).click();await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(editor.getByRole('button',{name:'Edit ruby: とうきょう'})).toBeVisible();
+});
+
 for(const mode of ['signin','signup'])test(`Google ${mode} exchanges an ID token without leaving the site`,async({page})=>{
   const user={id:'22222222-2222-4222-8222-222222222222',email:'google@example.test',aud:'authenticated',role:'authenticated'};
   let exchange;
@@ -75,7 +105,7 @@ for(const mode of ['signin','signup'])test(`Google ${mode} exchanges an ID token
   await page.goto('/');await page.locator('#account').click();
   if(mode==='signup'){await page.locator('#auth-switch').click();await page.locator('#terms-accept').check();}
   await page.getByRole('button',{name:'Continue with Google'}).click();
-  await expect(page.locator('#account')).toHaveText('Sign out');
+  await expect(page.locator('#account')).toHaveText('Account');
   await expect(page.locator('#auth-dialog')).not.toBeVisible();
   expect(page.url()).toBe('http://127.0.0.1:4174/home');
   expect(exchange.url.searchParams.get('grant_type')).toBe('id_token');

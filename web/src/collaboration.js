@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRange, resolveAnchor, setRuby, removeRuby, updateRuby, rubyForPassage } from './shared-document.js';
+import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRange, resolveAnchor, setRuby, removeRuby, updateRuby, rubyForPassage, publishedRuby } from './shared-document.js';
 
 const POLL_INTERVAL = 1200;
 
@@ -74,6 +74,7 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
     removeRuby(id){removeRuby(doc,id,localOrigin);notify();},
     updateRuby(id,reading){updateRuby(doc,id,reading,localOrigin);notify();},
     ruby(chapterId){return [...rubyForPassage(doc,chapterId),...rubyForPassage(doc,chapterId,'source')];},
+    publishedRuby(chapterId){return publishedRuby(doc,chapterId);},
     anchor(selection){return {...selection,crdt:anchorRange(passage(doc,selection.chapterId,selection.pane),selection.start,selection.end)};},
     resolve(anchor){return anchor?.crdt?resolveAnchor(doc,anchor.crdt):null;},
     text(chapterId){return passage(doc,chapterId).toString();},
