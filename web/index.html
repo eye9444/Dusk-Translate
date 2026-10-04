@@ -46,7 +46,9 @@
     </section>
     <section id="subscription-welcome" class="subscription-welcome" hidden aria-labelledby="subscription-welcome-title">
       <p class="eyebrow">WELCOME TO DUSKTRANSLATE</p>
-      <h1 id="subscription-welcome-title">Your subscription is <em>ready.</em></h1>
+      <h1 id="subscription-welcome-title">Checkout completed; <em>confirming your plan.</em></h1>
+      <p id="provisioning-status" role="status">Checking the billing service...</p>
+      <button id="provisioning-retry" type="button">Check again</button>
       <p>Thank you for supporting DuskTranslate. Return to your library to continue your project.</p>
       <a class="button-link primary-link" href="/home">Open your library <span aria-hidden="true">↗</span></a>
     </section>
@@ -87,7 +89,7 @@
       <footer class="dictionary-footer"><span>DuskTranslate does not receive your lookup history.</span><a href="https://yomitan.wiki/getting-started/" target="_blank" rel="noopener">Open Yomitan setup ↗</a></footer>
     </section>
   </dialog>
-  <dialog id="project-dialog"><form id="project-form"><p class="eyebrow" id="project-dialog-eyebrow">A NEW CHAPTER</p><h2 id="project-dialog-title">Start a project</h2><label id="new-title-label">Project title<input id="new-title" maxlength="120" required placeholder="The book you are working on"></label><label class="upload" id="new-file-label">Original book or project backup<input id="new-file" type="file" accept=".epub,.json,.txt,.zip" required><small id="new-file-help">EPUB, source JSON, TXT, or backup ZIP · up to 50 MB.<br>Your original file is kept for future exports.</small></label><p id="new-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="create-submit">Create project</button></div></form></dialog>
+  <dialog id="project-dialog"><form id="project-form"><p class="eyebrow" id="project-dialog-eyebrow">A NEW CHAPTER</p><h2 id="project-dialog-title">Start a project</h2><label id="new-title-label">Project title<input id="new-title" maxlength="120" required placeholder="The book you are working on"></label><label id="new-storage-label"><input id="new-local" type="checkbox"> Keep this project on this device only</label><label class="upload" id="new-file-label">Original book or project backup<input id="new-file" type="file" accept=".epub,.json,.txt,.zip" required><small id="new-file-help">EPUB, source JSON, TXT, or backup ZIP · up to 50 MB.<br>Your original file is kept for future exports.</small></label><p id="new-error" role="alert"></p><div class="dialog-actions"><button type="button" data-close>Cancel</button><button class="primary" id="create-submit">Create project</button></div></form></dialog>
   <dialog id="auth-dialog" aria-labelledby="auth-title"><form id="auth-form">
     <p class="eyebrow">YOUR PERSONAL LIBRARY</p><h2 id="auth-title">Welcome back.</h2>
     <p id="auth-info">Sign in to save and resume projects across devices.</p>
@@ -134,7 +136,7 @@
     <div class="reader-layout">
       <aside class="reader-sidebar" aria-label="Reader contents"><h2>Contents</h2><nav id="reader-chapters" class="reader-chapters"></nav></aside>
       <main id="reader-page" class="reader-page" tabindex="-1" aria-labelledby="reader-chapter-title">
-        <div class="reader-page-inner"><div class="reader-page-meta"><span id="reader-chapter-count">Chapter 1</span><span id="reader-status" role="status" aria-live="polite"></span></div><h2 id="reader-chapter-title">Loading...</h2><div id="reader-content" class="reader-content"></div></div>
+        <div class="reader-page-inner"><div class="reader-page-meta"><span id="reader-chapter-count">Chapter 1</span><span id="reader-status" role="status" aria-live="polite"></span></div><h2 id="reader-chapter-title">Loading...</h2><div id="reader-content" class="reader-content"></div><section id="reader-comments" hidden aria-label="Public reader comments"></section></div>
       </main>
     </div>
   </section>

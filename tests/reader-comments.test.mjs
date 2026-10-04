@@ -1,0 +1,51 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomUUID} from 'node:crypto';
+import {launchDatabase,asUser,asAdmin} from './helpers/launch-db.mjs';
+
+test('public reader comments isolate authors, enforce rates, and suspend without deletion',async()=>{
+ const db=await launchDatabase(),owner=randomUUID(),reader=randomUUID(),stranger=randomUUID(),project=randomUUID();
+ const snapshot={novel:{chapters:[{id:'one',text:'Original'}]},translations:{one:'Published passage'}};
+ let token;
+ const list=async()=> (await db.query("select list_reader_comments($1,'one') as result",[token])).rows[0].result;
+ const write=async(operation,id=null,body='A comment')=>(await db.query("select write_reader_comment($1,'one',$2,$3,$4,'Published',null) as id",[token,operation,id,body])).rows[0].id;
+ try{
+  for(const [id,email] of [[owner,'owner@reader.invalid'],[reader,'reader@reader.invalid'],[stranger,'stranger@reader.invalid']])await db.query('insert into auth.users(id,email) values($1,$2)',[id,email]);
+  await db.query("insert into customers(customer_id,user_id,environment) values('ctm_reader',$1,'sandbox')",[owner]);
+  await db.exec("select upsert_paddle_subscription('sub_reader','ctm_reader','active','pri_01m41bn7n481yz3hhyw7pgyyce','product',null,null,now(),'event')");
+  await db.query("insert into projects(id,owner_id,title,file_name,file_path,snapshot) values($1,$2,'Book','book.epub',$3,$4)",[project,owner,`${owner}/${project}/original`,snapshot]);
+  await asUser(db,owner);
+  token=(await db.query('select * from enable_public_reader_link($1)',[project])).rows[0].token;
+  await db.query('select set_reader_commenting($1,true)',[project]);
+  await asUser(db,reader);
+  const first=await write('create',null,'<script>plain text only</script>');
+  assert.equal((await list()).comments[0].body,'<script>plain text only</script>');
+  assert.equal((await list()).comments[0].mine,true);
+  await asUser(db,stranger);
+  assert.equal((await list()).comments[0].canDelete,false);
+  await assert.rejects(write('edit',first),/access denied/);
+  await assert.rejects(write('delete',first),/access denied/);
+  await assert.rejects(db.query('select * from reader_comments'),/permission denied/);
+  await asUser(db,reader);
+  await write('edit',first,'Updated');
+  for(let i=0;i<4;i++)await write('create');
+  await assert.rejects(write('create'),/posting limit/);
+  await write('delete',first);
+  await assert.rejects(write('create'),/posting limit/);
+  await asUser(db,owner);
+  await db.query('update projects set snapshot=$1 where id=$2',[{...snapshot,translations:{one:'Changed passage'}},project]);
+  assert.equal((await list()).comments[0].outdated,true);
+  await write('delete',(await list()).comments[0].id);
+  await db.query('select set_reader_commenting($1,false)',[project]);
+  await asUser(db,stranger);await assert.rejects(write('create'),/disabled/);
+  await asAdmin(db);await db.exec("update subscriptions set status='past_due'");
+  await asUser(db,reader);await assert.rejects(list(),/revoked or suspended/);
+  await asAdmin(db);await db.exec("update subscriptions set status='active'");
+  await asUser(db,reader);assert.equal((await list()).comments.length,3);
+  await asUser(db,owner);await db.query('select disable_public_reader_link($1)',[project]);
+  await assert.rejects(list(),/revoked or suspended/);
+  const replacement=(await db.query('select * from enable_public_reader_link($1)',[project])).rows[0].token;
+  assert.notEqual(token,replacement);await assert.rejects(list(),/revoked or suspended/);
+  await asAdmin(db);assert.equal((await db.query('select count(*)::int as total from reader_comments')).rows[0].total,5);
+ }finally{await db.close();}
+});

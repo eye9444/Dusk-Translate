@@ -11,7 +11,7 @@ async function openEditor(page){
 
 test('hover comment control remains clickable and uses the theme foreground',async({page})=>{
   const editor=await openEditor(page);
-  await page.evaluate(()=>document.getElementById('editor').contentWindow.postMessage({type:'host:theme',theme:'eclipse'},location.origin));
+  await page.locator('#theme').evaluate(button=>button.click());
   await expect(editor.locator('body')).toHaveClass(/eclipse/);
   await editor.locator('#src-txt').hover({position:{x:45,y:30}});
   const control=editor.getByRole('button',{name:'Comment on this line',exact:true});
@@ -34,14 +34,11 @@ test('ruby for other chapters does not clear readings or open the remove panel',
   await page.evaluate(data=>{for(let i=0;i<10;i++)document.getElementById('editor').contentWindow.postMessage({...data,chapterId:'other-chapter',annotations:[]},location.origin);},fixture);
   await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
   await expect(editor.locator('#ruby-notes')).toBeHidden();
-  await page.evaluate(()=>window.addEventListener('message',event=>{if(event.source===document.getElementById('editor').contentWindow&&event.data.type==='editor:action')window.lastRubyAction=event.data;}));
   await editor.getByRole('button',{name:'Edit ruby: greeting'}).click();
-  await editor.getByRole('textbox',{name:'Edit ruby reading'}).fill('updated');
-  await editor.locator('.inline-ruby-editor').getByRole('button',{name:'Save',exact:true}).click();
-  await expect.poll(()=>page.evaluate(()=>window.lastRubyAction?.reading)).toBe('updated');
-  await editor.getByRole('button',{name:'Edit ruby: greeting'}).click();
-  await editor.locator('.inline-ruby-editor').getByRole('button',{name:'Delete',exact:true}).click();
-  await expect.poll(()=>page.evaluate(()=>window.lastRubyAction?.action)).toBe('removeRuby');
+  await expect(page.locator('.upgrade-dialog')).toBeVisible();
+  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Editing ruby requires Pro');
+  await expect(editor.locator('.inline-ruby-editor')).toBeHidden();
+  await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
 });
 
 test('image dialog has a persistent X and dismisses from the backdrop',async({page})=>{

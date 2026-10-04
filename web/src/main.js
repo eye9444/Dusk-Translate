@@ -1,6 +1,11 @@
 import './style.css';
 import './glass.css';
 import './welcome.css';
+import './launch.css';
+import { commitQueue } from './quota-client.js';
+import { createSpendingNotice } from './spending-notice.js';
+import { createUpgradeDialog, showQuotaDialog } from './upgrade-dialog.js';
+import { describeEntitlements, FEATURE_TIERS, TIER_LABELS } from './entitlements.js';
 import './reader.css';
 import { createPricingPage } from './pricing.js';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
@@ -9,11 +14,16 @@ import { validateFile, cleanSnapshot, progress } from './model.js';
 import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
+import { createReaderComments } from './reader-comments.js';
+import { showCapacitySelection } from './capacity-dialog.js';
+import { showReaderLinkDialog } from './reader-link-dialog.js';
 import { renderRubyParagraph } from './ruby-renderer.js';
 import { startCollaboration } from './collaboration.js';
+import { startLocalDocument } from './local-document.js';
 import { listEpubImages, validateReplacement, applyImageReplacements } from './image-assets.js';
 
 const $ = id => document.getElementById(id);
+const bytesToBase64=bytes=>{let value='';for(let index=0;index<bytes.length;index+=0x8000)value+=String.fromCharCode(...bytes.subarray(index,index+0x8000));return btoa(value);};
 const authReturn = new URL(location.href);
 const authParams = new URLSearchParams(authReturn.hash.slice(1));
 authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
@@ -28,6 +38,7 @@ let projectCollaboration = null;
 let pendingRubySelection = null;
 let imageDialogAssets = [], imageDialogUrls = [];
 let readerOpen = false, readerProject = null, readerBook = null, readerChapter = 0, readerReturn = 'library';
+let sharedReaderToken=null,readerRenderGeneration=0;
 let renderedOwner = null;
 let libraryView = 'projects';
 let guestMode=sessionStorage.getItem('dusk-guest')==='true';
@@ -35,7 +46,7 @@ const READER_FONT_KEY = 'dusk-reader-font-size';
 const READER_FONT_DEFAULT = 20, READER_FONT_STEP = 2, READER_FONT_MIN = 14, READER_FONT_MAX = 32;
 const ROUTES = new Set(['/','/home','/editor','/reader','/pricing','/welcome']);
 const owner = () => user?.id || 'guest';
-const isCloud = () => active && active.owner !== 'guest';
+const isCloud = (project=active) => project && project.storage!=='local' && project.owner !== 'guest';
 const isEpub = project => /\.epub$/i.test(project?.fileName || '');
 const comments = createComments({ cloud, local, getProject: () => active, getUser: () => user,
   onThreads: threads => $('editor').contentWindow?.postMessage({type:'host:comments',projectId:active?.id,threads:threads.map(thread=>{const location=projectCollaboration?.resolve(thread.anchor);return Number.isInteger(location?.start)?{...thread,anchor:{...thread.anchor,...location}}:thread;})},location.origin),
@@ -43,7 +54,16 @@ const comments = createComments({ cloud, local, getProject: () => active, getUse
   resolveSharedAnchor: anchor => { const location=projectCollaboration?.resolve(anchor); return Number.isInteger(location?.start)&&Number.isInteger(location?.end)?location:null; },
   clearFocus: () => $('editor').contentWindow?.postMessage({ type:'host:clearComment', projectId:active?.id }, location.origin),
   focus: selection => $('editor').contentWindow?.postMessage({ type:'host:commentFocus', projectId:active.id, selection }, location.origin) });
-const pricingPage = createPricingPage({ getUserEmail: () => user?.email || '' });
+const pricingPage = createPricingPage({
+  createCheckout: async priceId => {
+    if (!user) { showAuth(); throw new Error('Sign in before subscribing so your plan can be linked to your account.'); }
+    return billingRequest('/api/paddle/checkout', 'POST', { priceId });
+  },
+  onFree: () => { navigate(user ? '/home' : '/'); refresh(); },
+});
+const publicComments=createReaderComments({root:$('reader-comments'),content:$('reader-content'),remote,getUser:()=>user,signIn:()=>showAuth(),onInvalid:error=>{
+  $('reader-content').replaceChildren();$('reader-chapter-title').textContent='Reader access could not be confirmed';$('reader-status').textContent=errorMessage(error);
+}});
 function sendRuby(chapterId) {
   if(!active||!projectCollaboration)return;
   $('editor').contentWindow?.postMessage({type:'host:ruby',projectId:active.id,chapterId,annotations:projectCollaboration.ruby(chapterId)},location.origin);
@@ -56,11 +76,11 @@ function openRuby(selection){
 }
 $('ruby-form').onsubmit=event=>{event.preventDefault();if(!pendingRubySelection||!projectCollaboration)return;try{projectCollaboration.addRuby(pendingRubySelection,$('ruby-reading').value,$('ruby-published').checked);sendRuby(pendingRubySelection.chapterId);$('ruby-dialog').close();pendingRubySelection=null;}catch(error){$('ruby-error').textContent=errorMessage(error);}};
 function clearImageUrls(){for(const url of imageDialogUrls)URL.revokeObjectURL(url);imageDialogUrls=[];}
-async function replacementRows(project=active){return project&&isCloud() ? remote.imageAssets(project.id) : [];}
+async function replacementRows(project=active){return !project?[]:isCloud(project)?remote.imageAssets(project.id):local.imageAssets(project.id);}
 async function projectFileWithReplacements(project){
-  if(!project||project.owner==='guest'||!/\.epub$/i.test(project.fileName))return project?.file;
-  const rows=await remote.imageAssets(project.id),replacements=[];
-  for(const row of rows.filter(item=>item.replacement_path))replacements.push({epubPath:row.epub_path,file:await remote.downloadImage(row.replacement_path)});
+  if(!project||!/\.epub$/i.test(project.fileName))return project?.file;
+  const rows=await replacementRows(project),replacements=[];
+  for(const row of rows.filter(item=>item.replacement_path))replacements.push({epubPath:row.epub_path,file:isCloud(project)?await remote.downloadImage(row.replacement_path):row.replacement});
   return applyImageReplacements(project.file,replacements);
 }
 async function renderImageAssets(){
@@ -68,21 +88,22 @@ async function renderImageAssets(){
   $('images-list').replaceChildren();
   for(const asset of imageDialogAssets){
     const row=byPath.get(asset.epubPath),card=el('article','image-asset'),title=el('strong','',asset.name),meta=el('small','',`${asset.mime} · ${(asset.bytes.length/1024).toFixed(1)} KB${row?.replacement_path?' · replaced':''}`),actions=el('div','image-asset-actions');
-    if(previews&&asset.replaceable){const source=row?.replacement_path?await remote.downloadImage(row.replacement_path):new Blob([asset.bytes],{type:asset.mime}),url=URL.createObjectURL(source),preview=document.createElement('button'),image=document.createElement('img');preview.type='button';preview.className='image-preview-button';preview.setAttribute('aria-label',`Open full preview of ${asset.name}`);image.src=url;image.alt=asset.name;image.loading='lazy';preview.append(image);preview.onclick=()=>{$('image-preview-full').src=url;$('image-preview-full').alt=asset.name;$('image-preview-title').textContent=asset.name;$('image-preview-caption').textContent=`${asset.mime} · ${(asset.bytes.length/1024).toFixed(1)} KB${row?.replacement_path?' · replacement':''}`;$('image-preview-dialog').showModal();};imageDialogUrls.push(url);card.append(preview);}
+    const replacement=row?.replacement_path?(isCloud()?await remote.downloadImage(row.replacement_path):row.replacement):null;
+    if(previews&&asset.replaceable){const source=replacement||new Blob([asset.bytes],{type:asset.mime}),url=URL.createObjectURL(source),preview=document.createElement('button'),image=document.createElement('img');preview.type='button';preview.className='image-preview-button';preview.setAttribute('aria-label',`Open full preview of ${asset.name}`);image.src=url;image.alt=asset.name;image.loading='lazy';preview.append(image);preview.onclick=()=>{$('image-preview-full').src=url;$('image-preview-full').alt=asset.name;$('image-preview-title').textContent=asset.name;$('image-preview-caption').textContent=`${asset.mime} · ${(asset.bytes.length/1024).toFixed(1)} KB${row?.replacement_path?' · replacement':''}`;$('image-preview-dialog').showModal();};imageDialogUrls.push(url);card.append(preview);}
     else if(previews&&!asset.replaceable)card.append(el('small','','Preview blocked for this image format. Download the original to inspect it safely.'));
-    actions.append(button('Download',async()=>{const file=row?.replacement_path?await remote.downloadImage(row.replacement_path):new Blob([asset.bytes],{type:asset.mime});download(asset.name,file);}));
-    if(active.accessRole!=='viewer'&&asset.replaceable){const label=el('label','','Replace'),input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';input.onchange=async()=>{const file=input.files?.[0];if(!file)return;try{$('images-status').textContent='Validating replacement…';const checked=await validateReplacement(file,asset.bytes.length);let record=row;if(!record)record=await remote.registerImage(active.id,crypto.randomUUID(),asset.epubPath,asset.bytes.length,asset.mime);const ext=checked.mime==='image/png'?'png':checked.mime==='image/jpeg'?'jpg':'webp',path=`${active.owner}/${active.id}/images/${record.id}/replacement.${ext}`;await remote.uploadImage(path,file);await remote.setImageReplacement(active.id,record.id,path,checked);$('images-status').textContent='Replacement saved.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}finally{input.value='';}};label.append(input);actions.append(label);}
-    if(row?.replacement_path&&active.accessRole!=='viewer')actions.append(button('Restore original',async()=>{try{const old=row.replacement_path;await remote.clearImageReplacement(active.id,row.id);await remote.deleteImage(old);$('images-status').textContent='Original restored.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}}));
+    actions.append(button('Download',()=>download(asset.name,replacement||new Blob([asset.bytes],{type:asset.mime}))));
+    if(active.accessRole!=='viewer'&&asset.replaceable){const label=el('label','','Replace'),input=document.createElement('input');input.type='file';input.accept='image/png,image/jpeg,image/webp';if(!active.entitlements?.capabilities.replaceImages){label.prepend(el('span','','♛ Pro · '));input.onclick=event=>{event.preventDefault();requireFeature('replaceImages');};}input.onchange=async()=>{const file=input.files?.[0];if(!file)return;if(!await requireFeature('replaceImages')){input.value='';return;}try{$('images-status').textContent='Validating replacement…';const checked=await validateReplacement(file,asset.bytes.length);if(isCloud()){let record=row;if(!record)record=await remote.registerImage(active.id,crypto.randomUUID(),asset.epubPath,asset.bytes.length,asset.mime);const ext=checked.mime==='image/png'?'png':checked.mime==='image/jpeg'?'jpg':'webp',path=`${active.owner}/${active.id}/images/${record.id}/replacement.${ext}`;await remote.uploadImage(path,file);await remote.setImageReplacement(active.id,record.id,path,checked);}else await local.putImage(active.id,asset.epubPath,file,checked);$('images-status').textContent='Replacement saved.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}finally{input.value='';}};label.append(input);actions.append(label);}
+    if(row?.replacement_path&&active.accessRole!=='viewer')actions.append(button('Restore original',async()=>{if(!await requireFeature('replaceImages'))return;try{if(isCloud()){const old=row.replacement_path;await remote.clearImageReplacement(active.id,row.id);await remote.deleteImage(old);}else await local.removeImage(active.id,asset.epubPath);$('images-status').textContent='Original restored.';await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}}));
     card.append(title,meta,actions);$('images-list').append(card);
   }
 }
 async function showImages(){
   $('images-status').textContent='Reading EPUB images…';$('images-list').replaceChildren();$('images-dialog').showModal();
-  try{if(!isCloud())throw new Error('Image replacement currently requires a cloud project.');if(!isEpub(active))throw new Error('This project does not contain an EPUB.');imageDialogAssets=await listEpubImages(active.file);$('images-status').textContent=`${imageDialogAssets.length} image assets found.`;await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}
+  try{if(!isEpub(active))throw new Error('This project does not contain an EPUB.');imageDialogAssets=await listEpubImages(active.file);$('images-status').textContent=`${imageDialogAssets.length} image assets found.`;await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}
 }
 async function exportTranslatedEpub(){
   if(!active||!isEpub(active))return;
-  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const source=await projectFileWithReplacements(active),file=await buildTranslatedEpub(source,active.snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
+  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),base=rights.capabilities.exportSelection?active.snapshot:{...active.snapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=await buildTranslatedEpub(source,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
   catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
 }
 $('images-preview').defaultChecked=true;
@@ -155,18 +176,147 @@ theme(localStorage.getItem('theme') || 'dusk');
 $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? 'dusk' : 'eclipse');
 document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.closest('dialog').close());
 
-async function billingRequest(path, method = 'GET') {
+async function billingRequest(path, method = 'GET', body) {
   const { data, error } = await cloud.auth.getSession();
   if (error) throw error;
   if (!data.session?.access_token) throw new Error('Please sign in again to manage billing.');
   const response = await fetch(path, {
     method,
-    headers: { Authorization: 'Bearer ' + data.session.access_token },
+    headers: { Authorization: 'Bearer ' + data.session.access_token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(payload.error || 'Billing request failed.');
+  if (!response.ok && !payload.blocked) throw new Error(payload.error || 'Billing request failed.');
   return payload;
 }
+
+const confirmSpending = createSpendingNotice({getUser:()=>user,request:billingRequest});
+const showUpgrade = createUpgradeDialog({createCheckout:priceId=>billingRequest('/api/paddle/checkout','POST',{priceId})});
+async function currentEntitlements(project=active) {
+  const data=project&&isCloud(project)
+    ? await remote.entitlements(project.id)
+    : user ? await billingRequest('/api/paddle/status') : {tier:'free'};
+  const result={...data,...describeEntitlements(data.tier)};
+  if(project&&!isCloud(project) && user&&result.capabilities.customPrompt)result.customInstructions=localStorage.getItem(`dusk-prompt:${user.id}:${project.id}`)||'';
+  if(project && project===active){
+    active.entitlements=result;
+    $('editor').contentWindow?.postMessage({type:'host:entitlements',projectId:active.id,entitlements:result},location.origin);
+  }
+  return result;
+}
+async function requireFeature(feature) {
+  try {
+    const project=active,rights=await currentEntitlements();
+    if(project!==active)return false;
+    if(rights.capabilities[feature])return true;
+    const labels={consistency:'Consistency checking',rubyEdit:'Editing ruby',replaceImages:'Replacing book images',exportSelection:'Choosing exported chapters',customPrompt:'Custom translation instructions',readerLinks:'Public reader links'};
+    await showUpgrade({feature:labels[feature]||feature,required:TIER_LABELS[FEATURE_TIERS[feature]]});
+  } catch(error){announceSave(errorMessage(error));}
+  return false;
+}
+async function showCustomInstructions(){
+  const project=active;
+  if(!project || project.accessRole==='viewer')return;
+  const dialog=document.createElement('dialog');dialog.className='quota-dialog';
+  dialog.innerHTML='<form><h2>Translation instructions</h2><p>These instructions supplement the shared fidelity rules. They do not guarantee error-free translation.</p><label>Project instructions<textarea rows="8" maxlength="10000"></textarea></label><p role="status"></p><footer><button type="button">Cancel</button><button type="submit">Save instructions</button></footer></form>';
+  const input=dialog.querySelector('textarea'),notice=dialog.querySelector('[role="status"]');
+  input.value=project.entitlements?.customInstructions||'';
+  dialog.querySelector('[type="button"]').onclick=()=>dialog.close();
+  dialog.addEventListener('close',()=>dialog.remove());
+  dialog.querySelector('form').onsubmit=async event=>{
+    event.preventDefault();
+    try{
+      if(active!==project)throw new Error('Project changed. Reopen the instructions.');
+      if(!await requireFeature('customPrompt'))return;
+      if(!isCloud(project))localStorage.setItem(`dusk-prompt:${user.id}:${project.id}`,input.value);
+      else await remote.setInstructions(project.id,input.value);
+      await currentEntitlements(project);dialog.close();
+    }catch(error){notice.textContent=errorMessage(error);}
+  };
+  document.body.append(dialog);dialog.showModal();input.focus();
+}
+async function quotaRequest(operation, data) {
+  const result = await billingRequest('/api/translation-quota','POST',{...data,operation});
+  void refreshQuotaMeter();
+  if (result.blocked) {
+    showQuotaDialog(result,()=>showUpgrade({feature:'Unlimited cloud translation'}));
+    const reset = new Date(result.resetAt);
+    throw new Error(`This chapter needs ${result.required.toLocaleString()} characters; you have ${result.remaining.toLocaleString()} remaining today. Resets ${reset.toLocaleString()}. Upgrade your plan or wait for reset.`);
+  }
+  return result;
+}
+let quotaMeterRequest = 0;
+async function refreshQuotaMeter() {
+  const project=active, sequence=++quotaMeterRequest;
+  if(!project || !editorReady)return;
+  let quota;
+  try {
+    quota=!isCloud(project) ? {local:true} : project.accessRole==='viewer'
+      ? {readOnly:true}
+      : await billingRequest('/api/translation-quota','POST',{operation:'status',projectId:project.id});
+  } catch {
+    quota={unavailable:true};
+  }
+  if(active===project && sequence===quotaMeterRequest)
+    $('editor').contentWindow?.postMessage({type:'host:quota',projectId:project.id,quota},location.origin);
+}
+setInterval(()=>{void refreshQuotaMeter();},60000);
+async function launchRequest(data) {
+  if (data.action==='spending') return {accepted:await confirmSpending()};
+  const project = active;
+  if (!project || data.projectId!==project.id) throw new Error('Project changed. Please retry.');
+  if (data.action==='reserve') {
+    if (!await confirmSpending()) throw new Error('Translation canceled.');
+    await currentEntitlements(project);
+    if (!isCloud()) return {unlimited:true};
+    await saveNow();
+    if (saveError || active!==project || persisted!==generation) throw new Error('Save your chapter to the cloud before translating.');
+    // Resolve durable unacknowledged commits before reserving a new attempt.
+    for (const queued of await commitQueue.list()) {
+      if (queued.userId!==user?.id) continue;
+      await quotaRequest('commit',queued);
+      await commitQueue.remove(queued.attemptId);
+    }
+  }
+  if (!isCloud()) return {unlimited:true};
+  const request = {projectId:project.id,attemptId:data.attemptId,chapterId:data.chapterId};
+  if (data.action==='commit') {
+    const text=project.snapshot.translations?.[data.chapterId] || '';
+    request.outputHash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))),byte=>byte.toString(16).padStart(2,'0')).join('');
+    await commitQueue.put({...request,userId:user.id});
+    await saveNow();
+    if(saveError || active!==project || persisted!==generation) throw new Error('Translation is preserved locally. Save to the cloud, then retry usage confirmation.');
+    const result=await quotaRequest('commit',request);
+    await commitQueue.remove(request.attemptId);
+    return result;
+  }
+  return quotaRequest(data.action,request);
+}
+
+let provisioningTimer;
+let provisioningGeneration = 0;
+async function confirmProvisioning() {
+  clearTimeout(provisioningTimer);
+  const generation = ++provisioningGeneration;
+  const title = $('subscription-welcome-title');
+  const notice = $('provisioning-status');
+  title.textContent = 'Checkout completed; confirming your plan';
+  if (!user) { notice.textContent = 'Sign in to the account you used for checkout to confirm your plan.'; return; }
+  try {
+    const billing = await billingRequest('/api/paddle/status');
+    if (generation !== provisioningGeneration || currentRoute() !== '/welcome') return;
+    if (billing.provisioning === 'ready') {
+      title.textContent = 'Your ' + billing.tier + ' subscription is ready.';
+      notice.textContent = 'Your plan has been confirmed by the billing service.';
+      return;
+    }
+    notice.textContent = 'Payment confirmation is still being processed. Your plan is not active yet. Please do not purchase again.';
+    provisioningTimer = setTimeout(() => { if (currentRoute() === '/welcome') confirmProvisioning(); }, 5000);
+  } catch {
+    notice.textContent = 'We could not confirm your plan. Please retry; you do not need to pay again.';
+  }
+}
+$('provisioning-retry').onclick = confirmProvisioning;
 
 async function showBilling() {
   if (!user) { showAuth(); return; }
@@ -232,7 +382,8 @@ async function refresh() {
   $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
   if(showingPricing){await pricingPage.show();return;}
   pricingPage.hide();
-  if(showingSubscriptionWelcome)return;
+  $('account').textContent = user ? 'Account' : 'Sign in';
+  if(showingSubscriptionWelcome){confirmProvisioning();return;}
   if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
   $('account').textContent = user ? 'Account' : 'Sign in';
@@ -246,10 +397,10 @@ async function refresh() {
     const result=user?await remote.list():cached;
     const pendingInvitations=user?await remote.inbox().catch(()=>[]):[];
     if(request !== libraryRequest || libraryOwner !== owner()) return;
-    projects=user?result.map(p=>{
+    projects=user?[...cached.filter(p=>p.storage==='local'),...result.map(p=>{
       const draft=cached.find(c=>c.id===p.id);
       return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
-    }):result;
+    })]:result;
     invitations=pendingInvitations;
     status('');render();
   }catch(e){
@@ -309,6 +460,7 @@ function render() {
     translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
     if (!complete && isEpub(p)) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
     actions.append(open,original,translated,button('Export project',() => downloadProject(p)));
+    if(user&&p.owner!=='guest'&&['owner','editor'].includes(role))actions.append(button('Public reader link',()=>showReaderLinkDialog({project:p,remote,upgrade:()=>showUpgrade({feature:'Public reader links',required:'Teams'})})));
     if (p.owner === owner()) {
       if (user) actions.append(button('Share',() => showShare(p)));
       actions.append(button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
@@ -364,6 +516,7 @@ function showProjectDialog(importing = false) {
   $('project-dialog-eyebrow').textContent = importing ? 'RESTORE A PROJECT' : 'A NEW CHAPTER';
   $('project-dialog-title').textContent = importing ? 'Import a project' : 'Start a project';
   $('new-title-label').hidden = importing;
+  $('new-storage-label').hidden=!user;
   $('new-title').required = !importing;
   $('new-file-label').firstChild.textContent = importing ? 'DuskTranslate project ZIP' : 'Original book or project backup';
   $('new-file').accept = importing ? '.zip,application/zip' : '.epub,.json,.txt,.zip';
@@ -384,7 +537,7 @@ $('project-form').onsubmit = async e => {
   try {
     let file = $('new-file').files[0]; validateFile(file);
     if (importingProject && !/\.zip$/i.test(file.name)) throw new Error('Choose a DuskTranslate project ZIP.');
-    let snapshot = null, importedTitle = '';
+    let snapshot = null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
     if (/\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
@@ -393,14 +546,19 @@ $('project-form').onsubmit = async e => {
       const record = JSON.parse(await archive.file('project.json').async('string'));
       if (typeof record.fileName!=='string' || !/\.(epub|json|txt)$/i.test(record.fileName) || !archive.file(record.fileName.replace(/[\\/]/g,'_'))) throw new Error('Backup original book is missing or invalid.');
       snapshot=cleanSnapshot(record.snapshot);
+      importedStorage=record.storage==='local'?'local':'';
+      if(typeof record.localDocument==='string')importedDocument=Uint8Array.from(atob(record.localDocument),character=>character.charCodeAt(0));
+      for(const image of Array.isArray(record.localImages)?record.localImages:[]){const entry=archive.file(image.file);if(entry)importedImages.push({...image,blob:new Blob([await entry.async('arraybuffer')],{type:image.mime})});}
       importedTitle=typeof record.title === 'string' ? record.title.trim().slice(0,120) : '';
       file=new File([await archive.file(record.fileName.replace(/[\\/]/g,'_')).async('arraybuffer')],record.fileName);
       validateFile(file);
     }
     const title = (importingProject ? importedTitle : $('new-title').value.trim()) || $('new-title').value.trim();
     if (!title) throw new Error(importingProject ? 'This backup does not include a usable project title.' : 'Enter a project title.');
-    let p = { id:crypto.randomUUID(), owner:owner(), title, file, fileName:file.name, snapshot, archived:false, revision:1, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), dirty:false };
-    if (user) p = await remote.create(p);
+    const localOnly=!user||$('new-local').checked||importedStorage==='local';
+    let p = { id:crypto.randomUUID(), owner:owner(), storage:localOnly?'local':'cloud', title, file, fileName:file.name, snapshot, localDocument:importedDocument, archived:false, revision:1, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), dirty:false };
+    if (user&&!localOnly) p = await remote.create(p);
+    for(const image of importedImages)await local.putImage(p.id,image.epubPath,image.blob,{bytes:image.bytes,mime:image.mime,width:image.width,height:image.height});
     await local.put(p); $('project-dialog').close(); await refresh(); await openProject(p.id);
   } catch(err) { $('new-error').textContent = errorMessage(err); }
   finally { working=false; $('create-submit').disabled=false; }
@@ -416,7 +574,7 @@ async function acquire(id) {
 }
 async function loadProject(id) {
   const cached = await local.get(owner(), id);
-  if (!user) return cached;
+  if (!user||cached?.storage==='local') return cached;
   if (cached?.dirty) return cached;
   try {
     return { ...(await remote.open(id)), cacheOwner:owner() };
@@ -433,6 +591,8 @@ async function openProject(id, updateRoute = true) {
     active = await loadProject(id);
     if (!active) throw new Error('Project not found. Refresh your library.');
     active.accessRole = active.owner === owner() ? 'owner' : active.collaborators?.find(member => member.user_id === user?.id)?.role || 'viewer';
+    const rights=await currentEntitlements(active);
+    if(rights.editable===false)active.accessRole='viewer';
     generation = active.dirty ? 1 : 0; persisted=0; saveError=''; streaming=false; editorReady=false;
     $('library').hidden=true; $('workspace').hidden=false; document.body.classList.add('workspace-open');
     $('project-title').textContent=active.title; announceSave('Opening…');
@@ -454,9 +614,16 @@ function setReaderFontSize(value) {
   $('reader-page').style.setProperty('--reader-image-max', `${Math.round(900 * size / READER_FONT_DEFAULT)}px`);
   $('reader-font-value').textContent = `${size} px`;
 }
-function renderReader() {
+async function renderReader() {
   if (!readerBook) return;
+  const renderGeneration=++readerRenderGeneration;
   const chapter = readerBook.chapters[readerChapter];
+  if(sharedReaderToken){
+    $('reader-content').replaceChildren();
+    try{await remote.readerComments(sharedReaderToken,chapter.id);}
+    catch(error){$('reader-status').textContent=errorMessage(error);publicComments.close();return;}
+    if(renderGeneration!==readerRenderGeneration||!readerBook)return;
+  }
   $('reader-title').textContent = readerBook.title;
   $('reader-chapter-count').textContent = `Section ${String(readerChapter).padStart(2, '0')} of ${readerBook.chapters.length}`;
   $('reader-chapter-title').textContent = chapter.title;
@@ -481,6 +648,8 @@ function renderReader() {
     return chapterButton;
   }));
   setReaderFontSize(readerFontSize());
+  if(sharedReaderToken)await publicComments.open(sharedReaderToken,chapter.id);
+  else publicComments.close();
 }
 function prepareReader(title, edition, preserveReturn = false) {
   if (!preserveReturn) readerReturn = $('welcome').hidden ? 'library' : 'welcome';
@@ -499,7 +668,7 @@ async function presentReader(file, fileName, edition, project = null, preserveRe
   prepareReader(project?.title || fileName.replace(/\.epub$/i, ''), edition, preserveReturn);
   readerProject = project;
   try {
-    readerBook = await readEpub(file, fileName); renderReader();
+    readerBook = await readEpub(file, fileName); await renderReader();
     $('reader-editor').hidden = !project;
     $('reader-status').textContent = 'Ready to read';
     $('reader-page').focus({ preventScroll: true });
@@ -529,6 +698,7 @@ async function openSharedReader(token) {
   if (active || readerOpen || opening) return;
   opening = true;
   try {
+    sharedReaderToken=token;
     const project=await remote.openPublicReader(token);
     if (!project.file || !isEpub(project)) throw new Error('This shared project does not contain an EPUB file.');
     let file=project.file, edition='SHARED ORIGINAL EDITION';
@@ -544,6 +714,7 @@ async function openSharedReader(token) {
 }
 function leaveReader({ updateRoute = true } = {}) {
   if (!readerOpen) return;
+  sharedReaderToken=null;readerRenderGeneration++;publicComments.close();
   readerBook?.chapters.flatMap(chapter => chapter.blocks || []).filter(block => block.type === 'image').forEach(block => URL.revokeObjectURL(block.src));
   readerOpen = false; readerProject = null; readerBook = null; readerChapter = 0;
   $('reader').hidden = true; document.body.classList.remove('reader-open');
@@ -626,8 +797,14 @@ dictionaryDialog.addEventListener('click',event=>{
   const box=dictionaryDialog.getBoundingClientRect();
   if(event.clientX<box.left||event.clientX>box.right||event.clientY<box.top||event.clientY>box.bottom)dictionaryDialog.close();
 });
-window.addEventListener('message', e => {
+window.addEventListener('message', async e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
+  if (e.data.type==='editor:launch' && e.data.projectId===active.id) {
+    const frame=e.source;
+    launchRequest(e.data).then(result=>frame.postMessage({type:'host:launch',requestId:e.data.requestId,result},location.origin))
+      .catch(error=>frame.postMessage({type:'host:launch',requestId:e.data.requestId,error:error.message},location.origin));
+    return;
+  }
   if (e.data.type === 'editor:presence-location' && e.data.projectId === active.id) {
     projectPresence?.update(e.data.location);
     if(typeof e.data.location?.chapterId==='string')sendRuby(e.data.location.chapterId);
@@ -646,6 +823,8 @@ window.addEventListener('message', e => {
     return;
   }
   if (e.data.type === 'editor:action') {
+    const gated={ruby:'rubyEdit',rubyUpgrade:'rubyEdit',removeRuby:'rubyEdit',updateRuby:'rubyEdit',exportSettings:'exportSelection',consistency:'consistency',consistencyReview:'consistency',customPrompt:'customPrompt'};
+    if(gated[e.data.action] && !await requireFeature(gated[e.data.action]))return;
     if (e.data.action === 'comments' && e.data.projectId === active.id) comments.open(e.data.selection);
     if (e.data.action === 'ruby' && e.data.projectId === active.id) openRuby(e.data.selection);
     if (e.data.action === 'images' && e.data.projectId === active.id) showImages();
@@ -662,6 +841,7 @@ window.addEventListener('message', e => {
     if (e.data.action === 'findReview') showFindReplace(true);
     if (e.data.action === 'consistency') checkConsistency();
     if (e.data.action === 'consistencyReview') checkConsistency();
+    if (e.data.action === 'customPrompt') showCustomInstructions();
     return;
   }
   if (e.data.type === 'editor:dictionary') {
@@ -675,6 +855,7 @@ window.addEventListener('message', e => {
   if (e.data.type === 'editor:error') { announceSave(`Could not open book: ${e.data.message}`); return; }
   if (e.data.type === 'editor:loaded') {
     editorReady=true;
+    void refreshQuotaMeter();
     comments.watch(active).catch(error=>announceSave(`Comments unavailable: ${errorMessage(error)}`));
     projectPresence?.stop(); projectPresence=null;
     if (user && isCloud()) {
@@ -705,6 +886,20 @@ window.addEventListener('message', e => {
           for(const edit of queued)controller.edit(edit.chapterId,edit.value);
         }).catch(error=>{if(active===project)announceSave(`Collaboration unavailable: ${errorMessage(error)}`);});
       }
+    } else if(user&&!isCloud()&&active.accessRole!=='viewer') {
+      projectCollaboration?.stop();
+      const project=active;
+      projectCollaboration=startLocalDocument({project,onRuby:chapterId=>{if(active===project)sendRuby(chapterId);},onText:(chapterId,value)=>{
+        if(active!==project)return;
+        active.snapshot.translations ||= {};
+        if(value)active.snapshot.translations[chapterId]=value;else delete active.snapshot.translations[chapterId];
+        $('editor').contentWindow?.postMessage({type:'host:sharedText',projectId:active.id,chapterId,value},location.origin);
+      },onPersist:async bytes=>{
+        if(active!==project)return;
+        project.localDocument=bytes;generation++;
+        await local.patch({...project,updatedAt:new Date().toISOString()});
+      }});
+      for(const chapter of project.snapshot.novel.chapters)sendRuby(chapter.id);
     }
   }
   if (e.data.type !== 'editor:state') return;
@@ -765,8 +960,14 @@ async function projectBackupBlob(project) {
   const { default:JSZip } = await import('jszip'); const zip=new JSZip();
   const originalName=project.fileName.replace(/[\\/]/g,'_');
   const snapshot=cleanSnapshot(project.snapshot);
+  const localImages=!isCloud(project)?await local.imageAssets(project.id):[];
+  const imageManifest=[];
+  for(const [index,image] of localImages.entries()){
+    const file=`local-images/${index}`;zip.file(file,image.replacement);imageManifest.push({file,epubPath:image.epub_path,bytes:image.bytes,mime:image.mime,width:image.width,height:image.height});
+  }
+  const localDocument=project.localDocument instanceof Uint8Array?bytesToBase64(project.localDocument):null;
   zip.file(originalName,project.file);
-  zip.file('project.json',JSON.stringify({schemaVersion:2,exportedAt:new Date().toISOString(),title:project.title,fileName:project.fileName,snapshot},null,2));
+  zip.file('project.json',JSON.stringify({schemaVersion:3,exportedAt:new Date().toISOString(),title:project.title,fileName:project.fileName,storage:project.storage,snapshot,localDocument,localImages:imageManifest},null,2));
   const translations=textExport(snapshot);
   if (translations) zip.file('translation.txt',translations);
   return zip.generateAsync({type:'blob'});
@@ -786,10 +987,40 @@ window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
 
 let sharingProject = null;
+const capacityButton=button('Cloud limits and editable projects',async()=>{
+  try{
+    const data=await remote.capacity();
+    showCapacitySelection({title:'Choose editable cloud projects',description:`${data.storageBytes.toLocaleString()} bytes stored, ${data.reservedBytes.toLocaleString()} reserved, of ${data.limits.storageBytes.toLocaleString()} bytes. Archived projects count. Reading and export remain available for excess projects. Spare slots fill by creation date.`,entries:data.projects,allowance:data.limits.projects,
+      save:async ids=>{await remote.selectProjects(ids);await refresh();}});
+  }catch(error){$('billing-detail').textContent=errorMessage(error);}
+});
+capacityButton.type='button';$('billing-detail').after(capacityButton);
+const seatButton=button('Choose active collaborators',async()=>{
+  if(!sharingProject)return;const project=sharingProject;
+  try{
+    const data=await remote.seatSelection(project.id);
+    showCapacitySelection({title:'Choose active collaborators',description:'Your own seat is included separately. Unselected members beyond capacity are suspended, not deleted. Spare slots fill with the earliest accepted members.',entries:data.members,allowance:data.allowance,
+      save:async ids=>{await remote.configureLaunch(project.id,ids);await renderShareMembers();}});
+  }catch(error){$('share-error').textContent=errorMessage(error);}
+});
+seatButton.type='button';$('share-members').before(seatButton);
+const readerCommentLabel=document.createElement('label'),readerCommentToggle=document.createElement('input');
+readerCommentToggle.type='checkbox';readerCommentToggle.id='share-reader-comments';
+readerCommentLabel.append(readerCommentToggle,document.createTextNode(' Allow signed-in readers to comment (Teams)'));
+$('share-reader-actions').after(readerCommentLabel);readerCommentLabel.hidden=true;
+readerCommentToggle.onchange=async()=>{
+  if(!sharingProject)return;
+  readerCommentToggle.disabled=true;
+  try{await remote.setReaderCommenting(sharingProject.id,readerCommentToggle.checked);}
+  catch(error){readerCommentToggle.checked=!readerCommentToggle.checked;$('share-error').textContent=errorMessage(error);}
+  finally{readerCommentToggle.disabled=false;}
+};
 function publicReaderUrl(token) { return `${location.origin}/reader?share=${encodeURIComponent(token)}`; }
 function renderPublicReaderLink(token) {
   const url=$('share-reader-url'), enable=$('share-reader-enable'), copy=$('share-reader-copy'), disable=$('share-reader-disable');
   const active=Boolean(token); url.value=active?publicReaderUrl(token):'';
+  readerCommentLabel.hidden=!active;readerCommentToggle.checked=false;
+  if(token)remote.readerComments(token,'').then(data=>{if(url.value===publicReaderUrl(token))readerCommentToggle.checked=data.enabled;}).catch(error=>{$('share-error').textContent=errorMessage(error);});
   url.hidden=!active; copy.hidden=!active; disable.hidden=!active; enable.hidden=active;
 }
 async function refreshPublicReaderLink() {

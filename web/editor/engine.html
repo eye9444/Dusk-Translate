@@ -564,7 +564,7 @@ function extractTextFromXhtml(xhtml) {
 // ── EPUB EXPORTER ────────────────────────────────────────────
 async function doEpubExport() {
   if (!novel || !epubZip) { setStatus('Load an EPUB first — JSON-loaded novels cannot export to EPUB'); return; }
-  const excluded = new Set(typeof exportExcluded === 'undefined' ? [] : exportExcluded);
+  const excluded = new Set(globalThis.DuskCapabilities && !globalThis.DuskCapabilities.exportSelection ? [] : typeof exportExcluded === 'undefined' ? [] : exportExcluded);
   const selected = novel.chapters.filter(ch => !excluded.has(ch.id));
   const done = selected.filter(ch => translations[ch.id]);
   if (done.length === 0) { setStatus('Nothing translated yet.'); return; }
@@ -807,6 +807,11 @@ async function translateCurrent({ resume = null } = {}) {
   const sourceForTranslation = resume?.sourceOverride || ch.text;
   const chunks = splitTranslationChunks(sourceForTranslation);
   const makePrompt = (source, continuity = '', resumesCurrentChunk = false) => {
+    if (globalThis.DuskTranslationPrompt) return globalThis.DuskTranslationPrompt({
+      source, style: styleMap[style], glossary: glossaryLines.join('\n'),
+      context: continuity, resume: resumesCurrentChunk,
+      customInstructions: globalThis.DuskCustomInstructions || '',
+    });
     const continuitySection = continuity
       ? resumesCurrentChunk
         ? `\n\nExisting partial translation of this same Japanese passage. Continue directly after it. Do not repeat, revise, explain, or translate the existing text.\n---\n${continuity}\n---`
@@ -845,6 +850,7 @@ async function translateCurrent({ resume = null } = {}) {
   };
 
   let activeChunkIndex = resume?.chunkIndex ?? 0;
+  let completed = false;
   try {
     for (let index = activeChunkIndex; index < chunks.length; index++) {
       activeChunkIndex = index;
@@ -869,8 +875,7 @@ async function translateCurrent({ resume = null } = {}) {
           clearInterval(watchdog);
           window._plainTextRetryChapter = ch.id;
           endBusy();
-          setStatus(`Empty response in part ${index + 1} — retrying with plain text…`, true);
-          translateCurrent({ resume });
+          setStatus(`Empty response in part ${index + 1}. Click Retry to try again.`);
           return;
         }
         throw new Error(`Empty response for part ${index + 1}/${chunks.length} — the model may be rate limited or blocking this chapter`);
@@ -889,6 +894,7 @@ async function translateCurrent({ resume = null } = {}) {
     window._plainTextRetryChapter = null;
     translations[ch.id] = full;
     delete partialResumes[ch.id];
+    completed = true;
     updateMark(cur, full); updateProg();
     setStatus(`✓ Done — ${ch.id}${chunks.length > 1 ? ` (${chunks.length} parts)` : ''}`);
     setTimeout(hideStatus, 2500);
@@ -901,8 +907,7 @@ async function translateCurrent({ resume = null } = {}) {
     if (!full.length && !plainTextFallback) {
       window._plainTextRetryChapter = ch.id;
       endBusy();
-      setStatus('Request failed — retrying with plain text…', true);
-      translateCurrent({ resume });
+      setStatus('Request failed. Click Retry to try again.');
       return;
     } else if (full.length > 80) {
       savePartial(full, 'Stream interrupted — partial saved. Retry continues from here.', activeChunkIndex);
@@ -914,6 +919,7 @@ async function translateCurrent({ resume = null } = {}) {
   }
 
   endBusy();
+  return completed;
 }
 
 async function translateOpenRouter(prompt, out, cursor, onToken, abortCtrl) {
@@ -1128,7 +1134,7 @@ function doSourceExport() {
 
 function doExport() {
   if (!novel) return;
-  const excluded = new Set(typeof exportExcluded === 'undefined' ? [] : exportExcluded);
+  const excluded = new Set(globalThis.DuskCapabilities && !globalThis.DuskCapabilities.exportSelection ? [] : typeof exportExcluded === 'undefined' ? [] : exportExcluded);
   let out = '';
   novel.chapters.forEach(ch => {
     if (!excluded.has(ch.id) && translations[ch.id]) {

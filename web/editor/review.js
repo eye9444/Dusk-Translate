@@ -12,7 +12,7 @@
   const rubyCancel=document.createElement('button');rubyCancel.type='button';rubyCancel.textContent='Cancel';rubyCancel.onclick=()=>{rubyEditor.hidden=true;};
   rubyEditor.append(rubyInput,rubySave,rubyDelete,rubyCancel);document.body.append(rubyEditor);
   let editingRubyId=null;
-  function editRuby(item,node){if(!canEdit)return;editingRubyId=item.id;rubyInput.value=item.reading;const box=node.getBoundingClientRect();rubyEditor.hidden=false;rubyEditor.style.left=`${Math.max(8,Math.min(innerWidth-rubyEditor.offsetWidth-8,box.left))}px`;rubyEditor.style.top=`${Math.max(8,Math.min(innerHeight-rubyEditor.offsetHeight-8,box.bottom+4))}px`;selectionTools.hidden=true;rubyInput.focus();rubyInput.select();}
+  function editRuby(item,node){if(!canEdit)return;if(!globalThis.DuskCapabilities?.rubyEdit){send('editor:action',{action:'rubyUpgrade'});return;}editingRubyId=item.id;rubyInput.value=item.reading;const box=node.getBoundingClientRect();rubyEditor.hidden=false;rubyEditor.style.left=`${Math.max(8,Math.min(innerWidth-rubyEditor.offsetWidth-8,box.left))}px`;rubyEditor.style.top=`${Math.max(8,Math.min(innerHeight-rubyEditor.offsetHeight-8,box.bottom+4))}px`;selectionTools.hidden=true;rubyInput.focus();rubyInput.select();}
   rubyEditor.onsubmit=event=>{event.preventDefault();if(!canEdit||!rubyInput.value.trim())return;send('editor:action',{action:'updateRuby',rubyId:editingRubyId,reading:rubyInput.value});rubyEditor.hidden=true;};
   rubyDelete.onclick=()=>{if(!canEdit)return;send('editor:action',{action:'removeRuby',rubyId:editingRubyId});rubyEditor.hidden=true;};
   rubyEditor.addEventListener('keydown',event=>{if(event.key==='Escape'){event.stopPropagation();rubyEditor.hidden=true;}});
@@ -21,7 +21,7 @@
   document.addEventListener('pointerdown',event=>{if(!rubyEditor.contains(event.target)&&!event.target.closest('.inline-ruby-reading'))rubyEditor.hidden=true;});
   const commentGutter=document.createElement('div');commentGutter.className='comment-gutter';
   const selectionTools=document.createElement('div');selectionTools.className='selection-tools';selectionTools.hidden=true;
-  const selectionRuby=document.createElement('button');selectionRuby.type='button';selectionRuby.textContent='Ruby';selectionRuby.setAttribute('aria-label','Add ruby text to selection');selectionTools.append(selectionRuby);
+  const selectionRuby=document.createElement('button');selectionRuby.id='host-selection-ruby';selectionRuby.type='button';selectionRuby.textContent='Ruby';selectionRuby.setAttribute('aria-label','Add ruby text to selection');selectionTools.append(selectionRuby);
   document.body.append(rubyNotes,rubyOverlay,commentGutter,selectionTools); toolMenu.append(comments,ruby);
   let commentThreads=[],rubyAnnotations=[],hoverLine=null,hoverClearTimer=null,selecting=false,selectionTimer=null;
   const rubyByChapter=new Map();

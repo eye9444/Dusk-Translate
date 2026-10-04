@@ -6,12 +6,17 @@ function required(name) {
   return value;
 }
 
-export function getPaddle() {
+export function getPaddleEnvironment() {
   const environment = required('PADDLE_ENV');
   if (environment !== 'sandbox' && environment !== 'production') {
     throw new Error('PADDLE_ENV must be either sandbox or production.');
   }
 
+  return environment;
+}
+
+export function getPaddle() {
+  const environment = getPaddleEnvironment();
   return new Paddle(required('PADDLE_API_KEY'), {
     environment: environment === 'sandbox' ? Environment.sandbox : Environment.production,
   });
