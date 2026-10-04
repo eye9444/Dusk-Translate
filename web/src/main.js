@@ -360,6 +360,23 @@ $('billing-manage').onclick = async () => {
   }
 };
 
+$('pricing-manage').onclick = async () => {
+  if (!user) { showAuth(); return; }
+  const control = $('pricing-manage');
+  const original = control.textContent;
+  control.disabled = true;
+  control.textContent = 'Opening Paddle portal...';
+  try {
+    const portal = await billingRequest('/api/paddle/portal', 'POST');
+    location.assign(portal.url);
+  } catch (error) {
+    $('pricing-status').classList.add('is-error');
+    $('pricing-status').textContent = errorMessage(error);
+    control.disabled = false;
+    control.textContent = original;
+  }
+};
+
 async function signOut() {
   const { error } = await cloud.auth.signOut();
   if (error) { status(error.message); return; }
