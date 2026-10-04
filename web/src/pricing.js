@@ -61,7 +61,6 @@ function buildCards(root, onSubscribe) {
 export function createPricingPage({ createCheckout, onFree, section = document.getElementById('pricing') }) {
   const cards = section.querySelector('.pricing-grid');
   const status = section.querySelector('[data-pricing-status], #pricing-status');
-  const location = section.querySelector('[data-pricing-location], #pricing-location');
   const termButtons = [...section.querySelectorAll('[data-billing-term]')];
   let paddlePromise;
   let previewPromise;
@@ -133,7 +132,6 @@ export function createPricingPage({ createCheckout, onFree, section = document.g
       const lineItems = preview.data?.details?.lineItems;
       if (!Array.isArray(lineItems)) throw new Error('Paddle did not return price line items.');
       priceTotals = new Map(lineItems.map(item => [item.price.id, item.formattedTotals.total]));
-      location.textContent = country ? `Prices localized for ${country}.` : 'Prices localized from your connection.';
       status.textContent = '';
       updateCards();
     })().catch(error => {

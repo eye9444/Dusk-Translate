@@ -8,7 +8,7 @@ export function createUpgradeDialog({createCheckout,onFree}) {
     <div class="billing-toggle" role="group" aria-label="Billing period">
       <button type="button" data-billing-term="month" aria-pressed="true">Monthly</button>
       <button type="button" data-billing-term="year" aria-pressed="false">Yearly</button>
-    </div><p data-pricing-location></p><p data-pricing-status role="status"></p><div class="pricing-grid"></div></section>`;
+    </div><p data-pricing-status role="status"></p><div class="pricing-grid"></div></section>`;
   document.body.append(dialog);
   let ownerOnly=false,savedRange,savedWindow;
   const view=createPricingPage({section:dialog.querySelector('section'),onFree:()=>{dialog.close();onFree?.();},
@@ -24,7 +24,7 @@ export function createUpgradeDialog({createCheckout,onFree}) {
     const frame=document.getElementById('editor')?.contentWindow;
     try{const s=frame?.getSelection();if(s?.rangeCount){savedRange=s.getRangeAt(0).cloneRange();savedWindow=frame;}}catch{}
     dialog.querySelector('[data-reason]').textContent=`${feature || 'This feature'} requires ${required}.`;
-    dialog.querySelector('[data-owner]').textContent=shared?'This project uses its owner\'s plan. Ask the owner to upgrade; upgrading your personal plan will not upgrade this project.':'';
+    dialog.querySelector('[data-owner]').textContent=shared?'Your plan controls your premium tools and translation allowance. The project owner\'s plan controls storage and the member limit.':'';
     if(!dialog.open)dialog.showModal();
     await view.show();
   };

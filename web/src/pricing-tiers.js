@@ -14,8 +14,15 @@
 export const PRICING_TIERS = Object.freeze([
   {
     name: 'Starter',
-    description: 'A calm place to begin translating a personal project.',
-    features: ['Personal translation projects', 'Core editor and exports'],
+    description: 'Generous essentials for personal translation projects.',
+    features: [
+      'Unlimited local projects and translation with your own AI key',
+      '3 cloud projects and 100 MB of cloud storage',
+      '30,000 cloud translation characters per day',
+      '2 people per cloud project, including the owner',
+      'Editor, glossary, dictionary, reader, and find/replace',
+      'TXT/EPUB exports, backups, and collaborator comments',
+    ],
     priceId: {
       month: 'pri_01m3ytbcem2m6vyat2nrgmx0zk',
       year: 'pri_01m3ytbcp6ye3z08h3t5w2s3wf',
@@ -23,8 +30,15 @@ export const PRICING_TIERS = Object.freeze([
   },
   {
     name: 'Pro',
-    description: 'More room for regular solo translation work.',
-    features: ['Everything in Starter', 'Personal premium tools', '7-day free trial'],
+    description: 'Premium translation tools and more room for regular work.',
+    features: [
+      'Everything in Starter',
+      'No app-imposed daily cloud translation limit',
+      '50 cloud projects and 1 GB of cloud storage',
+      '5 people per cloud project, including the owner',
+      'Consistency checker and ruby text editing',
+      'Replace EPUB images and choose exported chapters',
+    ],
     priceId: {
       month: 'pri_01m41bn725t30w2ta3zjf181mx',
       year: 'pri_01m41bn7b9gww2020gar6d25v7',
@@ -32,8 +46,14 @@ export const PRICING_TIERS = Object.freeze([
   },
   {
     name: 'Teams',
-    description: 'Your individual plan for collaborative translation work.',
-    features: ['Everything in Pro', 'Individual subscription for team members', '7-day free trial'],
+    description: 'Advanced publishing and collaboration for larger projects.',
+    features: [
+      'Everything in Pro',
+      '200 cloud projects and 5 GB of cloud storage',
+      '10 people per cloud project, including the owner',
+      'Custom project translation instructions',
+      'Public EPUB reader links with reader comments',
+    ],
     priceId: {
       month: 'pri_01m41bn7n481yz3hhyw7pgyyce',
       year: 'pri_01m41bn7yanzs6t1596hjd5n05',
