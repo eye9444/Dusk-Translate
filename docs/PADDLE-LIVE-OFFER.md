@@ -25,6 +25,17 @@ This is a client-side token and is expected to be visible in the production
 browser bundle. It is not the server API key and must never replace
 `PADDLE_API_KEY`.
 
+## Fulfillment webhook
+
+- Notification destination ID: `ntfset_01m449dhc84mhc43ssq3dkyxb9`
+- URL: `https://www.dusktranslate.com/api/paddle/webhook`
+- Traffic: live platform events
+- Events: `customer.created`, `customer.updated`, `subscription.created`,
+  `subscription.updated`, `subscription.canceled`, `transaction.completed`
+
+The destination and signing secret are permanent infrastructure. The secret is
+stored only in deployment configuration and must not be committed.
+
 Deploy `202610050001_live_prices.sql` with the preceding feature migrations.
 Set `VITE_PADDLE_LIVE_PRICES` to the JSON mapping in `.env.example`; do not use
 these production IDs in sandbox configuration.
