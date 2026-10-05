@@ -1019,10 +1019,22 @@ window.addEventListener('online',()=>{if(active){saveError='';flush();}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
 
 let sharingProject = null;
-const capacityButton=button('Cloud limits and editable projects',async()=>{
+function formatStorage(bytes) {
+  const units=['B','KB','MB','GB','TB'];
+  let value=Number(bytes)||0,unit=0;
+  while(value>=1000&&unit<units.length-1){value/=1000;unit+=1;}
+  const rounded=unit===0||value>=100?Math.round(value):Number(value.toFixed(1));
+  return `${rounded} ${units[unit]}`;
+}
+const capacityButton=button('Manage editable projects',async()=>{
   try{
     const data=await remote.capacity();
-    showCapacitySelection({title:'Choose editable cloud projects',description:`${data.storageBytes.toLocaleString()} bytes stored, ${data.reservedBytes.toLocaleString()} reserved, of ${data.limits.storageBytes.toLocaleString()} bytes. Archived projects count. Reading and export remain available for excess projects. Spare slots fill by creation date.`,entries:data.projects,allowance:data.limits.projects,
+    const allowance=data.limits.projects;
+    const projectCount=data.projects.length;
+    const projectSummary=projectCount<=allowance
+      ? `All ${projectCount} of your projects currently fit within your ${allowance} editable project slots.`
+      : `You have ${allowance} editable project slots for ${projectCount} projects.`;
+    showCapacitySelection({title:'Manage editable projects',description:`${projectSummary} When you reach the limit, checked projects are prioritized first and older projects fill any remaining slots. Projects without a slot remain available for reading and export, but edits cannot be saved. Archived projects count toward the project limit. Cloud storage: ${formatStorage(data.storageBytes)} used of ${formatStorage(data.limits.storageBytes)}.`,entries:data.projects,allowance,
       save:async ids=>{await remote.selectProjects(ids);await refresh();}});
   }catch(error){$('billing-detail').textContent=errorMessage(error);}
 });
