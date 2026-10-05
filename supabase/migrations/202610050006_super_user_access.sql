@@ -1,6 +1,6 @@
 -- Owner access is managed separately from Paddle so the site owner can use
 -- every feature while billing and delegated tier management are developed.
-create table public.super_users (
+create table if not exists public.super_users (
   user_id uuid primary key references auth.users(id) on delete cascade,
   granted_at timestamptz not null default now()
 );
