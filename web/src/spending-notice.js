@@ -18,7 +18,7 @@ export function createSpendingNotice({ getUser, request }) {
       dialog.innerHTML = `<h2>Set your AI spending budget</h2>
         <p>AI-provider charges are separate from DuskTranslate. You control your provider budget, and our character counter does not cap monetary spending.</p>
         <p>Set provider spending limits where supported and monitor usage. Not every provider offers a hard spending cap. DuskTranslate cannot prevent your provider from charging beyond your intended budget.</p>
-        <label><input type="checkbox"> Don't show this again</label>
+        <label class="remember-row"><input type="checkbox"><span>Don't show this again</span></label>
         <p role="status"></p><footer><button type="button" data-cancel>Cancel</button><button type="button" data-continue>Continue</button></footer>`;
       dialog.querySelector('label').hidden = !getUser();
       document.body.append(dialog);
