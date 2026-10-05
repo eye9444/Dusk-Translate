@@ -30,7 +30,7 @@ function renderQuotaMeter() {
     ` - ${Number(q.remaining||0).toLocaleString()} remaining - resets in ${countdown}`;
   meter.title=`Daily allowance resets at ${new Date(q.resetAt).toLocaleString()} (00:00 UTC). Provider charges are separate.`;
 }
-setInterval(renderQuotaMeter,1000);
+setInterval(renderQuotaMeter,5000);
 function setEntitlements(rights = {tier:'free',capabilities:{}}) {
   globalThis.DuskCapabilities = rights.capabilities || {};
   globalThis.DuskCustomInstructions = rights.capabilities?.customPrompt ? rights.customInstructions || '' : '';
@@ -565,10 +565,10 @@ window.addEventListener('message', async e => {
 // Prevent legacy drop handlers from replacing the active project's original book.
 window.addEventListener('drop', e => { e.preventDefault(); e.stopImmediatePropagation(); hideStatus(); }, true);
 document.addEventListener('keydown', e => { if(e.ctrlKey && e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); toggleDevMode(); } });
-setInterval(() => emit(), 1000);
+setInterval(() => emit(), 5000);
 window.addEventListener('pagehide', () => { clearInterval(projectOpenPing); emit(true); });
 // Keep requesting the project until the parent acknowledges it. This covers a
 // direct editor-route reload while the host is still restoring authentication.
 const requestProject = () => { if (!projectId) send('editor:ready'); };
 requestProject();
-projectOpenPing = setInterval(requestProject, 500);
+projectOpenPing = setInterval(requestProject, 5000);
