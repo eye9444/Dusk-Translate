@@ -15,9 +15,10 @@ function renderQuotaMeter() {
   let meter=document.getElementById('host-quota-meter');
   if(!meter){
     meter=document.createElement('span');meter.id='host-quota-meter';
-    meter.style.cssText='font-size:11px;line-height:1.4;white-space:normal;color:inherit;';
-    document.getElementById('btn-tl').parentElement.append(meter);
+    meter.className='host-quota-meter';
   }
+  const target=document.querySelector('.host-header-actions')||document.getElementById('btn-tl')?.parentElement;
+  if(target&&meter.parentElement!==target)target.append(meter);
   const q=quotaMeterState;
   if(q.local){meter.textContent='Local: no daily app limit';return;}
   if(q.readOnly){meter.textContent='Read-only project';return;}
@@ -255,11 +256,13 @@ const linkedScroll = DuskLinkedScroll(document.getElementById('src-txt'), docume
 const linkedScrollButton = document.createElement('button');
 linkedScrollButton.type = 'button';
 linkedScrollButton.id = 'host-linked-scroll';
-linkedScrollButton.className = 'btn';
-linkedScrollButton.title = 'Link Japanese and English scrolling by relative position';
+linkedScrollButton.className = 'pane-link-toggle';
+linkedScrollButton.setAttribute('aria-label', 'Toggle group scrolling for the source and translation panes');
+linkedScrollButton.title = 'Group scrolling: link source and translation panes';
+linkedScrollButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/></svg>';
 const updateLinkedScrollButton = () => {
-  linkedScrollButton.textContent = linkedScrolling ? 'Linked scrolling: on' : 'Link scrolling';
   linkedScrollButton.setAttribute('aria-pressed', String(linkedScrolling));
+  linkedScrollButton.classList.toggle('is-active', linkedScrolling);
 };
 linkedScrollButton.onclick = () => {
   linkedScrolling = !linkedScrolling;
@@ -268,7 +271,7 @@ linkedScrollButton.onclick = () => {
   updateLinkedScrollButton();
 };
 updateLinkedScrollButton();
-document.querySelector('.controls').append(linkedScrollButton);
+document.querySelector('.panes').append(linkedScrollButton);
 document.addEventListener('dusk:chapter', () => linkedScroll.reset());
 const findNavigator = document.createElement('div'); findNavigator.id='host-find-navigator'; findNavigator.className='find-navigator'; findNavigator.hidden=true;
 const findPrevious = document.createElement('button'); findPrevious.type='button'; findPrevious.className='btn sm'; findPrevious.textContent='←'; findPrevious.setAttribute('aria-label','Previous search match');
