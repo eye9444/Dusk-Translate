@@ -5,7 +5,7 @@ export async function launchDatabase() {
   const db=new PGlite();
   await db.exec(`create role anon;create role authenticated;create role service_role;
     create schema auth;create schema storage;
-    create table auth.users(id uuid primary key,email varchar(255) not null unique,raw_user_meta_data jsonb default '{}',email_confirmed_at timestamptz default now());
+    create table auth.users(id uuid primary key,email varchar(255) not null unique,raw_user_meta_data jsonb default '{}',created_at timestamptz not null default '2020-01-01T00:00:00Z',email_confirmed_at timestamptz default now());
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint);
     create table storage.objects(id serial primary key,bucket_id text,name text,metadata jsonb,unique(bucket_id,name));

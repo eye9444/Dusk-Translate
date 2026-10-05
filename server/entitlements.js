@@ -14,6 +14,9 @@ export async function getAccountEntitlements(userId, admin = getSupabaseAdmin())
   const { data: superUser, error: superUserError } = await admin.from('super_users')
     .select('user_id').eq('user_id', userId).maybeSingle();
   if (superUserError) throw superUserError;
+  const { data: betaAccessUntil, error: betaError } = await admin.rpc('beta_access_until', { target_user_id: userId });
+  if (betaError) throw betaError;
+  const betaAccess = betaAccessUntil && new Date(betaAccessUntil).getTime() > Date.now();
   const environment = getPaddleEnvironment();
   const { data: customers, error } = await admin.from('customers')
     .select('customer_id').eq('user_id', userId).eq('environment', environment);
@@ -29,9 +32,10 @@ export async function getAccountEntitlements(userId, admin = getSupabaseAdmin())
     subscriptions = result.data;
   }
   const mapping = new Map(prices.map(price => [price.price_id, price.tier]));
-  const tier = superUser ? 'advanced' : resolveTier(subscriptions, mapping);
+  const tier = superUser || betaAccess ? 'advanced' : resolveTier(subscriptions, mapping);
   const subscription = subscriptions.find(item => mapping.get(item.price_id) === tier
     && ['active', 'trialing'].includes(item.status)) || subscriptions[0] || null;
-  return { ...describeEntitlements(tier), isSuperUser: Boolean(superUser), customer: customers.length > 0, subscription,
+  return { ...describeEntitlements(tier), isSuperUser: Boolean(superUser), isBetaAccess: Boolean(betaAccess), betaAccessUntil,
+    customer: customers.length > 0, subscription,
     hasPaidAccess: tier !== 'free', provisioning: tier === 'free' ? 'pending_or_free' : 'ready' };
 }

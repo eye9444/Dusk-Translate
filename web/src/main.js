@@ -339,8 +339,14 @@ async function showBilling() {
   try {
     const billing = await billingRequest('/api/paddle/status');
     const tierLabel=TIER_LABELS[billing.tier]||billing.tier||'Starter';
-    $('billing-access').textContent=billing.isSuperUser?`Owner access · ${tierLabel}`:`${tierLabel} access`;
+    $('billing-access').textContent=billing.isSuperUser?`Owner access · ${tierLabel}`:billing.isBetaAccess?`Beta access · ${tierLabel}`:`${tierLabel} access`;
     const subscription = billing.subscription;
+    if (billing.isBetaAccess && !subscription) {
+      $('billing-plan').textContent = 'Teams beta access';
+      const until = billing.betaAccessUntil ? new Date(billing.betaAccessUntil).toLocaleDateString(undefined,{dateStyle:'medium'}) : 'the end of your beta month';
+      $('billing-detail').textContent = `Free Teams access through ${until}. No payment method is required; access ends automatically after the beta month.`;
+      return;
+    }
     if (!billing.customer) {
       $('billing-plan').textContent = 'No Paddle subscription yet.';
       $('billing-detail').textContent = 'Choose a plan when you are ready. Your account remains available on the free tier.';
