@@ -33,6 +33,8 @@ create table public.billing_checkout_associations (
 create table public.account_preferences (
   user_id uuid primary key references auth.users(id),
   dismiss_api_spending_notice boolean not null default false,
+  super_user_tier text check (super_user_tier in ('free','pro','advanced')),
+  super_user_set_by uuid references auth.users(id),
   updated_at timestamptz not null default now()
 );
 alter table public.billing_prices enable row level security;

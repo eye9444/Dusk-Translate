@@ -11,6 +11,15 @@ export function resolveTier(subscriptions, prices) {
 }
 
 export async function getAccountEntitlements(userId, admin = getSupabaseAdmin()) {
+  // Super-user override: the site owner can set any account's tier directly.
+  const { data: prefs } = await admin.from('account_preferences')
+    .select('super_user_tier').eq('user_id', userId).maybeSingle();
+  if (prefs?.super_user_tier && TIER_ORDER[prefs.super_user_tier] !== undefined) {
+    const tier = prefs.super_user_tier;
+    return { ...describeEntitlements(tier), customer: false, subscription: null,
+      hasPaidAccess: tier !== 'free', provisioning: 'ready', superUser: true };
+  }
+
   const environment = getPaddleEnvironment();
   const { data: customers, error } = await admin.from('customers')
     .select('customer_id').eq('user_id', userId).eq('environment', environment);

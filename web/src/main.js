@@ -321,7 +321,7 @@ $('provisioning-retry').onclick = confirmProvisioning;
 async function showBilling() {
   if (!user) { showAuth(); return; }
   $('billing-email').textContent = user.email || '';
-  $('billing-plan').textContent = 'Checking your Paddle subscription...';
+  $('billing-plan').textContent = 'Loading your plan…';
   $('billing-detail').textContent = '';
   $('billing-manage').disabled = true;
   $('billing-dialog').showModal();
@@ -1485,6 +1485,7 @@ if(cloud){
   const initialized=await cloud.auth.initialize();
   const {data,error}=await cloud.auth.getSession();
   currentSession=data.session||null;authError=initialized.error?.message||error?.message||'';user=currentSession?.user || null;
+  $('account').textContent = user ? 'Account' : 'Sign in';
   if(authParams.has('code')&&!user&&!authError)authError='This sign-in link expired or was opened in a different browser. Start sign-in again here.';
 }
 if(isAuthReturn){
