@@ -1,5 +1,6 @@
 // Presence is ephemeral and independent of revision-checked document saves.
 export function startProjectPresence(client, projectId, selfId, publish) {
+  const POLL_INTERVAL = 5000;
   const tabId = crypto.randomUUID();
   let stopped = false, timer, location = {};
   function update(value) {
@@ -24,7 +25,7 @@ export function startProjectPresence(client, projectId, selfId, publish) {
     } catch {
       if (!stopped) publish({ selfId, members: [], unavailable: true });
     } finally {
-      if (!stopped) timer = setTimeout(poll, 2000);
+      if (!stopped) timer = setTimeout(poll, POLL_INTERVAL);
       else leave();
     }
   }

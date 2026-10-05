@@ -1,7 +1,7 @@
 import * as Y from 'yjs';
 import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRange, resolveAnchor, setRuby, removeRuby, updateRuby, rubyForPassage, publishedRuby } from './shared-document.js';
 
-const POLL_INTERVAL = 1200;
+const POLL_INTERVAL = 5000;
 
 function commonEdit(previous, next) {
   let start=0;
