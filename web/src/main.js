@@ -394,16 +394,16 @@ async function refresh() {
   const request = ++libraryRequest;
   const libraryOwner = owner();
   let cached = [];
+  $('pricing-nav-link').hidden = showingPricing;
+  $('account').textContent = user ? 'Account' : 'Sign in';
   $('welcome').hidden=showingPricing||showingSubscriptionWelcome||Boolean(user)||guestMode;
   $('subscription-welcome').hidden=!showingSubscriptionWelcome;
   $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
   if(showingPricing){await pricingPage.show();return;}
   pricingPage.hide();
-  $('account').textContent = user ? 'Account' : 'Sign in';
   if(showingSubscriptionWelcome){confirmProvisioning();return;}
   if(renderedOwner!==libraryOwner){projects=[];renderedOwner=libraryOwner;render();}
   $('storage-label').textContent = user ? 'YOUR CLOUD LIBRARY' : 'THIS BROWSER';
-  $('account').textContent = user ? 'Account' : 'Sign in';
   $('storage-caption').textContent=user?'Your personal cloud library':'A library on this device';
   $('nav-inbox').hidden=!user;
   if (!user && libraryView === 'inbox') libraryView='projects';
