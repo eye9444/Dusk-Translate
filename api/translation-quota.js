@@ -10,7 +10,12 @@ export default async function handler(request, response) {
   try {
     const user = await requireAuthenticatedUser(request);
     const body = typeof request.body === 'string' ? JSON.parse(request.body) : request.body || {};
-    const { data, error } = await getSupabaseAdmin().rpc('translation_quota', {
+    const admin = getSupabaseAdmin();
+    const { data: superUser, error: superUserError } = await admin.from('super_users')
+      .select('user_id').eq('user_id', user.id).maybeSingle();
+    if (superUserError) throw superUserError;
+    if (superUser) return response.status(200).json({ unlimited: true, tier: 'advanced' });
+    const { data, error } = await admin.rpc('translation_quota', {
       target_actor: user.id, target_environment: getPaddleEnvironment(), target_project: body.projectId,
       operation: body.operation, attempt_id: body.attemptId || null, target_chapter: body.chapterId || null,
       target_output_hash: body.outputHash || null,
