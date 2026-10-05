@@ -14,7 +14,9 @@
 .pricing-plan-toggle button[aria-pressed="true"]{background:var(--accent,#f67635);color:#17120e}
 .pricing-plan[hidden]{display:none}
 .capacity-dialog{width:min(650px,calc(100vw - 32px));max-height:85dvh;overflow:auto}
+.capacity-dialog .capacity-hint{margin:0 0 8px;color:var(--muted,#aaa196);line-height:1.5}
 .capacity-dialog label{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.capacity-dialog [role="status"]{margin:16px 0 0;color:var(--muted,#aaa196);line-height:1.5}
 .capacity-dialog footer{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}
 .quota-dialog textarea{box-sizing:border-box;width:100%;background:var(--panel);color:inherit;padding:12px}
 #reader-comments{border-top:1px solid var(--border);margin-top:48px;padding-top:24px;font-size:15px}
