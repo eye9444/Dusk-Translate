@@ -24,3 +24,4 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 .billing-panel #billing-detail{min-height:2.8rem;margin:0}
 *:focus,*:focus-visible{outline:none!important}
 #brand{user-select:none}
+.welcome-actions .primary .button-arrow{margin-left:12px}.welcome-actions .button-arrow{width:16px;height:16px}
