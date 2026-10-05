@@ -17,19 +17,26 @@ function renderQuotaMeter() {
     meter=document.createElement('span');meter.id='host-quota-meter';
     meter.className='host-quota-meter';
   }
-  const target=document.querySelector('.host-header-actions')||document.getElementById('btn-tl')?.parentElement;
-  if(target&&meter.parentElement!==target)target.append(meter);
+  const importButton=document.getElementById('btn-import');
+  const target=importButton?.parentElement||document.querySelector('.host-header-actions');
+  if(target){
+    if(importButton&&meter.previousElementSibling!==importButton)importButton.after(meter);
+    else if(!importButton&&meter.parentElement!==target)target.append(meter);
+  }
+  const renderBar=(label,percent,title)=>{
+    meter.replaceChildren();
+    const track=document.createElement('span');track.className='quota-meter-track';track.setAttribute('role','progressbar');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-valuenow',String(percent));track.setAttribute('aria-label',label);
+    const fill=document.createElement('span');fill.className='quota-meter-fill';fill.style.width=`${percent}%`;track.append(fill);
+    const text=document.createElement('span');text.className='quota-meter-label';text.textContent=label;meter.append(track,text);meter.title=title;
+  };
   const q=quotaMeterState;
-  if(q.local){meter.textContent='Local: no daily app limit';return;}
-  if(q.readOnly){meter.textContent='Read-only project';return;}
-  if(q.unavailable){meter.textContent='Usage unavailable - retry before translating';return;}
-  if(q.unlimited){meter.textContent='Cloud: no daily app limit';return;}
-  const seconds=Math.max(0,Math.ceil((Date.parse(q.resetAt)-Date.now())/1000));
-  const countdown=`${Math.floor(seconds/3600)}h ${Math.floor(seconds%3600/60)}m`;
-  meter.textContent=`${Number(q.completed||0).toLocaleString()} / 30,000 today`+
-    (q.reserved ? ` (${Number(q.reserved).toLocaleString()} reserved)` : '')+
-    ` - ${Number(q.remaining||0).toLocaleString()} remaining - resets in ${countdown}`;
-  meter.title=`Daily allowance resets at ${new Date(q.resetAt).toLocaleString()} (00:00 UTC). Provider charges are separate.`;
+  if(q.local){renderBar('No daily limit',100,'Local projects have no app-imposed daily limit.');return;}
+  if(q.readOnly){meter.textContent='Read-only project';meter.title='This project is read-only.';return;}
+  if(q.unavailable){meter.textContent='Usage unavailable';meter.title='Retry before translating.';return;}
+  if(q.unlimited){renderBar('Unlimited',100,'Teams access has no app-imposed daily cloud translation limit.');return;}
+  const total=30000,remaining=Math.max(0,Math.min(total,Number(q.remaining)||0)),percent=Math.round((remaining/total)*100);
+  const reset=q.resetAt?` Resets ${new Date(q.resetAt).toLocaleString()}.`:'';
+  renderBar(`${percent}% left`,percent,`Cloud translation: ${remaining.toLocaleString()} of ${total.toLocaleString()} characters remaining today.${reset}`);
 }
 setInterval(renderQuotaMeter,5000);
 function setEntitlements(rights = {tier:'free',capabilities:{}}) {
