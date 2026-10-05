@@ -320,13 +320,26 @@ $('provisioning-retry').onclick = confirmProvisioning;
 
 async function showBilling() {
   if (!user) { showAuth(); return; }
+  const metadata=user.user_metadata||{};
+  const avatar=$('billing-avatar');
+  avatar.replaceChildren();
+  const picture=metadata.avatar_url||metadata.picture||'';
+  if(picture){
+    const image=document.createElement('img');image.src=picture;image.alt='';image.referrerPolicy='no-referrer';
+    image.onerror=()=>{avatar.textContent=(user.email||'?').slice(0,1).toUpperCase();};avatar.append(image);
+  }else avatar.textContent=(user.email||'?').slice(0,1).toUpperCase();
   $('billing-email').textContent = user.email || '';
+  const provider=user.app_metadata?.provider||user.identities?.[0]?.provider||'email';
+  $('billing-provider').textContent = `Signed in with ${provider === 'google' ? 'Google' : provider === 'email' ? 'email and password' : provider}`;
+  $('billing-access').textContent = 'Checking your access...';
   $('billing-plan').textContent = 'Checking your Paddle subscription...';
   $('billing-detail').textContent = '';
   $('billing-manage').disabled = true;
   $('billing-dialog').showModal();
   try {
     const billing = await billingRequest('/api/paddle/status');
+    const tierLabel=TIER_LABELS[billing.tier]||billing.tier||'Starter';
+    $('billing-access').textContent=billing.isSuperUser?`Owner access · ${tierLabel}`:`${tierLabel} access`;
     const subscription = billing.subscription;
     if (!billing.customer) {
       $('billing-plan').textContent = 'No Paddle subscription yet.';
@@ -345,6 +358,7 @@ async function showBilling() {
       : (billing.hasPaidAccess ? 'Paid access is active.' : 'Paid access is not active for this subscription status.');
     $('billing-manage').disabled = false;
   } catch (error) {
+    $('billing-access').textContent = 'Access could not be confirmed';
     $('billing-plan').textContent = errorMessage(error);
   }
 }
@@ -385,6 +399,7 @@ async function signOut() {
 }
 
 $('billing-signout').onclick = signOut;
+$('account-password').onclick = () => { $('billing-dialog').close(); showAuth('update'); };
 
 async function refresh() {
   if (currentRoute() === '/' && (user || guestMode)) navigate('/home', true);
