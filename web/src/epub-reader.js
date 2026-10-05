@@ -1,6 +1,36 @@
 import JSZip from 'jszip';
 
 const MAX_EXPANDED_BYTES = 500 * 1024 * 1024;
+const MAX_PROCESSED_BYTES = 128 * 1024 * 1024;
+const MAX_MARKUP_BYTES = 8 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 32 * 1024 * 1024;
+const MAX_IMAGE_REFERENCES = 4096;
+const MAX_SPINE_ENTRIES = 2048;
+const MAX_NODES = 200000;
+const MAX_DEPTH = 128;
+
+// Count actual streamed bytes, including repeated spine reads, not just ZIP metadata.
+function readEntry(entry, state, limit) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    const stream = entry.internalStream('uint8array');
+    stream.on('data', chunk => {
+      size += chunk.length;
+      state.bytes += chunk.length;
+      if (size > limit || state.bytes > MAX_PROCESSED_BYTES) {
+        stream.pause();
+        chunks.length = 0;
+        reject(new Error('This EPUB exceeds the reader processing byte limit.'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    stream.on('error', reject);
+    stream.on('end', () => resolve(new Blob(chunks)));
+    stream.resume();
+  });
+}
 const BLOCK_TAGS = new Set(['address', 'article', 'blockquote', 'dd', 'div', 'dl', 'dt', 'figcaption', 'figure', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'header', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'td', 'th', 'tr', 'ul']);
 const SKIP_TAGS = new Set(['canvas', 'embed', 'iframe', 'object', 'script', 'style', 'svg', 'template', 'rt', 'rp']);
 
@@ -60,7 +90,7 @@ function imageMimeType(path) {
   return ({ jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', avif:'image/avif', svg:'image/svg+xml' })[extension] || 'application/octet-stream';
 }
 
-async function readerBlocks(markup, chapterPath, zip) {
+async function readerBlocks(markup, chapterPath, zip, state) {
   const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
   const root = doc.querySelector('body') || doc.documentElement;
   const blocks = [], base = chapterPath.includes('/') ? chapterPath.slice(0, chapterPath.lastIndexOf('/')) : '';
@@ -74,7 +104,8 @@ async function readerBlocks(markup, chapterPath, zip) {
     })).filter(item => item.end > item.start) });
     buffer = ''; ruby = [];
   };
-  const walk = async node => {
+  const walk = async (node, depth = 0) => {
+    if (++state.nodes > MAX_NODES || depth > MAX_DEPTH) throw new Error('This EPUB exceeds the reader traversal limit.');
     if (node.nodeType === Node.TEXT_NODE) { buffer += node.nodeValue || ''; return; }
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const tag = node.localName.toLowerCase();
@@ -86,11 +117,12 @@ async function readerBlocks(markup, chapterPath, zip) {
           const reading = cleanText(child.textContent);
           if (reading && buffer.length > start) ruby.push({ start, end: buffer.length, reading });
           start = buffer.length;
-        } else await walk(child);
+        } else await walk(child, depth + 1);
       }
       return;
     }
     if (tag === 'img') {
+      if (++state.imageReferences > MAX_IMAGE_REFERENCES) throw new Error('This EPUB exceeds the reader image reference limit.');
       // Japanese EPUBs commonly encode punctuation such as "~" as a tiny gaiji image.
       // Keep it inline instead of promoting it into a full-page reader illustration.
       if (node.classList.contains('gaiji-line')) {
@@ -99,12 +131,18 @@ async function readerBlocks(markup, chapterPath, zip) {
       }
       flush();
       const source = node.getAttribute('src') || '', path = archivePath(source.split(/[?#]/, 1)[0], base), entry = path && zip.file(path);
-      if (entry) blocks.push({ type:'image', src:URL.createObjectURL(new Blob([await entry.async('arraybuffer')], { type:imageMimeType(path) })), alt:cleanText(node.getAttribute('alt') || '') });
+      if (entry) {
+        if (!state.images.has(path)) {
+          const data = await readEntry(entry, state, MAX_IMAGE_BYTES);
+          state.images.set(path, URL.createObjectURL(new Blob([data], { type:imageMimeType(path) })));
+        }
+        blocks.push({ type:'image', src:state.images.get(path), alt:cleanText(node.getAttribute('alt') || '') });
+      }
       else if (node.getAttribute('alt')) buffer += `[${node.getAttribute('alt')}]`;
       return;
     }
     if (BLOCK_TAGS.has(tag) || tag === 'br') flush();
-    for (const child of node.childNodes) await walk(child);
+    for (const child of node.childNodes) await walk(child, depth + 1);
     if (BLOCK_TAGS.has(tag) || tag === 'br') flush();
   };
   await walk(root); flush();
@@ -167,21 +205,24 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   const expanded = Object.values(zip.files).reduce((total, entry) => total + (entry._data?.uncompressedSize || 0), 0);
   if (expanded > MAX_EXPANDED_BYTES) throw new Error('This EPUB expands beyond the reader safety limit of 500 MB.');
 
+  const state = { bytes:0, nodes:0, imageReferences:0, images:new Map() };
+  try {
   const containerEntry = zip.file('META-INF/container.xml');
   if (!containerEntry) throw new Error('This EPUB is missing its container metadata.');
-  const container = new DOMParser().parseFromString(await containerEntry.async('string'), 'application/xml');
+  const container = new DOMParser().parseFromString(await (await readEntry(containerEntry, state, MAX_MARKUP_BYTES)).text(), 'application/xml');
   const opfPath = container.querySelector('rootfile')?.getAttribute('full-path');
   if (!opfPath) throw new Error('This EPUB does not identify its package file.');
 
   const normalizedOpf = archivePath(opfPath);
   const opfEntry = zip.file(normalizedOpf);
   if (!opfEntry) throw new Error('This EPUB package file could not be opened.');
-  const opf = new DOMParser().parseFromString(await opfEntry.async('string'), 'application/xml');
+  const opf = new DOMParser().parseFromString(await (await readEntry(opfEntry, state, MAX_MARKUP_BYTES)).text(), 'application/xml');
   const opfDirectory = normalizedOpf.includes('/') ? normalizedOpf.slice(0, normalizedOpf.lastIndexOf('/')) : '';
   const metadataTitle = textOf(opf.querySelector('title, dc\\:title')) || fileName.replace(/\.epub$/i, '');
   const manifest = new Map([...opf.querySelectorAll('manifest > item')].map(item => [item.getAttribute('id'), item]));
   const spine = [...opf.querySelectorAll('spine > itemref')];
   if (!spine.length) throw new Error('This EPUB does not contain a readable chapter spine.');
+  if (spine.length > MAX_SPINE_ENTRIES) throw new Error('This EPUB exceeds the reader spine entry limit.');
 
   const chapters = [], pendingBlocks = [];
   for (const [index, itemref] of spine.entries()) {
@@ -191,8 +232,8 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
     const path = archivePath(href, opfDirectory);
     const entry = zip.file(path);
     if (!entry) continue;
-    const markup = await entry.async('string');
-    const blocks = await readerBlocks(markup, path, zip);
+    const markup = await (await readEntry(entry, state, MAX_MARKUP_BYTES)).text();
+    const blocks = await readerBlocks(markup, path, zip, state);
     const paragraphs = blocks.filter(block => block.type === 'text').map(block => block.text);
     if (!blocks.length) continue;
     const title = sectionHeading(markup, paragraphs);
@@ -208,6 +249,10 @@ export async function readEpub(file, fileName = file?.name || 'Untitled EPUB') {
   if (!chapters.length && pendingBlocks.length) chapters.push({ id:'section-1', title:'Section 1', paragraphs:[], blocks:pendingBlocks });
   if (!chapters.length) throw new Error('No readable chapters were found in this EPUB.');
   return { title: metadataTitle, chapters };
+  } catch (error) {
+    for (const url of state.images.values()) URL.revokeObjectURL(url);
+    throw error;
+  }
 }
 
 export async function buildTranslatedEpub(file, snapshot) {
