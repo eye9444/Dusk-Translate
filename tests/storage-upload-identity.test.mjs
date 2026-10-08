@@ -22,6 +22,14 @@ test('Storage service finalization keeps uploader identity and enforces reservat
    await db.query('insert into auth.users(id,email) values($1,$2),($3,$4)',[owner,'upload-owner@example.test',other,'upload-other@example.test']);
    await asUser(db,owner);
    await db.query('select reserve_cloud_upload($1,$2,100)',[project,path]);
+   // Storage's permission probes roll back and must not consume capacity.
+   for(const metadata of [null,{}, {mimetype:'application/epub+zip',contentLength:100}]){
+     await db.exec('begin');
+     await db.query("insert into storage.objects(bucket_id,name,owner_id,metadata) values('books',$1,$2,$3::jsonb)",[path,owner,JSON.stringify(metadata)]);
+     await db.exec('rollback');
+   }
+   await admin();
+   assert.equal((await db.query('select state from cloud_upload_reservations where object_name=$1',[path])).rows[0].state,'reserved');
    await storage();
    await assert.rejects(insert(other,100),/Reserve upload/);
    await assert.rejects(insert(null,100),/Reserve upload/);
