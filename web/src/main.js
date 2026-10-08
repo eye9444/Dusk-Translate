@@ -436,7 +436,7 @@ async function refresh() {
     cached=await local.list(libraryOwner);
     const result=user?await remote.list():cached;
     const pendingInvitations=user?await remote.inbox().catch(()=>[]):[];
-    if(request !== libraryRequest || libraryOwner !== owner()) return;
+    if(request !== libraryRequest || libraryOwner !== owner()) { setLoading(false); return; }
     projects=user?[...cached.filter(p=>p.storage==='local'),...result.map(p=>{
       const draft=cached.find(c=>c.id===p.id);
       return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
@@ -445,7 +445,7 @@ async function refresh() {
     status('');render();
     setLoading(false);
   }catch(e){
-    if(request !== libraryRequest || libraryOwner !== owner())return;
+    if(request !== libraryRequest || libraryOwner !== owner()) { setLoading(false); return; }
     projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
     setLoading(false);
