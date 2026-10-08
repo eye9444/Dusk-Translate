@@ -1192,9 +1192,18 @@ $('manage-form').onsubmit=async e=>{
   try {
     await acquire(manage.p.id);
     const cached=await local.get(owner(),manage.p.id);
-    let p=user?(cached?.dirty?cached:await remote.open(manage.p.id)):cached;
-    if(manage.kind==='delete'){if(user)await remote.remove(p);await local.remove(owner(),p.id);}
-    else {
+    let p=cached;
+    if(manage.kind==='delete'){
+      // The library row already has the id and storage path needed for deletion.
+      // Avoid reopening/downloading the project, which can fail for local-only
+      // projects and is unnecessary for a destructive operation.
+      p=p||manage.p;
+      if(!p)throw new Error('Project not found. Refresh your library and try again.');
+      if(user&&p.storage!=='local')await remote.remove(p);
+      await local.remove(owner(),p.id);
+    } else {
+      p=user?(cached?.dirty?cached:await remote.open(manage.p.id)):cached;
+      if(!p)throw new Error('Project not found. Refresh your library and try again.');
       if(manage.kind==='rename'){const name=$('rename-title').value.trim();if(!name)throw new Error('Enter a title.');p.title=name;}
       else p.archived=!p.archived;
       if(user){const saved=await remote.save(p);p={...p,...saved};}
