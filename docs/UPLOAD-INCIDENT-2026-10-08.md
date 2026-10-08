@@ -29,7 +29,8 @@ the label, with wrapping on narrow screens.
 
 ## Verification
 
-- 45 Node tests passed in the current working tree, including Storage-role
+- 45 Node tests passed on the latest remote code plus this hotfix, including beta
+  Teams access and expiration, Storage-role
   finalization, replacement upserts, oversized/expired/reused reservations,
   uploader mismatch, and spoofed owner metadata rejection.
 - Two authenticated browser tests passed at 390px and 1280px for both dialogs,
@@ -37,6 +38,8 @@ the label, with wrapping on narrow screens.
 - Production build and whitespace checks passed.
 - The working tree already contained a quota-migration repair, upload error
   formatting, and probe migration/test from previous work. Those existing edits
-  were left untouched and are not part of this hotfix commit.
+  were left untouched and are not part of this hotfix commit. The release was
+  prepared in a separate worktree based on remote commit `28f3c3d`, preserving
+  the newer promotion and UI changes. Build and tests were rerun there.
 - Full authenticated production upload confirmation remains a user smoke test;
   the production SQL connection cannot impersonate the Storage login role.
