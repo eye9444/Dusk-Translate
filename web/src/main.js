@@ -21,6 +21,7 @@ import { renderRubyParagraph } from './ruby-renderer.js';
 import { startCollaboration } from './collaboration.js';
 import { startLocalDocument } from './local-document.js';
 import { listEpubImages, validateReplacement, applyImageReplacements } from './image-assets.js';
+import { setLoading } from './loading.js';
 
 const $ = id => document.getElementById(id);
 const bytesToBase64=bytes=>{let value='';for(let index=0;index<bytes.length;index+=0x8000)value+=String.fromCharCode(...bytes.subarray(index,index+0x8000));return btoa(value);};
@@ -430,6 +431,7 @@ async function refresh() {
   if (!user && libraryView === 'inbox') libraryView='projects';
   $('storage-info').textContent = user ? `Signed in as ${user.email}. Cloud books and progress are private to your account. Local projects stay in your browser library.` : 'Saved in this browser, including the original EPUB. Clearing site data removes local projects. Sign in for a cloud library.';
   if(user)status('Refreshing your account library...');
+  setLoading(true, 'Refreshing library…');
   try {
     cached=await local.list(libraryOwner);
     const result=user?await remote.list():cached;
@@ -441,10 +443,12 @@ async function refresh() {
     })]:result;
     invitations=pendingInvitations;
     status('');render();
+    setLoading(false);
   }catch(e){
     if(request !== libraryRequest || libraryOwner !== owner())return;
     projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
+    setLoading(false);
   }
 }
 function render() {
@@ -624,6 +628,7 @@ async function loadProject(id) {
 async function openProject(id, updateRoute = true) {
   if (active || readerOpen || closing || opening) return;
   opening = true;
+  setLoading(true, 'Opening project…');
   try {
     await acquire(id); status('Opening your book…');
     active = await loadProject(id);
@@ -639,7 +644,7 @@ async function openProject(id, updateRoute = true) {
     $('editor').src='/editor/index.html'; status('');
     if (updateRoute) navigate(projectRoute('/editor', id));
   } catch(e) { status(errorMessage(e)); active=null; releaseLock?.(); releaseLock=null; }
-  finally { opening=false; }
+  finally { opening=false; setLoading(false); }
 }
 function readerFontSize() {
   const stored = Number(localStorage.getItem(READER_FONT_KEY));
@@ -705,6 +710,7 @@ function prepareReader(title, edition, preserveReturn = false) {
 async function presentReader(file, fileName, edition, project = null, preserveReturn = false) {
   prepareReader(project?.title || fileName.replace(/\.epub$/i, ''), edition, preserveReturn);
   readerProject = project;
+  setLoading(true, 'Preparing reader…');
   try {
     readerBook = await readEpub(file, fileName); await renderReader();
     $('reader-editor').hidden = !project;
@@ -714,11 +720,12 @@ async function presentReader(file, fileName, edition, project = null, preserveRe
     $('reader-chapter-title').textContent = 'This EPUB could not be opened.';
     $('reader-status').textContent = 'Reader error';
     $('reader-content').append(el('p', '', errorMessage(error)));
-  }
+  } finally { setLoading(false); }
 }
 async function openReader(id, edition = 'original', updateRoute = true) {
   if (active || readerOpen || opening) return;
   opening = true;
+  setLoading(true, 'Opening EPUB…');
   status('Opening EPUB reader...');
   try {
     const project = await loadProject(id);
@@ -730,11 +737,12 @@ async function openReader(id, edition = 'original', updateRoute = true) {
     status('');
   } catch (error) {
     status(errorMessage(error));
-  } finally { opening = false; }
+  } finally { opening = false; setLoading(false); }
 }
 async function openSharedReader(token) {
   if (active || readerOpen || opening) return;
   opening = true;
+  setLoading(true, 'Opening shared reader…');
   try {
     sharedReaderToken=token;
     const project=await remote.openPublicReader(token);
@@ -748,7 +756,7 @@ async function openSharedReader(token) {
     $('reader-chapter-title').textContent='This reader link is unavailable.';
     $('reader-status').textContent='Reader error';
     $('reader-content').append(el('p', '', errorMessage(error)));
-  } finally { opening = false; }
+  } finally { opening = false; setLoading(false); }
 }
 function leaveReader({ updateRoute = true } = {}) {
   if (!readerOpen) return;

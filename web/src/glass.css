@@ -41,6 +41,10 @@ h1 br{display:none}h1 em{font-weight:400;letter-spacing:-.04em}.intro{font-size:
 button{font-family:'Manrope',sans-serif}button:not(.primary):hover{background:#ffffffad}.primary,.eclipse .primary{background:var(--action);border-color:var(--action);color:#fff}.primary:hover,.eclipse .primary:hover{background:var(--action-hover);border-color:var(--action-hover)}
 dialog{background:#f4f5f0ed;backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border-color:var(--border);box-shadow:0 25px 90px #152b3f38}
 dialog::backdrop{background:#142e434a}dialog h2{font-family:'Newsreader',serif;font-size:34px;font-weight:400;letter-spacing:-.025em}
+
+/* Libron is the shared reading voice; compact mono labels remain intentionally distinct. */
+body,button,input,select,textarea{font-family:'Libron','Newsreader',serif}
+h1,h2,h3,h4,.welcome h1,.pricing-heading h1,.subscription-welcome h1,.pricing-card h2,.empty h3,dialog h2{font-family:'Libron','Newsreader',serif}
 .workspace-open .app-window{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}.workspace-open #brand .brand-copy{display:block}.workspace-open #brand .brand-copy>span{display:none}.workspace-open .app-logo{width:30px;height:30px}
 @supports not (backdrop-filter:blur(1px)){.app-window{background:#edf0e9}dialog{background:#f4f5f0}}
 @media(min-width:1550px){.room-heading{padding-top:34px;padding-bottom:32px}.reading-room{padding-left:52px;padding-right:52px}}
