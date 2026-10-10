@@ -439,7 +439,7 @@ $('feedback-form').onsubmit=async event=>{
     $('feedback-submit').textContent=file?'Uploading screenshot...':'Sending...';
     const screenshotPath=file?await remote.uploadFeedbackScreenshot(file):null;
     await remote.submitFeedback($('feedback-type').value,$('feedback-description').value.trim(),screenshotPath);
-    $('feedback-dialog').close();status('Thanks. Your feedback was sent.');
+    $('feedback-dialog').close();status('Thanks. Your feedback was sent.');if(active)announceSave('Thanks. Your feedback was sent.');
   }catch(error){$('feedback-error').textContent=errorMessage(error);}
   finally{working=false;$('feedback-submit').disabled=false;$('feedback-submit').textContent='Send feedback';}
 };
@@ -992,6 +992,7 @@ window.addEventListener('message', async e => {
       catch(error){announceSave(errorMessage(error));}
     }
     if (e.data.action === 'library') leave();
+    if (e.data.action === 'feedback' && e.data.projectId === active.id) showFeedback();
     if (e.data.action === 'save') saveNow();
     if (e.data.action === 'backup') downloadBackup();
     if (e.data.action === 'exportSettings') showExportSettings();

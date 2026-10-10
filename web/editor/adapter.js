@@ -260,6 +260,10 @@ const dictionaryButton=document.createElement('button');dictionaryButton.id='hos
 toolsWrap.append(dictionaryButton,toolMenu);
 headerActions.append(saveStatus);
 headerActions.append(toolsWrap);
+const feedbackButton = document.createElement('button');
+feedbackButton.id = 'host-feedback'; feedbackButton.type = 'button'; feedbackButton.className = 'btn'; feedbackButton.textContent = 'Feedback';
+feedbackButton.onclick = () => send('editor:action', {action:'feedback'});
+headerActions.append(feedbackButton);
 if (glossaryButton) headerActions.append(glossaryButton);
 if (themeButton) headerActions.append(themeButton);
 keyBar.append(headerActions);
