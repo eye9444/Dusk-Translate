@@ -33,7 +33,7 @@ const isAuthReturn = ['code','error','error_description','error_code','access_to
 let authBusy = false;
 let user = null, projects = [], invitations = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
-let authMode = 'signin', manage = null, releaseLock = null, feedbackAdmin = false;
+let authMode = 'signin', manage = null, releaseLock = null, lockRequest = null, feedbackAdmin = false;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
 let projectCollaboration = null;
@@ -700,12 +700,18 @@ $('project-form').onsubmit = async e => {
 };
 async function acquire(id) {
   if (!navigator.locks) throw new Error('This browser cannot safely lock projects. Please use a recent Firefox, Chrome, or Safari.');
-  return new Promise((resolve,reject) => {
-    navigator.locks.request(`dusk-project-${owner()}-${id}`, { ifAvailable:true }, async lock => {
+  if(releaseLock)throw new Error('Finish closing the current project before opening another one.');
+  await new Promise((resolve,reject) => {
+    lockRequest=navigator.locks.request(`dusk-project-${owner()}-${id}`, { ifAvailable:true }, async lock => {
       if (!lock) { reject(new Error('This project is already open in another tab. Close it there first.')); return; }
       await new Promise(release => { releaseLock=release; resolve(); });
-    }).catch(reject);
+    });
+    lockRequest.catch(reject);
   });
+}
+async function releaseProjectLock(){
+  const release=releaseLock,request=lockRequest;releaseLock=null;lockRequest=null;release?.();
+  try{await request;}catch{/* Acquisition errors are reported by the caller. */}
 }
 async function loadProject(id) {
   const cached = await local.get(owner(), id);
@@ -736,7 +742,7 @@ async function openProject(id, updateRoute = true) {
     $('editor').onload = () => setTimeout(openActiveEditorProject, 0);
     $('editor').src='/editor/index.html'; status('');
     if (updateRoute) navigate(projectRoute('/editor', id));
-  } catch(e) { status(errorMessage(e)); active=null; releaseLock?.(); releaseLock=null; }
+  } catch(e) { status(errorMessage(e)); active=null; await releaseProjectLock(); }
   finally { opening=false; setLoading(false); }
 }
 function readerFontSize() {
@@ -940,6 +946,12 @@ dictionaryDialog.addEventListener('click',event=>{
 });
 window.addEventListener('message', async e => {
   if (e.origin !== location.origin || e.source !== $('editor').contentWindow || !active) return;
+  if(e.data.type==='editor:sourceFile'&&e.data.projectId===active.id){
+    if(active.accessRole==='viewer'||typeof e.data.text!=='string'||!e.data.text.trim())return;
+    showChapterManager();
+    addChapter(String(e.data.name||'Chapter').replace(/\.[^.]+$/,'').slice(0,100),e.data.text);
+    return;
+  }
   if (e.data.type==='editor:launch' && e.data.projectId===active.id) {
     const frame=e.source;
     launchRequest(e.data).then(result=>frame.postMessage({type:'host:launch',requestId:e.data.requestId,result},location.origin))
@@ -1079,7 +1091,7 @@ async function leave({ updateRoute = true } = {}) {
   projectPresence?.stop(); projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
   pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id);
   comments.stop();
-  $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); releaseLock?.(); releaseLock=null; closing=false; await refresh(); $('search').focus();
+  $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); await releaseProjectLock(); closing=false; await refresh(); $('search').focus();
   if (updateRoute) navigate('/home');
 }
 $('back').onclick=leave;
@@ -1328,7 +1340,7 @@ $('manage-form').onsubmit=async e=>{
     }
     $('manage-dialog').close();await refresh();
   }catch(err){$('manage-error').textContent=errorMessage(err);}
-  finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;$('manage-submit').textContent=manage.kind==='delete'?'Delete project':'Save';}
+  finally{await releaseProjectLock();working=false;$('manage-submit').disabled=false;$('manage-submit').textContent=manage.kind==='delete'?'Delete project':'Save';}
 };
 
 let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1, preserveEditorReview = false;
@@ -1643,7 +1655,7 @@ if(cloud){
     if(user?.id!==next?.id){
       comments.stop();
       projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
-      if(active){$('editor').src='about:blank';active=null;releaseLock?.();releaseLock=null;$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
+      if(active){$('editor').src='about:blank';active=null;void releaseProjectLock();$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
       if (!next) navigate('/', true);
       user=next;setTimeout(refresh,0);
     }

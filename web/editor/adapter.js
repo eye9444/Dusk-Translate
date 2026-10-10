@@ -67,7 +67,7 @@ function setAccess(role = 'owner') {
   canEdit = role !== 'viewer';
   document.body.classList.toggle('view-only', !canEdit);
   document.getElementById('tl-out').contentEditable = canEdit && !busy ? 'true' : 'false';
-  ['api-key','model-select','model-import','style-sel','glossary','btn-tl','btn-abort','btn-import','btn-retry','btn-clear'].forEach(id => {
+  ['api-key','model-select','model-import','style-sel','glossary','btn-tl','btn-abort','btn-import','btn-retry','btn-clear','load-btn','load-json-btn'].forEach(id => {
     const control = document.getElementById(id);
     if (control) control.disabled = !canEdit;
   });
@@ -340,17 +340,29 @@ renderList = function () {
 const originalSelect = selectCh;
 const originalInitUI = initUI;
 initUI = function(){
+  const importButton=document.getElementById('btn-import');if(importButton)importButton.textContent=novel?.projectType==='web-novel'?'IMPORT SOURCE TXT':'IMPORT TXT';
   if(novel?.chapters?.length){originalInitUI();document.getElementById('btn-epub-export').disabled=!epubZip&&novel.projectType!=='web-novel';return;}
   renderList();document.getElementById('empty-state').style.display='grid';document.getElementById('panes').style.display='none';
-  const empty=document.getElementById('empty-state');empty.querySelector('#empty-text').textContent='This Web Novel has no chapters yet. Open Editor tools, then Manage source chapters to paste a chapter or import TXT files.';empty.querySelector('div:last-of-type').hidden=true;
-  ['btn-prev','btn-next','btn-export','btn-import','btn-src-export','btn-epub-export','btn-tl','btn-retry','btn-clear'].forEach(id=>{const control=document.getElementById(id);if(control)control.disabled=true;});
+  const empty=document.getElementById('empty-state');empty.querySelector('#empty-text').textContent='This Web Novel has no chapters yet. Paste source text into a new chapter or import any TXT file.';
+  const add=document.getElementById('load-btn'),source=document.getElementById('load-json-btn');add.disabled=!canEdit;source.disabled=!canEdit;add.onclick=()=>send('editor:action',{action:'chapters'});source.onclick=()=>document.getElementById('ti').click();
+  ['btn-prev','btn-next','btn-export','btn-src-export','btn-epub-export','btn-tl','btn-retry','btn-clear'].forEach(id=>{const control=document.getElementById(id);if(control)control.disabled=true;});
   updateProg();
 };
 selectCh = function(i) { if (busy || preparingTranslation) return; clearSearchHighlights(); originalSelect(i); document.dispatchEvent(new Event('dusk:chapter')); emit(); };
 const originalClear = clearTl;
 clearTl = function() { if (!canEdit || busy) return; originalClear(); emit(); };
 const originalImport = importTXT;
-importTXT = function(e) { if(globalThis.DuskCanImportTranslation===false){setStatus('Translated TXT import requires your own paid plan in cloud projects.');e.target.value='';return;} if (!canEdit || busy || preparingTranslation) { setStatus(canEdit ? 'Stop translation before importing text.' : 'Viewer access is read-only.'); e.target.value=''; return; } originalImport(e); };
+importTXT = async function(e) {
+  if(novel?.projectType==='web-novel'){
+    const file=e.target.files?.[0];e.target.value='';if(!file||!canEdit||busy)return;
+    if(file.size>10*1024*1024){setStatus('Source TXT chapters must be 10 MB or smaller.');return;}
+    const text=await file.text();if(!text.trim()){setStatus('That TXT file is empty.');return;}
+    send('editor:sourceFile',{name:file.name,text});return;
+  }
+  if(globalThis.DuskCanImportTranslation===false){setStatus('Translated TXT import requires your own paid plan in cloud projects.');e.target.value='';return;}
+  if (!canEdit || busy || preparingTranslation) { setStatus(canEdit ? 'Stop translation before importing text.' : 'Viewer access is read-only.'); e.target.value=''; return; }
+  originalImport(e);
+};
 const originalMark = updateMark;
 updateMark = function(i,text) { if (!text?.trim()) { const mark=document.getElementById('ck'+i); if(mark){mark.textContent='';mark.className='';} return; } originalMark(i,text); };
 const originalRetry = retryTranslation;
