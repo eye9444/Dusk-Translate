@@ -2,7 +2,7 @@
 ::highlight(dusk-comment){background:#d5a94255;color:inherit}
 html,body{scrollbar-width:none}
 html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
-#empty-state, #fi, #fi-epub { display:none!important; }
+#fi, #fi-epub { display:none!important; }
 .key-input-wrap input { min-width:0; }
 #sub-title { user-select:none!important; }
 #model-import-dialog{max-width:min(560px,calc(100vw - 24px));max-height:90dvh;overflow:auto}

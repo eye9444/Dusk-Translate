@@ -57,9 +57,21 @@ test('rename, archive, restore, delete keep projects isolated',async({page})=>{
 });
 test('empty Web Novel projects accept pasted chapters and preserve stable chapter titles',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();await page.getByLabel('Start an empty Web Novel').check();await page.locator('#new-title').fill('Serial novel');await page.getByRole('button',{name:'Create project',exact:true}).click();
-  const editor=page.frameLocator('#editor');await expect(editor.locator('#empty-text')).toContainText('no chapters yet');await editorAction(page,'#host-chapters');
+  const editor=page.frameLocator('#editor');await expect(editor.locator('#empty-text')).toContainText('no chapters yet');await expect(editor.locator('#load-btn')).toBeVisible();await editor.locator('#load-btn').click();
   await page.locator('#chapter-add').click();await page.locator('.chapter-manager-fields input').fill('第1話');await page.locator('.chapter-manager-fields textarea').fill('第一章\n\nこれはテストです。');await page.locator('#chapters-save').click();
   await expect(editor.locator('.ch-title')).toHaveText('第1話');await expect(editor.locator('#src-txt')).toContainText('これはテストです。');await expect(editor.locator('#src-cnt')).toContainText('14');
+});
+test('empty Web Novel toolbar imports any TXT file as source, not translated output',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();await page.getByLabel('Start an empty Web Novel').check();await page.locator('#new-title').fill('TXT source');await page.getByRole('button',{name:'Create project',exact:true}).click();
+  const editor=page.frameLocator('#editor');await expect(editor.locator('#btn-import')).toHaveText('IMPORT SOURCE TXT');
+  await editor.locator('#ti').setInputFiles({name:'anything-from-a-friend.txt',mimeType:'text/plain',buffer:Buffer.from('貼り付けた原文です。')});
+  await expect(page.locator('#chapters-dialog')).toBeVisible();await expect(page.locator('.chapter-manager-fields input')).toHaveValue('anything-from-a-friend');await expect(page.locator('.chapter-manager-fields textarea')).toHaveValue('貼り付けた原文です。');await page.locator('#chapters-save').click();
+  await expect(editor.locator('#src-txt')).toHaveText('貼り付けた原文です。');
+});
+test('returning home releases the project lock before immediate reopen and delete',async({page})=>{
+  await create(page,'Lock lifecycle');await leave(page);
+  const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'Lock lifecycle',exact:true})});await card.getByRole('button',{name:'Open project',exact:true}).click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();await leave(page);
+  await expect(page.locator('#library-status')).not.toContainText('already open');await card.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();await expect(page.locator('.project-card')).toHaveCount(0);await expect(page.locator('#manage-error')).toBeEmpty();
 });
 test('TXT source import creates one editable chapter named after the file',async({page})=>{
   await create(page,'TXT novel',{name:'chapter-12.txt',mimeType:'text/plain',buffer:Buffer.from('本文です。\n\n続きです。')});const editor=page.frameLocator('#editor');

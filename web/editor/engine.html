@@ -287,8 +287,8 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
       <div style="font-size:2rem">📖</div>
       <p id="empty-text">Enter your API key above, then load an EPUB or novel_source.json.</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-        <button class="btn primary" onclick="document.getElementById('fi-epub').click()" disabled id="load-btn">Load EPUB</button>
-        <button class="btn" onclick="document.getElementById('fi').click()" disabled id="load-json-btn" style="font-size:.68rem">Load JSON</button>
+        <button class="btn primary" type="button" disabled id="load-btn">Paste or add chapter</button>
+        <button class="btn" type="button" disabled id="load-json-btn">Import source TXT</button>
       </div>
       <input type="file" id="fi-epub" accept=".epub" style="display:none" onchange="loadEpub(event)">
       <input type="file" id="fi" accept=".json" style="display:none" onchange="loadFile(event)">
@@ -508,8 +508,8 @@ function onKeyInput() {
   }
   const ready = isReady();
   document.getElementById('model-import').disabled = busy;
-  document.getElementById('load-btn').disabled = !ready;
-  document.getElementById('load-json-btn').disabled = !ready;
+  document.getElementById('load-btn').disabled = novel?.projectType === 'web-novel' ? false : !ready;
+  document.getElementById('load-json-btn').disabled = novel?.projectType === 'web-novel' ? false : !ready;
   if (novel) document.getElementById('btn-tl').disabled = !ready;
   if (ready) document.getElementById('empty-text').innerHTML = 'Load an EPUB to begin, or a JSON if you already extracted one.<br>Drag onto the page or click a button.';
 }
