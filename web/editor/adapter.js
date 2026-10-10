@@ -327,10 +327,12 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'){navigationMenu.hidd
 // Imported chapter titles are text, never markup in the hosted application.
 renderList = function () {
   const list = document.getElementById('ch-list'); list.replaceChildren();
+  const namedChapters = novel.projectType === 'web-novel';
   novel.chapters.forEach((ch, i) => {
     const row = document.createElement('div'); row.id = 'ci' + i; row.className = 'ch-item'; row.tabIndex = 0; row.setAttribute('role','button');
     const id = document.createElement('div'); id.className = 'ch-id'; id.textContent = ch.id;
-    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (ch.title || ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
+    const sourcePreview = ch.text.split('\n').find(line => line.trim().length > 2) || ch.id;
+    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (namedChapters ? ch.title || sourcePreview : sourcePreview).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
     row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);

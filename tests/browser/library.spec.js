@@ -43,6 +43,12 @@ test('saves manual edits, glossary, current chapter; keys never persist',async({
   await editor.locator('#btn-prev').click();await expect(editor.locator('#tl-out')).toHaveText('My edited translation');
   await editor.getByRole('button',{name:'Glossary',exact:true}).click();await expect(editor.locator('#glossary')).toHaveValue('名前 = Name');
 });
+test('EPUB-style projects retain portion IDs and source previews instead of generated chapter names',async({page})=>{
+  await create(page,'EPUB portions');
+  const editor=page.frameLocator('#editor');
+  await expect(editor.locator('.ch-id')).toHaveText(['p-001','p-002']);
+  await expect(editor.locator('.ch-title')).toHaveText(['テストの文章です。Chapter one.','次の章の文章です。Chapter two.']);
+});
 test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await create(page,'First');await leave(page);await create(page,'Second');await leave(page);
   const first=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'First',exact:true})});
