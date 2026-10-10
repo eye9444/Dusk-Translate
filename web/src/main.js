@@ -688,6 +688,7 @@ async function renderReader() {
     });
     chapterButton.setAttribute('aria-current', String(index === readerChapter));
     chapterButton.setAttribute('aria-label', `Read section ${index}: ${item.title}`);
+    chapterButton.title = item.title;
     return chapterButton;
   }));
   setReaderFontSize(readerFontSize());

@@ -13,4 +13,7 @@ body.eclipse #reader{background:linear-gradient(135deg,#090a09,#17100c 62%,#2110
 
 /* Keep reader scrollbars clear of the header and expose project-only navigation. */
 .reader-content{font-family:'Libron','Newsreader',serif}
+.reader-sidebar,.reader-chapters{min-width:0}
+.reader-chapters button{overflow:hidden;text-overflow:ellipsis}
+@media(max-width:760px){.reader-chapters button{flex:0 0 auto;min-width:0;max-width:min(220px,65vw);font-size:11px;white-space:nowrap}}
 .reader-page,.reader-sidebar{scrollbar-gutter:stable}.reader-page::-webkit-scrollbar-track,.reader-sidebar::-webkit-scrollbar-track{margin:18px 0}#reader-editor{white-space:nowrap;background:transparent}@media(max-width:760px){#reader-editor{grid-column:3;grid-row:1;padding:8px;font-size:0}#reader-editor::before{content:'Edit';font-size:11px}#reader-editor:not([hidden]) + #reader-open-file{display:none}}

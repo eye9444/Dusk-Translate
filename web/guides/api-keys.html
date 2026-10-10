@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="How to create a Google AI Studio or OpenRouter API key for DuskTranslate">
+<meta name="description" content="Use Google AI Studio, OpenRouter, OpenAI, Claude, or a custom OpenAI-compatible API endpoint with DuskTranslate.">
 <title>API Key Guide | DuskTranslate</title>
 <link rel="icon" type="image/svg+xml" href="/brand/dusk-mark.svg?v=2">
 <link rel="stylesheet" href="/legal.css">
@@ -63,6 +63,12 @@
     </div>
     <p><a href="https://openrouter.ai/docs/api-reference/overview" target="_blank" rel="noopener noreferrer">Read OpenRouter's API documentation</a> for current authentication and usage information.</p>
 
+    <h2>OpenAI and Claude</h2>
+    <p>Create a provider API key in your OpenAI or Anthropic developer account. A ChatGPT or Claude chat subscription is separate from API billing. Paste your key into the editor, open <strong>Import</strong>, and select <strong>OpenAI</strong> or <strong>Claude (Anthropic)</strong>. Choose <strong>Import all models</strong>, then select a text-generation model supported by your account. You can also enter an exact model ID manually.</p>
+    <p>OpenAI uses the Chat Completions API; Claude uses the Messages API. Not every model in a provider's catalog supports these APIs. Requests go directly from your browser to the provider; keys are not saved in projects.</p>
+    <h2>Custom API URLs</h2>
+    <p>Open <strong>Import</strong> and choose <strong>Custom (OpenAI-compatible)</strong>. Enter the HTTPS API base URL, including its version path where required, for example <code>https://your-provider.example/v1</code>. Use a key issued for that service. Import its models or enter the model ID from its documentation.</p>
+    <p>The service receives your key, prompt, and translation text. Only connect to a service you trust. Custom URLs must support <code>/chat/completions</code> streaming and browser requests (CORS); model import also needs <code>/models</code>. DuskTranslate does not proxy requests or bypass a provider's browser restrictions. Custom connection settings must be entered again when the editor is reopened.</p>
     <h2>Safety checklist</h2>
     <ul>
       <li>Use provider-side restrictions and low spending limits where available.</li>

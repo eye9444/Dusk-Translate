@@ -16,4 +16,5 @@ await copyFile('web/editor/presence.js', 'web/public/editor/presence.js');
 await copyFile('web/editor/review.js', 'web/public/editor/review.js');
 await copyFile('web/editor/adapter.css', 'web/public/editor/adapter.css');
 await copyFile('web/editor/prompt.js', 'web/public/editor/prompt.js');
+await copyFile('web/editor/providers.js', 'web/public/editor/providers.js');
 await copyFile('web/editor/linked-scroll.js', 'web/public/editor/linked-scroll.js');
