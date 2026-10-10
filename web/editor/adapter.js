@@ -413,7 +413,7 @@ updateProg = function() { originalUpdate(); emit(); };
 doEpubExport = function(){ if(busy)return;send('editor:action',{action:'exportEpub'}); };
 
 function checkNovel(value) {
-  if (!Array.isArray(value?.chapters) || !value.chapters.length) throw new Error('This file has no readable chapters.');
+  if (!Array.isArray(value?.chapters) || (!value.chapters.length && value.projectType !== 'web-novel')) throw new Error('This file has no readable chapters.');
   const ids = new Set();
   for (const ch of value.chapters) {
     if (typeof ch.id !== 'string' || typeof ch.text !== 'string' || ids.has(ch.id) || ['__proto__','constructor','prototype'].includes(ch.id)) throw new Error('Invalid or duplicate chapter identifiers.');
@@ -439,14 +439,19 @@ async function parseEpub(blob) {
     const base = new URL(opfPath, 'https://book.invalid/');
     const path = decodeURIComponent(new URL(item.getAttribute('href'), base).pathname.slice(1));
     const file = epubZip.file(path); if (!file) continue;
-    const doc = new DOMParser().parseFromString(await file.async('string'), 'text/html');
+    // Kobo EPUBs commonly contain XML-valid self-closing script elements. HTML
+    // parsing treats those as unclosed scripts and swallows the chapter body.
+    const doc = new DOMParser().parseFromString(await file.async('string'), 'application/xhtml+xml');
+    if (doc.querySelector('parsererror')) throw new Error(`Invalid XHTML in ${path}.`);
+    const body = doc.querySelector('body'); if (!body) continue;
     doc.querySelectorAll('script,style,rt,rp').forEach(n => n.remove());
     doc.querySelectorAll('img').forEach(n => n.replaceWith(document.createTextNode(n.alt || '')));
     doc.querySelectorAll('br').forEach(n => n.replaceWith(document.createTextNode('\n')));
     doc.querySelectorAll('p,h1,h2,h3,h4,div,li').forEach(n => n.append(document.createTextNode('\n\n')));
-    const text = doc.body.textContent.replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+    const text = body.textContent.replace(/\n[ \t]+/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
     if (!text) continue;
-    chapters.push({ id, xhtmlPath: path, text, jp_char_count: (text.match(/[\u3040-\u9fff]/g) || []).length });
+    const title=(body.querySelector('h1,h2,h3')?.textContent||`Section ${chapters.length+1}`).replace(/\s+/g,' ').trim().slice(0,100);
+    chapters.push({ id, title, xhtmlPath: path, text, jp_char_count: Array.from(text).length });
   }
   return checkNovel({ chapters, _epubOpfPath: opfPath, _epubOpfDir: opfPath.slice(0,opfPath.lastIndexOf('/')+1) });
 }

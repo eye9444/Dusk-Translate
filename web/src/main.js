@@ -11,6 +11,7 @@ import { createPricingPage } from './pricing.js';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
+import { emptyWebNovel, parseSourceFile } from './source-import.js';
 import { buildTranslatedEpub, readEpub } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
@@ -596,6 +597,7 @@ function showProjectDialog(importing = false) {
   $('project-dialog-eyebrow').textContent = importing ? 'RESTORE A PROJECT' : 'A NEW CHAPTER';
   $('project-dialog-title').textContent = importing ? 'Import a project' : 'Start a project';
   $('new-title-label').hidden = importing;
+  $('new-mode').hidden = importing;
   $('new-storage-label').hidden=!user;
   $('new-title').required = !importing;
   $('new-file-label').firstChild.textContent = importing ? 'DuskTranslate project ZIP' : 'Original book or project backup';
@@ -605,7 +607,15 @@ function showProjectDialog(importing = false) {
     : 'EPUB, source JSON, TXT, or backup ZIP · up to 50 MB.<br>Your original file is kept for future exports.';
   $('create-submit').textContent = importing ? 'Import project' : 'Create project';
   $('project-dialog').showModal();
+  updateProjectMode();
 }
+function updateProjectMode(){
+  const empty=!importingProject&&document.querySelector('input[name="project-mode"]:checked')?.value==='empty';
+  $('new-file-label').hidden=empty;
+  $('new-file').required=!empty;
+  $('new-file-label').firstChild.textContent = importingProject ? 'DuskTranslate project ZIP' : 'Original book or project backup';
+}
+document.querySelectorAll('input[name="project-mode"]').forEach(input=>input.onchange=updateProjectMode);
 $('new-project').onclick = () => showProjectDialog();
 $('import-project').onclick = () => showProjectDialog(true);
 $('welcome-signin').onclick=()=>showAuth('signin');$('welcome-signup').onclick=()=>showAuth('signup');
@@ -615,9 +625,11 @@ $('project-form').onsubmit = async e => {
   e.preventDefault(); if (working) return;
   working=true; $('create-submit').disabled=true; $('new-error').textContent='';
   try {
-    let file = $('new-file').files[0]; validateFile(file);
+    const emptyProject=!importingProject&&document.querySelector('input[name="project-mode"]:checked')?.value==='empty';
+    let file = $('new-file').files[0];
+    if(!emptyProject)validateFile(file);
     if (importingProject && !/\.zip$/i.test(file.name)) throw new Error('Choose a DuskTranslate project ZIP.');
-    let snapshot = null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
+    let snapshot = emptyProject ? cleanSnapshot({novel:emptyWebNovel(),translations:{}}) : null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
     if (/\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
@@ -633,8 +645,13 @@ $('project-form').onsubmit = async e => {
       file=new File([await archive.file(record.fileName.replace(/[\\/]/g,'_')).async('arraybuffer')],record.fileName);
       validateFile(file);
     }
+    if(!emptyProject&&!importingProject&&!snapshot){
+      const novel=await parseSourceFile(file);
+      snapshot=cleanSnapshot({novel,translations:{}});
+    }
     const title = (importingProject ? importedTitle : $('new-title').value.trim()) || $('new-title').value.trim();
     if (!title) throw new Error(importingProject ? 'This backup does not include a usable project title.' : 'Enter a project title.');
+    if(emptyProject)file=new File([JSON.stringify(snapshot.novel)],'web-novel.json',{type:'application/json'});
     const localOnly=!user||$('new-local').checked||importedStorage==='local';
     let p = { id:crypto.randomUUID(), owner:owner(), storage:localOnly?'local':'cloud', title, file, fileName:file.name, snapshot, localDocument:importedDocument, archived:false, revision:1, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString(), dirty:false };
     if (user&&!localOnly) p = await remote.create(p);
