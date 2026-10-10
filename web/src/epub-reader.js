@@ -283,3 +283,35 @@ export async function buildTranslatedEpub(file, snapshot) {
   }
   return zip.generateAsync({ type:'blob', mimeType:'application/epub+zip', compression:'DEFLATE', compressionOptions:{ level:6 } });
 }
+
+function xmlEscape(value) {
+  return String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+export function snapshotReaderBook(title, snapshot, edition = 'original') {
+  const translations=snapshot?.translations||{},excluded=new Set(snapshot?.exportExcluded||[]);
+  const chapters=(snapshot?.novel?.chapters||[]).filter(chapter=>edition==='original'||!excluded.has(chapter.id)).map((chapter,index)=>{
+    const text=edition==='translated'?translations[chapter.id]:chapter.text;
+    if(edition==='translated'&&(!text?.trim()||text.endsWith('…PARTIAL')))throw new Error('Finish every selected chapter before opening the translated edition.');
+    const paragraphs=String(text||'').split(/\n\s*\n/u).map(value=>value.trim()).filter(Boolean);
+    return {id:chapter.id,title:chapter.title||`Chapter ${index+1}`,paragraphs,blocks:paragraphs.map(text=>({type:'text',text}))};
+  });
+  if(!chapters.length)throw new Error('This project does not have any readable chapters yet.');
+  return {title,chapters};
+}
+
+export async function buildWebNovelEpub(title, snapshot) {
+  const book=snapshotReaderBook(title,snapshot,'translated'),zip=new JSZip(),identifier=crypto.randomUUID();
+  zip.file('mimetype','application/epub+zip',{compression:'STORE'});
+  zip.file('META-INF/container.xml','<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>');
+  const manifest=[],spine=[],nav=[];
+  book.chapters.forEach((chapter,index)=>{
+    const id=`chapter-${index+1}`,path=`${id}.xhtml`;
+    const paragraphs=chapter.paragraphs.map(text=>`<p>${xmlEscape(text)}</p>`).join('\n');
+    zip.file(`OEBPS/${path}`,`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head><title>${xmlEscape(chapter.title)}</title><meta charset="UTF-8"/><style>body{font-family:serif;line-height:1.7;margin:8%}h1{font-size:1.6em}p{white-space:pre-wrap}</style></head><body><h1>${xmlEscape(chapter.title)}</h1>${paragraphs}</body></html>`);
+    manifest.push(`<item id="${id}" href="${path}" media-type="application/xhtml+xml"/>`);spine.push(`<itemref idref="${id}"/>`);nav.push(`<li><a href="${path}">${xmlEscape(chapter.title)}</a></li>`);
+  });
+  zip.file('OEBPS/nav.xhtml',`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><head><title>Contents</title></head><body><nav epub:type="toc"><h1>Contents</h1><ol>${nav.join('')}</ol></nav></body></html>`);
+  zip.file('OEBPS/content.opf',`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">urn:uuid:${identifier}</dc:identifier><dc:title>${xmlEscape(title)}</dc:title><dc:language>en</dc:language><meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d{3}Z$/,'Z')}</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${manifest.join('')}</manifest><spine>${spine.join('')}</spine></package>`);
+  return zip.generateAsync({type:'blob',mimeType:'application/epub+zip',compression:'DEFLATE',compressionOptions:{level:6}});
+}

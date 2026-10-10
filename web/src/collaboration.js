@@ -70,6 +70,10 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
       if(previous===value)return;
       const edit=commonEdit(previous,value);replaceRange(text,edit.start,edit.end,edit.replacement,localOrigin);
     },
+    editSource(chapterId,value){
+      const text=passage(doc,chapterId,'source'),previous=text.toString();if(previous===value)return;
+      const edit=commonEdit(previous,value);replaceRange(text,edit.start,edit.end,edit.replacement,localOrigin);
+    },
     addRuby(selection,reading,published=false){return setRuby(doc,{...selection,reading,published},localOrigin);},
     removeRuby(id){removeRuby(doc,id,localOrigin);notify();},
     updateRuby(id,reading){updateRuby(doc,id,reading,localOrigin);notify();},

@@ -11,6 +11,7 @@ export function startLocalDocument({project,onText,onRuby=()=>{},onPersist}){
   doc.on('update',(_update,updateOrigin)=>{if(updateOrigin===origin){persist();notify();}});notify();
   return {
     edit(chapterId,value){const text=passage(doc,chapterId),previous=text.toString();if(previous===value)return;const edit=commonEdit(previous,value);replaceRange(text,edit.start,edit.end,edit.replacement,origin);},
+    editSource(chapterId,value){const text=passage(doc,chapterId,'source'),previous=text.toString();if(previous===value)return;const edit=commonEdit(previous,value);replaceRange(text,edit.start,edit.end,edit.replacement,origin);},
     addRuby(selection,reading,published=false){return setRuby(doc,{...selection,reading,published},origin);},
     removeRuby(id){removeRuby(doc,id,origin);},updateRuby(id,reading){updateRuby(doc,id,reading,origin);},
     ruby(chapterId){return [...rubyForPassage(doc,chapterId),...rubyForPassage(doc,chapterId,'source')];},
