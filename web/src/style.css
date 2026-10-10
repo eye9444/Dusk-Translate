@@ -45,3 +45,6 @@ dialog{width:min(500px,calc(100% - 24px));max-height:90dvh;overflow:auto;color:v
 .app-loading-card{display:flex;align-items:center;gap:12px;padding:14px 17px;border:1px solid var(--border);border-radius:10px;background:var(--paper);box-shadow:0 16px 40px #0006;color:var(--ink);font:11px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
 .loading-mark{display:flex;align-items:flex-end;gap:3px;height:18px}.loading-mark i{display:block;width:4px;height:9px;border-radius:2px;background:var(--accent);animation:loading-pulse .9s ease-in-out infinite}.loading-mark i:nth-child(2){height:15px;animation-delay:.12s}.loading-mark i:nth-child(3){height:11px;animation-delay:.24s}
 @keyframes loading-pulse{0%,100%{opacity:.35;transform:scaleY(.65)}50%{opacity:1;transform:scaleY(1)}}
+.list-view .project-card{display:flex;flex-direction:column;gap:9px}
+.list-view .project-card .card-actions{align-self:stretch;max-width:none;margin-top:4px;flex-direction:row;flex-wrap:wrap}
+.list-view .project-card .card-actions button{white-space:nowrap}
