@@ -33,7 +33,7 @@ const isAuthReturn = ['code','error','error_description','error_code','access_to
 let authBusy = false;
 let user = null, projects = [], invitations = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
-let authMode = 'signin', manage = null, releaseLock = null, lockRequest = null, feedbackAdmin = false;
+let authMode = 'signin', manage = null, releaseLock = null, lockRequest = null, lockReleaseTask = Promise.resolve(), feedbackAdmin = false;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
 let projectCollaboration = null;
@@ -700,6 +700,7 @@ $('project-form').onsubmit = async e => {
 };
 async function acquire(id) {
   if (!navigator.locks) throw new Error('This browser cannot safely lock projects. Please use a recent Firefox, Chrome, or Safari.');
+  await lockReleaseTask;
   if(releaseLock)throw new Error('Finish closing the current project before opening another one.');
   await new Promise((resolve,reject) => {
     lockRequest=navigator.locks.request(`dusk-project-${owner()}-${id}`, { ifAvailable:true }, async lock => {
@@ -711,7 +712,10 @@ async function acquire(id) {
 }
 async function releaseProjectLock(){
   const release=releaseLock,request=lockRequest;releaseLock=null;lockRequest=null;release?.();
-  try{await request;}catch{/* Acquisition errors are reported by the caller. */}
+  if(!release&&!request){await lockReleaseTask;return;}
+  const task=(async()=>{try{await request;}catch{/* Acquisition errors are reported by the caller. */}})();
+  lockReleaseTask=task;
+  await task;
 }
 async function loadProject(id) {
   const cached = await local.get(owner(), id);
@@ -1091,7 +1095,7 @@ async function leave({ updateRoute = true } = {}) {
   projectPresence?.stop(); projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
   pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id);
   comments.stop();
-  $('editor').src='about:blank'; active=null; editorReady=false; $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); await releaseProjectLock(); closing=false; await refresh(); $('search').focus();
+  $('editor').src='about:blank'; active=null; editorReady=false; await releaseProjectLock(); $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); closing=false; await refresh(); $('search').focus();
   if (updateRoute) navigate('/home');
 }
 $('back').onclick=leave;
