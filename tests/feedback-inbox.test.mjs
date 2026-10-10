@@ -19,5 +19,10 @@ test('feedback is write-only for reporters and visible only to the founder inbox
     const inbox=await db.query('select * from list_feedback_inbox()');
     assert.equal(inbox.rows.length,1);
     assert.equal(inbox.rows[0].reporter_email,'reader@example.com');
+    await asUser(db,reporter);
+    await assert.rejects(db.query('select delete_feedback_report($1)',[inbox.rows[0].id]),/permission denied/i);
+    await asUser(db,founder);
+    await db.query('select delete_feedback_report($1)',[inbox.rows[0].id]);
+    assert.equal((await db.query('select * from list_feedback_inbox()')).rows.length,0);
   } finally { await db.close(); }
 });

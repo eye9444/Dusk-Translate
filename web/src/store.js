@@ -139,6 +139,10 @@ export const remote = {
     return path;
   },
   async feedbackInbox(){return must(await cloud.rpc('list_feedback_inbox'));},
+  async deleteFeedback(id,path){
+    if(path)must(await cloud.storage.from('feedback-screenshots').remove([path]));
+    return must(await cloud.rpc('delete_feedback_report',{report_id:id}));
+  },
   async feedbackScreenshotUrl(path){const result=await cloud.storage.from('feedback-screenshots').createSignedUrl(path,60);return must(result).signedUrl;},
   async readerLinkStatus(projectId){return must(await cloud.rpc('reader_link_status',{target_project:projectId}));},
   async capacity(){return must(await cloud.rpc('account_cloud_capacity'));},

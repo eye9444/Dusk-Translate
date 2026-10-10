@@ -48,3 +48,9 @@ dialog{width:min(500px,calc(100% - 24px));max-height:90dvh;overflow:auto;color:v
 .list-view .project-card{display:flex;flex-direction:column;gap:9px}
 .list-view .project-card .card-actions{align-self:stretch;max-width:none;margin-top:4px;flex-direction:row;flex-wrap:wrap}
 .list-view .project-card .card-actions button{white-space:nowrap}
+#billing-dialog .account-actions{margin-top:20px;gap:10px}
+#feedback-inbox-dialog{width:min(850px,calc(100vw - 24px));max-width:850px}
+.feedback-item summary{cursor:pointer;overflow-wrap:anywhere;line-height:1.6}
+.feedback-item[open] summary{margin-bottom:18px}
+.feedback-preview{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;margin:16px 0;border-radius:6px}
+.feedback-body{white-space:pre-wrap;overflow-wrap:anywhere}
