@@ -332,6 +332,7 @@ async function showBilling() {
   }else avatar.textContent=(user.email||'?').slice(0,1).toUpperCase();
   $('billing-email').textContent = user.email || '';
   const provider=user.app_metadata?.provider||user.identities?.[0]?.provider||'email';
+  $('account-password').hidden=!(user.identities?.some(identity=>identity.provider==='email') || provider==='email');
   $('billing-provider').textContent = `Signed in with ${provider === 'google' ? 'Google' : provider === 'email' ? 'email and password' : provider}`;
   $('billing-access').textContent = 'Checking your access...';
   $('billing-plan').textContent = 'Checking your Paddle subscription...';
@@ -421,9 +422,19 @@ async function showFeedbackInbox(){
     const items=await remote.feedbackInbox();
     $('feedback-inbox-status').textContent=items.length?`${items.length} report${items.length===1?'':'s'}`:'No feedback yet.';
     for(const item of items){
-      const card=el('article','feedback-item');
-      card.append(el('p','stamp',`${item.feedback_type.toUpperCase()} / ${new Date(item.created_at).toLocaleString()}`),el('p','',item.reporter_email||'Signed-in user'),el('p','feedback-body',item.description));
-      if(item.screenshot_path){const view=button('Open screenshot',async()=>{try{window.open(await remote.feedbackScreenshotUrl(item.screenshot_path),'_blank','noopener');}catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}});card.append(view);}
+      const card=el('details','feedback-item'),summary=el('summary','',`${item.feedback_type.toUpperCase()} · ${item.description.slice(0,90)}`);
+      card.append(summary,el('p','stamp',new Date(item.created_at).toLocaleString()),el('p','',item.reporter_email||'Signed-in user'),el('p','feedback-body',item.description));
+      if(item.screenshot_path){
+        const image=el('img','feedback-preview');image.alt='Screenshot attached to this report';image.hidden=true;
+        const message=el('p','field-hint','');card.append(message,image);
+        let loading=false;
+        card.addEventListener('toggle',async()=>{if(!card.open||image.hasAttribute('src')||loading)return;loading=true;message.textContent='Loading screenshot...';try{image.src=await remote.feedbackScreenshotUrl(item.screenshot_path);image.hidden=false;image.onload=()=>message.textContent='';image.onerror=()=>{image.removeAttribute('src');image.hidden=true;message.textContent='Screenshot could not load. Close and reopen this report to retry.';};}catch(error){message.textContent=errorMessage(error);}finally{loading=false;}});
+      }
+      const remove=button('Delete report',async()=>{
+        if(!confirm('Delete this feedback report from your inbox?'))return;
+        remove.disabled=true;
+        try{await remote.deleteFeedback(item.id,item.screenshot_path);card.remove();const count=$('feedback-inbox-list').childElementCount;$('feedback-inbox-status').textContent=count?`${count} reports`:'No feedback yet.';}catch(error){$('feedback-inbox-status').textContent=errorMessage(error);remove.disabled=false;}
+      });card.append(remove);
       $('feedback-inbox-list').append(card);
     }
   }catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}
@@ -1177,7 +1188,7 @@ const capacityButton=button('Manage editable projects',async()=>{
       save:async ids=>{await remote.selectProjects(ids);await refresh();}});
   }catch(error){$('billing-detail').textContent=errorMessage(error);}
 });
-capacityButton.type='button';$('billing-detail').after(capacityButton);
+capacityButton.type='button';document.querySelector('.account-actions').prepend(capacityButton);
 const seatButton=button('Choose active collaborators',async()=>{
   if(!sharingProject)return;const project=sharingProject;
   try{
