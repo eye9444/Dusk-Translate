@@ -238,6 +238,14 @@ undoFindReplace.disabled=true; updateSpellcheckAction();
 toolMenu.append(menuAction('host-chapters','Manage source chapters','chapters'),localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
 toolMenu.append(menuAction('host-custom-prompt','Translation instructions','customPrompt'));
 const editorIdentity = document.createElement('a'); editorIdentity.className = 'host-identity'; editorIdentity.href = '/home'; editorIdentity.title = 'Return to DuskTranslate home'; editorIdentity.setAttribute('aria-label', 'Return to DuskTranslate home');
+// Home belongs to the host application; navigating this iframe nests libraries
+// and leaves every parent editor holding its project lock.
+editorIdentity.target = '_top';
+editorIdentity.onclick = event => {
+  if(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)return;
+  event.preventDefault();
+  send('editor:action', {action:'library'});
+};
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
 const editorTitle = document.createElement('div');
 const editorBrand = document.createElement('span'); editorBrand.textContent='DuskTranslate';

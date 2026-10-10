@@ -79,6 +79,26 @@ test('returning home releases the project lock before immediate reopen and delet
   const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'Lock lifecycle',exact:true})});await card.getByRole('button',{name:'Open project',exact:true}).click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();await leave(page);
   await expect(page.locator('#library-status')).not.toContainText('already open');await card.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();await expect(page.locator('.project-card')).toHaveCount(0);await expect(page.locator('#manage-error')).toBeEmpty();
 });
+test('editor logo returns to the outer library without nesting apps or retaining project locks',async({page})=>{
+  for(const name of ['Logo first','Logo second','Logo third']){
+    await create(page,name);
+    await page.frameLocator('#editor').locator('.host-identity').click();
+    await expect(page).toHaveURL(/\/home$/);
+    await expect(page.locator('#library')).toBeVisible();
+    await expect.poll(()=>page.evaluate(async()=> (await navigator.locks.query()).held.filter(lock=>lock.name.startsWith('dusk-project-')).length)).toBe(0);
+    expect(page.frames().length).toBe(2);
+  }
+  for(const name of ['Logo first','Logo second','Logo third']){
+    const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name,exact:true})});
+    await card.getByRole('button',{name:'Open project',exact:true}).click();
+    await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
+    await page.frameLocator('#editor').locator('.host-identity').click();
+    await expect(page).toHaveURL(/\/home$/);
+    await card.getByRole('button',{name:'Delete',exact:true}).click();
+    await page.locator('#manage-submit').click();
+    await expect(card).toHaveCount(0);
+  }
+});
 test('TXT source import creates one editable chapter named after the file',async({page})=>{
   await create(page,'TXT novel',{name:'chapter-12.txt',mimeType:'text/plain',buffer:Buffer.from('本文です。\n\n続きです。')});const editor=page.frameLocator('#editor');
   await expect(editor.locator('.ch-title')).toHaveText('chapter-12');await expect(editor.locator('#src-txt')).toContainText('続きです。');
