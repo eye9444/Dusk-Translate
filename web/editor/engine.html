@@ -196,7 +196,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
 <div class="key-bar">
   <label>API Key</label>
   <div class="key-input-wrap">
-    <input type="text" id="api-key" placeholder="AIza… / AQ.… / sk-or-v1-…" oninput="onKeyInput()">
+    <input type="text" id="api-key" placeholder="Provider API key" autocomplete="off" spellcheck="false" oninput="onKeyInput()">
     <button onclick="toggleVis()" id="vis-btn">
       <svg id="eye-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z" stroke="currentColor" stroke-width="2" fill="none"/>
@@ -218,6 +218,19 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
     <p class="eyebrow">LIVE PROVIDER CATALOG</p>
     <h2 id="model-import-title">Import models</h2>
     <p id="model-import-help">Enter a supported API key first. Your key is used only for this provider request and is never saved.</p>
+    <label for="provider-select">Provider</label>
+    <select id="provider-select" onchange="changeProvider()">
+      <option value="auto">Detect from key</option><option value="ai">Google AI Studio</option><option value="or">OpenRouter</option>
+      <option value="openai">OpenAI</option><option value="claude">Claude (Anthropic)</option><option value="custom">Custom (OpenAI-compatible)</option>
+    </select>
+    <div id="custom-endpoint-fields" hidden>
+      <label for="provider-base-url">API base URL</label>
+      <input id="provider-base-url" type="url" placeholder="https://your-provider.example/v1" autocomplete="off" onchange="resetProviderModels()">
+      <p>Your key and translation text go directly to this endpoint. Use a key issued for a service you trust. The endpoint must support browser requests and OpenAI Chat Completions.</p>
+    </div>
+    <label for="manual-model">Model ID (if model import is unavailable)</label>
+    <input id="manual-model" type="text" placeholder="Exact model ID from your provider" autocomplete="off">
+    <button class="btn" type="button" onclick="useManualModel()">Use model ID</button>
     <p id="model-import-status" role="status"></p>
     <div class="model-import-actions">
       <button class="btn primary" type="button" id="import-free-models" onclick="importModels('free')">Import free models</button>
@@ -311,6 +324,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
   <span class="provider-badge" id="provider-badge" style="display:none"></span>
 </div>
 
+<script src="providers.js"></script>
 <script>
 let novel = null, cur = 0, translations = {}, partialResumes = {}, busy = false;
 let abortCtrl = null, watchdog = null;
@@ -344,11 +358,18 @@ function isORKey(k)  { return k.startsWith('sk-or-') && k.length > 20; }
 function keyMatchesProvider(k, p) {
   if (p === 'ai') return isAIKey(k);
   if (p === 'or') return isORKey(k);
+  if (p === 'custom') return k.length > 0 && providerForKey(k) === 'custom';
+  if (p === 'claude') return k.startsWith('sk-ant-') && k.length > 20;
+  if (p === 'openai') return k.startsWith('sk-') && !isORKey(k) && !k.startsWith('sk-ant-') && k.length > 20;
   return false;
 }
-function isReady() { return keyMatchesProvider(getKey(), getProvider()); }
+function isReady() { return keyMatchesProvider(getKey(), getProvider()) && providerForKey(getKey()) === getProvider(); }
 
 function providerForKey(key) {
+  const selected = document.getElementById('provider-select').value;
+  if (selected !== 'auto') return selected;
+  if (key.startsWith('sk-ant-')) return 'claude';
+  if (key.startsWith('sk-') && !isORKey(key)) return 'openai';
   if (isAIKey(key)) return 'ai';
   if (isORKey(key)) return 'or';
   return null;
@@ -358,17 +379,44 @@ function setModelImportStatus(message, error = false) {
   status.textContent = message;
   status.style.color = error ? 'var(--accent)' : 'var(--muted)';
 }
-function openModelImporter() {
-  const provider = providerForKey(getKey());
-  const dialog = document.getElementById('model-import-dialog');
-  if (!provider) {
-    setModelImportStatus('Enter a valid AI Studio or OpenRouter API key first.', true);
-  } else if (provider === 'ai') {
-    setModelImportStatus('Google returns models enabled for this key. It does not expose account-specific free-tier pricing.');
-  } else {
-    setModelImportStatus('Free imports include zero-cost text models. All imports include every text-generation model in your catalog.');
+let trustedEndpoint = '';
+function resetProviderModels() {
+  if (busy) return;
+  const select = document.getElementById('model-select');
+  select.replaceChildren(new Option('Import models to choose one',''));
+  select.disabled = true;
+  trustedEndpoint = '';
+  onKeyInput();
+}
+function changeProvider() {
+  document.getElementById('custom-endpoint-fields').hidden = document.getElementById('provider-select').value !== 'custom';
+  document.getElementById('import-free-models').hidden = !['or','ai'].includes(providerForKey(getKey()));
+  resetProviderModels();
+}
+function customEndpoint() { return document.getElementById('provider-base-url').value.trim(); }
+function confirmEndpoint(provider) {
+  if (provider !== 'custom') return;
+  const base = DuskProviders.baseURL(provider,customEndpoint());
+  if (trustedEndpoint !== base) {
+    if (!window.confirm('Send your API key and translation requests directly to '+base+'? Only continue if you trust this service and are using its key.')) throw new Error('Endpoint connection cancelled.');
+    trustedEndpoint=base;
   }
-  dialog.showModal();
+}
+function useManualModel() {
+  try {
+    const provider=providerForKey(getKey()), id=document.getElementById('manual-model').value.trim();
+    if (!provider || !keyMatchesProvider(getKey(),provider)) throw new Error('Enter a matching provider key first.');
+    if (!id || /[\s|]/.test(id)) throw new Error('Enter one exact model ID without spaces.');
+    confirmEndpoint(provider);
+    populateImportedModels(provider,[{id}], 'all');
+    setModelImportStatus('Model selected. Availability is checked by the provider when translating.');
+  } catch(error) { setModelImportStatus(error.message,true); }
+}
+function openModelImporter() {
+  const provider=providerForKey(getKey());
+  document.getElementById('import-free-models').hidden = !['or','ai'].includes(provider);
+  setModelImportStatus(provider==='or' ? 'Free imports include zero-cost text models.' : 'Import your available models, or enter an exact model ID. Provider usage charges may apply.');
+  document.getElementById('model-import-dialog').showModal();
 }
 function importedModelLabel(model) {
   const context = Number(model.context_length || model.inputTokenLimit || 0);
@@ -379,7 +427,7 @@ function populateImportedModels(provider, models, scope) {
   const previous = select.value;
   select.replaceChildren();
   const group = document.createElement('optgroup');
-  group.label = `${provider === 'ai' ? 'AI Studio' : 'OpenRouter'} · ${scope === 'free' ? 'free / available' : 'all text models'}`;
+  group.label = `${DuskProviders.names[provider]} · ${scope === 'free' ? 'free / available' : 'all text models'}`;
   models.forEach(model => {
     const option = document.createElement('option');
     option.value = `${provider}|${model.id}`;
@@ -393,13 +441,17 @@ function populateImportedModels(provider, models, scope) {
 }
 async function importModels(scope) {
   const key = getKey(), provider = providerForKey(key);
-  if (!provider) { setModelImportStatus('Enter a valid API key first.', true); return; }
+  if (!provider || !keyMatchesProvider(key,provider)) { setModelImportStatus('Enter a matching provider API key first.', true); return; }
   const buttons = ['import-free-models', 'import-all-models'].map(id => document.getElementById(id));
   buttons.forEach(button => button.disabled = true);
   setModelImportStatus('Fetching the live model catalog…');
   try {
+    confirmEndpoint(provider);
     let models;
-    if (provider === 'or') {
+    if (['openai','claude','custom'].includes(provider)) {
+      if(scope==='free') throw new Error('This provider does not expose a free-model catalog. Choose Import all models.');
+      models=await DuskProviders.models(provider,key,customEndpoint());
+    } else if (provider === 'or') {
       const response = await fetch('https://openrouter.ai/api/v1/models', { headers: { Authorization: `Bearer ${key}` } });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body?.error?.message || `OpenRouter returned HTTP ${response.status}`);
@@ -444,7 +496,7 @@ function onKeyInput() {
   } else if (!p && providerForKey(k)) {
     el.textContent = 'Import models to choose one'; el.className = 'key-status';
   } else if (keyMatchesProvider(k, p)) {
-    el.textContent = `✓ ${p === 'ai' ? 'AI Studio' : 'OpenRouter'} key set — ready`; el.className = 'key-status ok';
+    el.textContent = `✓ ${DuskProviders.names[p]} key set — ready`; el.className = 'key-status ok';
   } else if (p === 'ai' && isORKey(k)) {
     el.textContent = 'That looks like an OpenRouter key — select an OR· model'; el.className = 'key-status err';
   } else if (p === 'or' && isAIKey(k)) {
@@ -452,10 +504,10 @@ function onKeyInput() {
   } else if (p === 'ai') {
     el.textContent = 'AI Studio key should start with AIza… or AQ.…'; el.className = 'key-status err';
   } else {
-    el.textContent = 'OpenRouter key should start with sk-or-…'; el.className = 'key-status err';
+    el.textContent = 'Choose a matching provider and import or enter a model ID.'; el.className = 'key-status err';
   }
   const ready = isReady();
-  document.getElementById('model-import').disabled = !providerForKey(k) || busy;
+  document.getElementById('model-import').disabled = busy;
   document.getElementById('load-btn').disabled = !ready;
   document.getElementById('load-json-btn').disabled = !ready;
   if (novel) document.getElementById('btn-tl').disabled = !ready;
@@ -783,11 +835,12 @@ async function translateCurrent({ resume = null } = {}) {
   const provider = getProvider();
   const plainTextFallback = window._plainTextRetryChapter === ch.id;
   busy = true;
+  ['api-key','model-select','model-import','provider-select','provider-base-url','manual-model'].forEach(id=>document.getElementById(id).disabled=true);
   document.getElementById('btn-tl').disabled = true;
   document.getElementById('btn-abort').style.display = '';
 
   const badge = document.getElementById('provider-badge');
-  badge.textContent = provider === 'or' ? 'OpenRouter' : 'AI Studio';
+  badge.textContent = DuskProviders.names[provider] || provider;
   badge.className = 'provider-badge ' + provider;
   badge.style.display = '';
   setStatus('Translating ' + ch.id + '…', true);
@@ -864,7 +917,7 @@ async function translateCurrent({ resume = null } = {}) {
       if (index > (resume?.chunkIndex ?? 0) && priorTranslation) appendToken(out, cursor, '\n\n');
       const partStart = getTextContent().length;
       devLogEntry('prompt', { chapter: ch.id, provider, model: getModel(), plainTextFallback, part: index + 1, parts: chunks.length, promptLength: prompt.length, prompt });
-      const cleanStop = provider === 'or'
+      const cleanStop = provider !== 'ai'
         ? await translateOpenRouter(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl)
         : await translateAIStudio(prompt, out, cursor, () => lastTok = Date.now(), abortCtrl);
       const rawPart = getTextContent().slice(partStart);
@@ -907,7 +960,7 @@ async function translateCurrent({ resume = null } = {}) {
     if (!full.length && !plainTextFallback) {
       window._plainTextRetryChapter = ch.id;
       endBusy();
-      setStatus('Request failed. Click Retry to try again.');
+      setStatus((err.message || 'Request failed.') + ' Click Retry to try again.');
       return;
     } else if (full.length > 80) {
       savePartial(full, 'Stream interrupted — partial saved. Retry continues from here.', activeChunkIndex);
@@ -923,46 +976,10 @@ async function translateCurrent({ resume = null } = {}) {
 }
 
 async function translateOpenRouter(prompt, out, cursor, onToken, abortCtrl) {
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${getKey()}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://ln-translator.local',
-      'X-Title': 'LN Translator'
-    },
-    body: JSON.stringify({ model: getModel(), stream: true, messages: [{ role: 'user', content: prompt }] }),
-    signal: abortCtrl.signal
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `HTTP ${response.status}`);
-  }
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = '', cleanStop = false;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done || abortCtrl.signal.aborted) break;
-    buf += decoder.decode(value, { stream: true });
-    const lines = buf.split('\n'); buf = lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (data === '[DONE]') { cleanStop = true; continue; }
-      try {
-        const parsed = JSON.parse(data);
-        devLogEntry('openrouter_event', parsed);
-        // Reasoning-only events still prove the provider is actively working.
-        onToken();
-        const token = parsed?.choices?.[0]?.delta?.content;
-        if (token) appendToken(out, cursor, token);
-        const finish = parsed?.choices?.[0]?.finish_reason;
-        if (finish === 'stop') cleanStop = true;
-      } catch {}
-    }
-  }
-  return cleanStop;
+  const provider=getProvider();
+  confirmEndpoint(provider);
+  return DuskProviders.stream({provider,key:getKey(),custom:customEndpoint(),model:getModel(),prompt,
+    signal:abortCtrl.signal,onText:token=>appendToken(out,cursor,token),onActivity:onToken});
 }
 
 async function translateAIStudio(prompt, out, cursor, onToken, abortCtrl) {
@@ -1027,6 +1044,7 @@ function appendToken(out, cursor, token) {
 
 function endBusy() {
   busy = false;
+  ['api-key','model-select','model-import','provider-select','provider-base-url','manual-model'].forEach(id=>document.getElementById(id).disabled=false);
   document.getElementById('btn-tl').disabled = false;
   document.getElementById('btn-abort').style.display = 'none';
   const retry = document.getElementById('btn-retry');

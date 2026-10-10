@@ -5,6 +5,11 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #empty-state, #fi, #fi-epub { display:none!important; }
 .key-input-wrap input { min-width:0; }
 #sub-title { user-select:none!important; }
+#model-import-dialog{max-width:min(560px,calc(100vw - 24px));max-height:90dvh;overflow:auto}
+#model-import-dialog label{display:block;margin:12px 0 5px}
+#model-import-dialog input,#model-import-dialog select{box-sizing:border-box;width:100%;min-width:0;padding:9px;color:var(--ink);background:var(--paper);border:1px solid var(--border)}
+.host-identity>div{min-width:0;flex:1;overflow:hidden}
+#host-project-title{max-width:100%}
 body.eclipse { --muted:#aaa090; }
 @media(max-width:850px){.layout{grid-template-columns:150px 1fr}.sidebar{max-height:none}.panes{grid-template-columns:1fr}.pane{max-height:55vh;min-height:200px;padding:15px}.pane-left{border-right:0;border-bottom:1px solid var(--border)}.statusbar{left:0}header{flex-wrap:wrap;padding:10px}.key-bar{padding:10px}.ch-item{padding:10px}.controls{padding:10px}header .sub{display:none}}
 @media(max-width:500px){.layout{grid-template-columns:110px 1fr}.key-bar select{max-width:100%}.ch-title{font-size:11px}.controls{gap:5px}.controls .btn{padding:7px;font-size:10px}.pane-lbl{flex-wrap:wrap}.pane-lbl .acts{margin-left:0}.src-txt,.tl-out{font-size:14px}.glossary-bar{padding-left:10px;padding-right:10px}.glossary-hint{display:none}}

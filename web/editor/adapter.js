@@ -550,6 +550,7 @@ window.addEventListener('message', async e => {
     cloudProject=p.owner!=='guest';setEntitlements(p.entitlements);
     setAccess(p.accessRole);
     projectTitle.textContent = p.title;
+    projectTitle.title = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
       novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
