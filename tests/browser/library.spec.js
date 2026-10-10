@@ -55,6 +55,29 @@ test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await renamed.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();
   await expect(page.locator('.project-card')).toHaveCount(1);await expect(page.getByRole('heading',{name:'Second',exact:true,level:3})).toBeVisible();
 });
+test('rename limits titles and preserves the saved book across reload',async({page})=>{
+  await create(page,'Rename limit');await leave(page);
+  await page.getByRole('button',{name:'Rename',exact:true}).click();
+  await expect(page.locator('#rename-title')).toHaveAttribute('maxlength','100');
+  await page.locator('#rename-title').fill('A'.repeat(100));
+  await expect(page.locator('#manage-info')).toHaveText('100 / 100 characters');
+  await page.locator('#manage-submit').click();
+  await expect(page.locator('#manage-dialog')).not.toBeVisible();
+  await page.reload();
+  await expect(page.locator('.project-card h3')).toHaveText('A'.repeat(100));
+  await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(page.frameLocator('#editor').locator('#src-txt')).toContainText('Chapter one.');
+});
+test('feedback asks guests to sign in and supports an optional screenshot',async({page})=>{
+  await page.goto('/');
+  await page.getByRole('button',{name:'Feedback',exact:true}).click();
+  await expect(page.locator('#auth-dialog')).toBeVisible();
+  await page.locator('#auth-dialog [data-close]').click();
+  await page.evaluate(()=>{sessionStorage.removeItem('dusk-guest');});
+  await page.reload();
+  await expect(page.locator('#feedback-dialog')).toHaveCount(1);
+  await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
+});
 test('untrusted titles render as text',async({page})=>{
   const malicious={chapters:[{id:'<img src=x onerror=alert(1)>',text:'<svg onload=alert(2)> book text'}]};
   let dialogs=0;page.on('dialog',async d=>{dialogs++;await d.dismiss();});

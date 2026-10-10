@@ -69,6 +69,15 @@ async function transaction(storeNames, mode, work) {
   });
 }
 export const local = {
+  rename(owner, id, title, metadata = {}) {
+    return transaction('projects', 'readwrite', ({projects}) => {
+      const request = projects.get(`${owner}:${id}`);
+      request.onsuccess = () => {
+        const record = request.result;
+        if (record) projects.put({...record, ...metadata, title});
+      };
+    });
+  },
   async imageAssets(projectId){return transaction('localImages','readonly',({localImages})=>localImages.index('projectId').getAll(projectId));},
   putImage(projectId,epubPath,file,metadata){return transaction('localImages','readwrite',({localImages})=>localImages.put({cacheKey:`${projectId}:${epubPath}`,projectId,epub_path:epubPath,replacement_path:'local',replacement:file,...metadata}));},
   removeImage(projectId,epubPath){return transaction('localImages','readwrite',({localImages})=>localImages.delete(`${projectId}:${epubPath}`));},
@@ -119,6 +128,18 @@ async function documentRequest(body){
  const result=await response.json();if(!response.ok)throw new Error(result.error||'Document update failed.');return result;
 }
 export const remote = {
+  async feedbackAdmin(){return must(await cloud.rpc('is_feedback_admin'));},
+  async submitFeedback(type, description, screenshotPath=null){return must(await cloud.rpc('submit_feedback',{feedback_type:type,feedback_description:description,screenshot_path:screenshotPath}));},
+  async uploadFeedbackScreenshot(file){
+    const {data,error}=await cloud.auth.getUser();if(error)throw error;
+    if(!data.user)throw new Error('Sign in before sending feedback.');
+    const extension=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+    const path=`${data.user.id}/${crypto.randomUUID()}.${extension}`;
+    must(await cloud.storage.from('feedback-screenshots').upload(path,file,{contentType:file.type,upsert:false}));
+    return path;
+  },
+  async feedbackInbox(){return must(await cloud.rpc('list_feedback_inbox'));},
+  async feedbackScreenshotUrl(path){const result=await cloud.storage.from('feedback-screenshots').createSignedUrl(path,60);return must(result).signedUrl;},
   async readerLinkStatus(projectId){return must(await cloud.rpc('reader_link_status',{target_project:projectId}));},
   async capacity(){return must(await cloud.rpc('account_cloud_capacity'));},
   async seatSelection(projectId){return must(await cloud.rpc('project_seat_selection',{target_project:projectId}));},
@@ -173,6 +194,12 @@ export const remote = {
     const rows = must(await cloud.from('projects').update({ title:p.title, snapshot:cleanSnapshot(p.snapshot), archived:p.archived }).eq('id',p.id).eq('revision',p.revision).select('id,owner_id,title,file_name,file_path,snapshot,archived,updated_at,created_at,revision,project_collaborators(user_id,role)'));
     if (!rows.length) throw new Error('This project changed in another tab or device. Your draft is saved on this device; download a backup before reopening.');
     return fromRow(rows[0]);
+  },
+  async rename(p, title) {
+    if (!title.trim() || title.length > 100) throw new Error('Enter a title of 1 to 100 characters.');
+    const rows = must(await cloud.from('projects').update({title}).eq('id',p.id).eq('revision',p.revision).select('title,updated_at,revision'));
+    if (!rows.length) throw new Error('This project changed elsewhere. Refresh your library before renaming it.');
+    return {title:rows[0].title, updatedAt:rows[0].updated_at, revision:rows[0].revision};
   },
   async remove(p) {
     // Remove the object first. A failed object deletion leaves a retryable record.
