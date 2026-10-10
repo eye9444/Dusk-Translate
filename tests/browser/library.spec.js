@@ -55,6 +55,16 @@ test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await renamed.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();
   await expect(page.locator('.project-card')).toHaveCount(1);await expect(page.getByRole('heading',{name:'Second',exact:true,level:3})).toBeVisible();
 });
+test('empty Web Novel projects accept pasted chapters and preserve stable chapter titles',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();await page.getByLabel('Start an empty Web Novel').check();await page.locator('#new-title').fill('Serial novel');await page.getByRole('button',{name:'Create project',exact:true}).click();
+  const editor=page.frameLocator('#editor');await expect(editor.locator('#empty-text')).toContainText('no chapters yet');await editorAction(page,'#host-chapters');
+  await page.locator('#chapter-add').click();await page.locator('.chapter-manager-fields input').fill('第1話');await page.locator('.chapter-manager-fields textarea').fill('第一章\n\nこれはテストです。');await page.locator('#chapters-save').click();
+  await expect(editor.locator('.ch-title')).toHaveText('第1話');await expect(editor.locator('#src-txt')).toContainText('これはテストです。');await expect(editor.locator('#src-cnt')).toContainText('14');
+});
+test('TXT source import creates one editable chapter named after the file',async({page})=>{
+  await create(page,'TXT novel',{name:'chapter-12.txt',mimeType:'text/plain',buffer:Buffer.from('本文です。\n\n続きです。')});const editor=page.frameLocator('#editor');
+  await expect(editor.locator('.ch-title')).toHaveText('chapter-12');await expect(editor.locator('#src-txt')).toContainText('続きです。');
+});
 test('rename limits titles and preserves the saved book across reload',async({page})=>{
   await create(page,'Rename limit');await leave(page);
   await page.getByRole('button',{name:'Rename',exact:true}).click();

@@ -74,13 +74,14 @@ function setAccess(role = 'owner') {
   const status = document.getElementById('key-status');
   if (!canEdit) { status.textContent = 'Viewer access - read only'; status.className = 'key-status'; }
 }
+let needsReview = {};
 function snapshot() {
   const saved = { ...translations };
   if (busy && novel) {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, partialResumes, exportExcluded, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -234,7 +235,7 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
   lastBulkReplacement=null; undoFindReplace.disabled=true; updateProg(); emit(true); setStatus('Undid the last project-wide replacement.'); setTimeout(hideStatus,3000);
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
-toolMenu.append(localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
+toolMenu.append(menuAction('host-chapters','Manage source chapters','chapters'),localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
 toolMenu.append(menuAction('host-custom-prompt','Translation instructions','customPrompt'));
 const editorIdentity = document.createElement('a'); editorIdentity.className = 'host-identity'; editorIdentity.href = '/home'; editorIdentity.title = 'Return to DuskTranslate home'; editorIdentity.setAttribute('aria-label', 'Return to DuskTranslate home');
 const editorLogo = document.createElement('img'); editorLogo.src='/brand/dusk-mark.svg'; editorLogo.alt=''; editorLogo.width=30; editorLogo.height=30;
@@ -329,7 +330,7 @@ renderList = function () {
   novel.chapters.forEach((ch, i) => {
     const row = document.createElement('div'); row.id = 'ci' + i; row.className = 'ch-item'; row.tabIndex = 0; row.setAttribute('role','button');
     const id = document.createElement('div'); id.className = 'ch-id'; id.textContent = ch.id;
-    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
+    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (ch.title || ch.text.split('\n').find(l => l.trim().length > 2) || ch.id).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
     row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);
@@ -337,6 +338,14 @@ renderList = function () {
   });
 };
 const originalSelect = selectCh;
+const originalInitUI = initUI;
+initUI = function(){
+  if(novel?.chapters?.length){originalInitUI();document.getElementById('btn-epub-export').disabled=!epubZip&&novel.projectType!=='web-novel';return;}
+  renderList();document.getElementById('empty-state').style.display='grid';document.getElementById('panes').style.display='none';
+  const empty=document.getElementById('empty-state');empty.querySelector('#empty-text').textContent='This Web Novel has no chapters yet. Open Editor tools, then Manage source chapters to paste a chapter or import TXT files.';empty.querySelector('div:last-of-type').hidden=true;
+  ['btn-prev','btn-next','btn-export','btn-import','btn-src-export','btn-epub-export','btn-tl','btn-retry','btn-clear'].forEach(id=>{const control=document.getElementById(id);if(control)control.disabled=true;});
+  updateProg();
+};
 selectCh = function(i) { if (busy || preparingTranslation) return; clearSearchHighlights(); originalSelect(i); document.dispatchEvent(new Event('dusk:chapter')); emit(); };
 const originalClear = clearTl;
 clearTl = function() { if (!canEdit || busy) return; originalClear(); emit(); };
@@ -501,6 +510,12 @@ window.addEventListener('message', async e => {
     emit(true); setStatus(`${exportExcluded.length} chapter${exportExcluded.length === 1 ? '' : 's'} excluded from final exports.`); setTimeout(hideStatus, 3000);
     return;
   }
+  if (e.data.type === 'host:chapters') {
+    if(!canEdit||busy)return;
+    novel=checkNovel(e.data.novel);translations=e.data.translations||{};partialResumes=e.data.partialResumes||{};exportExcluded=e.data.exportExcluded||[];needsReview=e.data.needsReview||{};
+    cur=Math.min(cur,Math.max(0,novel.chapters.length-1));
+    initUI();if(novel.chapters.length)originalSelect(cur);emit(true);document.dispatchEvent(new Event('dusk:chapter'));return;
+  }
   if (e.data.type === 'host:findFocus') {
     if (busy || !novel) return;
     const chapterIndex = Math.max(0, Math.min(novel.chapters.length - 1, Number(e.data.chapterIndex) || 0));
@@ -556,9 +571,9 @@ window.addEventListener('message', async e => {
     setAccess(p.accessRole);
     projectTitle.textContent = p.title;
     projectTitle.title = p.title;
-    keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
+    keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; needsReview={}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     if (p.snapshot) {
-      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
+      novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; needsReview=p.snapshot.needsReview||{}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
       if (p.fileName.toLowerCase().endsWith('.epub')) epubZip = await JSZip.loadAsync(p.file);
     } else if (p.fileName.toLowerCase().endsWith('.epub')) novel = await parseEpub(p.file);
     else if (p.fileName.toLowerCase().endsWith('.json')) novel = checkNovel(JSON.parse(await p.file.text()));
@@ -574,7 +589,7 @@ window.addEventListener('message', async e => {
       document.getElementById('tl-out').spellcheck = true;
     }
     updateSpellcheckAction();
-    initUI(); originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
+    initUI(); if(novel.chapters.length)originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
     onKeyInput(); setAccess(p.accessRole); readyForSave = true; emit(true); document.dispatchEvent(new Event('dusk:chapter')); send('editor:loaded');
   } catch(err) { send('editor:error', { message: err.message }); }
 });

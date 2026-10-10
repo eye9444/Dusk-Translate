@@ -12,7 +12,7 @@ import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { emptyWebNovel, parseSourceFile } from './source-import.js';
-import { buildTranslatedEpub, readEpub } from './epub-reader.js';
+import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
 import { createReaderComments } from './reader-comments.js';
@@ -104,8 +104,8 @@ async function showImages(){
   try{if(!isEpub(active))throw new Error('This project does not contain an EPUB.');imageDialogAssets=await listEpubImages(active.file);$('images-status').textContent=`${imageDialogAssets.length} image assets found.`;await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}
 }
 async function exportTranslatedEpub(){
-  if(!active||!isEpub(active))return;
-  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),base=rights.capabilities.exportSelection?active.snapshot:{...active.snapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=await buildTranslatedEpub(source,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
+  if(!active)return;
+  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),base=rights.capabilities.exportSelection?active.snapshot:{...active.snapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=isEpub(active)?await buildTranslatedEpub(source,snapshot):await buildWebNovelEpub(active.title,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
   catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
 }
 $('images-preview').defaultChecked=true;
@@ -533,13 +533,13 @@ function render() {
     card.append(el('p','stamp',p.dirty?'Saved on device / cloud sync pending':`Saved ${new Date(p.updatedAt).toLocaleDateString()}`));
     const actions = el('div','card-actions');
     const open = button('Open project',() => openProject(p.id)); open.className='primary';
-    const original = button('Read original',() => openReader(p.id, 'original')); original.hidden=!isEpub(p);
+    const original = button('Read original',() => openReader(p.id, 'original')); original.hidden=!p.snapshot?.novel?.chapters?.length;
     const completionKnown = details.total > 0;
     const exportChapters = p.snapshot?.novel?.chapters?.filter(chapter => !p.snapshot.exportExcluded?.includes(chapter.id)) || [];
-    const complete = isEpub(p) && exportChapters.length > 0 && exportChapters.every(chapter => p.snapshot.translations?.[chapter.id]?.trim() && !p.snapshot.translations[chapter.id].endsWith('…PARTIAL'));
+    const complete = exportChapters.length > 0 && exportChapters.every(chapter => p.snapshot.translations?.[chapter.id]?.trim() && !p.snapshot.translations[chapter.id].endsWith('…PARTIAL'));
     const translated = button('Read translation',() => openReader(p.id, 'translated'));
-    translated.hidden=!isEpub(p); translated.disabled=completionKnown&&!complete;
-    if (!complete && isEpub(p)) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
+    translated.hidden=!p.snapshot?.novel?.chapters?.length; translated.disabled=completionKnown&&!complete;
+    if (!complete) translated.title=completionKnown ? 'Finish every selected chapter to unlock this edition.' : 'Check whether the cloud project has a complete translated edition.';
     actions.append(open,original,translated,button('Export project',() => downloadProject(p)));
     if(user&&p.owner!=='guest'&&['owner','editor'].includes(role))actions.append(button('Public reader link',()=>showReaderLinkDialog({project:p,remote,upgrade:()=>showUpgrade({feature:'Public reader links',required:'Teams'})})));
     if (p.owner === owner()) {
@@ -621,6 +621,44 @@ $('import-project').onclick = () => showProjectDialog(true);
 $('welcome-signin').onclick=()=>showAuth('signin');$('welcome-signup').onclick=()=>showAuth('signup');
 $('welcome-guest').onclick=()=>{guestMode=true;sessionStorage.setItem('dusk-guest','true');refresh();};
 $('new-file').onchange = () => { if (!$('new-title').value) $('new-title').value = ($('new-file').files[0]?.name || '').replace(/\.[^.]+$/,'').slice(0,120); };
+
+let chapterDrafts=[];
+const chapterCount=text=>Array.from(text).length;
+function renderChapterManager(){
+  const list=$('chapter-manager-list');list.replaceChildren();
+  chapterDrafts.forEach((chapter,index)=>{
+    const row=el('section','chapter-manager-row');row.dataset.id=chapter.id;
+    const order=el('div','chapter-manager-order'),up=button('↑',()=>moveChapter(index,-1)),down=button('↓',()=>moveChapter(index,1));up.title='Move chapter up';down.title='Move chapter down';up.disabled=index===0;down.disabled=index===chapterDrafts.length-1;order.append(up,down);
+    const fields=el('div','chapter-manager-fields'),title=document.createElement('input'),textArea=document.createElement('textarea'),meta=el('span','chapter-manager-meta');
+    title.value=chapter.title;title.maxLength=100;title.required=true;title.placeholder=`Chapter ${index+1}`;title.setAttribute('aria-label',`Chapter ${index+1} title`);
+    textArea.value=chapter.text;textArea.required=true;textArea.maxLength=2000000;textArea.placeholder='Paste the source chapter here';textArea.setAttribute('aria-label',`Source text for chapter ${index+1}`);
+    const update=()=>{chapter.title=title.value;chapter.text=textArea.value;meta.textContent=`${chapterCount(chapter.text).toLocaleString()} source characters`;};title.oninput=update;textArea.oninput=update;update();fields.append(title,textArea,meta);
+    const remove=button('Delete',()=>removeChapter(index));remove.className='chapter-manager-remove';row.append(order,fields,remove);list.append(row);
+  });
+  if(!chapterDrafts.length)list.append(el('p','empty','No source chapters yet. Add one by pasting text or import one or more TXT files.'));
+}
+function moveChapter(index,delta){const target=index+delta;if(target<0||target>=chapterDrafts.length)return;[chapterDrafts[index],chapterDrafts[target]]=[chapterDrafts[target],chapterDrafts[index]];renderChapterManager();}
+function removeChapter(index){const chapter=chapterDrafts[index],translated=active?.snapshot?.translations?.[chapter.id]?.trim();if(translated&&!confirm(`Delete “${chapter.title}” and its saved translation? This cannot be undone after saving.`))return;chapterDrafts.splice(index,1);renderChapterManager();}
+function addChapter(title='',text=''){chapterDrafts.push({id:crypto.randomUUID(),title:title.slice(0,100)||`Chapter ${chapterDrafts.length+1}`,text});renderChapterManager();requestAnimationFrame(()=>$('chapter-manager-list').lastElementChild?.querySelector(text?'input':'textarea')?.focus());}
+function showChapterManager(){
+  if(!active||active.accessRole==='viewer')return;
+  chapterDrafts=(active.snapshot?.novel?.chapters||[]).map(chapter=>({...chapter}));$('chapters-error').textContent='';renderChapterManager();$('chapters-dialog').showModal();
+}
+$('chapter-add').onclick=()=>addChapter();
+$('chapter-import').onclick=()=>{$('chapter-files').value='';$('chapter-files').click();};
+$('chapter-files').onchange=async()=>{for(const file of [...$('chapter-files').files].sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}))){if(file.size>10*1024*1024){$('chapters-error').textContent=`${file.name} exceeds the 10 MB chapter limit.`;continue;}const text=await file.text();if(text.trim())addChapter(file.name.replace(/\.[^.]+$/,'').slice(0,100),text);} };
+$('chapters-form').onsubmit=event=>{
+  event.preventDefault();$('chapters-error').textContent='';
+  try{
+    if(!active||active.accessRole==='viewer')throw new Error('This project is read-only.');
+    for(const chapter of chapterDrafts){chapter.title=chapter.title.trim();if(!chapter.title)throw new Error('Every chapter needs a title.');if(!chapter.text.trim())throw new Error(`“${chapter.title}” has no source text.`);chapter.jp_char_count=chapterCount(chapter.text);}
+    const previous=new Map(active.snapshot.novel.chapters.map(chapter=>[chapter.id,chapter])),ids=new Set(chapterDrafts.map(chapter=>chapter.id));
+    const translations=Object.fromEntries(Object.entries(active.snapshot.translations||{}).filter(([id])=>ids.has(id))),needsReview=Object.fromEntries(Object.entries(active.snapshot.needsReview||{}).filter(([id])=>ids.has(id)));
+    for(const chapter of chapterDrafts){if(previous.has(chapter.id)&&previous.get(chapter.id).text!==chapter.text&&translations[chapter.id]?.trim())needsReview[chapter.id]=true;projectCollaboration?.editSource?.(chapter.id,chapter.text);}
+    active.snapshot=cleanSnapshot({...active.snapshot,novel:{...active.snapshot.novel,projectType:'web-novel',chapters:chapterDrafts},translations,needsReview,exportExcluded:(active.snapshot.exportExcluded||[]).filter(id=>ids.has(id)),partialResumes:Object.fromEntries(Object.entries(active.snapshot.partialResumes||{}).filter(([id])=>ids.has(id)))});
+    generation++;active.dirty=true;$('editor').contentWindow?.postMessage({type:'host:chapters',projectId:active.id,...active.snapshot},location.origin);if(!saveTimer)saveTimer=setTimeout(async()=>{saveTimer=null;await draftQueue;await flush();},1200);$('chapters-dialog').close();announceSave('Saving chapter changes…');
+  }catch(error){$('chapters-error').textContent=errorMessage(error);}
+};
 $('project-form').onsubmit = async e => {
   e.preventDefault(); if (working) return;
   working=true; $('create-submit').disabled=true; $('new-error').textContent='';
@@ -630,7 +668,7 @@ $('project-form').onsubmit = async e => {
     if(!emptyProject)validateFile(file);
     if (importingProject && !/\.zip$/i.test(file.name)) throw new Error('Choose a DuskTranslate project ZIP.');
     let snapshot = emptyProject ? cleanSnapshot({novel:emptyWebNovel(),translations:{}}) : null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
-    if (/\.zip$/i.test(file.name)) {
+    if (!emptyProject && /\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
       if (Object.values(archive.files).reduce((n,f)=>n+(f._data?.uncompressedSize||0),0)>500*1024*1024) throw new Error('Expanded backup exceeds 500 MB.');
@@ -785,10 +823,13 @@ async function openReader(id, edition = 'original', updateRoute = true) {
   status('Opening EPUB reader...');
   try {
     const project = await loadProject(id);
-    if (!project?.file || !isEpub(project)) throw new Error('This project does not contain an EPUB file.');
-    const projectFile=await projectFileWithReplacements(project);
-    const file = edition === 'translated' ? await buildTranslatedEpub(projectFile, project.snapshot) : projectFile;
-    await presentReader(file, project.fileName, edition === 'translated' ? 'TRANSLATED EDITION' : 'ORIGINAL EDITION', project);
+    if (!project?.file) throw new Error('This project file is unavailable.');
+    if(isEpub(project)){
+      const projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,project.snapshot):projectFile;
+      await presentReader(file,project.fileName,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION',project);
+    }else{
+      prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,project.snapshot,edition);await renderReader();$('reader-editor').hidden=false;$('reader-status').textContent='Ready to read';
+    }
     if (updateRoute) navigate(projectRoute('/reader', id, edition));
     status('');
   } catch (error) {
@@ -802,11 +843,9 @@ async function openSharedReader(token) {
   try {
     sharedReaderToken=token;
     const project=await remote.openPublicReader(token);
-    if (!project.file || !isEpub(project)) throw new Error('This shared project does not contain an EPUB file.');
-    let file=project.file, edition='SHARED ORIGINAL EDITION';
-    try { file=await buildTranslatedEpub(project.file, project.snapshot); edition='SHARED TRANSLATED EDITION'; }
-    catch { /* An in-progress project remains readable from its original EPUB. */ }
-    await presentReader(file, project.fileName, edition);
+    if (!project.file) throw new Error('This shared project file is unavailable.');
+    if(isEpub(project)){let file=project.file,edition='SHARED ORIGINAL EDITION';try{file=await buildTranslatedEpub(project.file,project.snapshot);edition='SHARED TRANSLATED EDITION';}catch{}await presentReader(file,project.fileName,edition);}
+    else{prepareReader(project.title,'SHARED EDITION');readerProject=project;try{readerBook=snapshotReaderBook(project.title,project.snapshot,'translated');}catch{readerBook=snapshotReaderBook(project.title,project.snapshot,'original');}await renderReader();$('reader-status').textContent='Ready to read';}
   } catch (error) {
     prepareReader('Shared EPUB', 'SHARED EDITION');
     $('reader-chapter-title').textContent='This reader link is unavailable.';
@@ -930,6 +969,7 @@ window.addEventListener('message', async e => {
     if (e.data.action === 'comments' && e.data.projectId === active.id) comments.open(e.data.selection);
     if (e.data.action === 'ruby' && e.data.projectId === active.id) openRuby(e.data.selection);
     if (e.data.action === 'images' && e.data.projectId === active.id) showImages();
+    if (e.data.action === 'chapters' && e.data.projectId === active.id) showChapterManager();
     if (e.data.action === 'exportEpub' && e.data.projectId === active.id) exportTranslatedEpub();
     if (['removeRuby','updateRuby'].includes(e.data.action) && e.data.projectId===active.id && active.accessRole!=='viewer' && typeof e.data.rubyId==='string' && projectCollaboration) {
       try{if(e.data.action==='updateRuby')projectCollaboration.updateRuby(e.data.rubyId,e.data.reading);else projectCollaboration.removeRuby(e.data.rubyId);}
