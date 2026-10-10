@@ -32,7 +32,7 @@ const isAuthReturn = ['code','error','error_description','error_code','access_to
 let authBusy = false;
 let user = null, projects = [], invitations = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
-let authMode = 'signin', manage = null, releaseLock = null;
+let authMode = 'signin', manage = null, releaseLock = null, feedbackAdmin = false;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
 let projectCollaboration = null;
@@ -408,6 +408,41 @@ async function signOut() {
 $('billing-signout').onclick = signOut;
 $('account-password').onclick = () => { $('billing-dialog').close(); showAuth('update'); };
 
+function updateFeedbackCount(){ $('feedback-count').textContent=`${$('feedback-description').value.length.toLocaleString()} / 5,000 characters`; }
+function showFeedback(){
+  if(!user){showAuth();return;}
+  $('feedback-error').textContent='';$('feedback-description').value='';$('feedback-screenshot').value='';updateFeedbackCount();$('feedback-dialog').showModal();
+}
+async function showFeedbackInbox(){
+  if(!feedbackAdmin)return;
+  $('feedback-inbox-list').replaceChildren();$('feedback-inbox-status').textContent='Loading feedback...';$('feedback-inbox-dialog').showModal();
+  try{
+    const items=await remote.feedbackInbox();
+    $('feedback-inbox-status').textContent=items.length?`${items.length} report${items.length===1?'':'s'}`:'No feedback yet.';
+    for(const item of items){
+      const card=el('article','feedback-item');
+      card.append(el('p','stamp',`${item.feedback_type.toUpperCase()} / ${new Date(item.created_at).toLocaleString()}`),el('p','',item.reporter_email||'Signed-in user'),el('p','feedback-body',item.description));
+      if(item.screenshot_path){const view=button('Open screenshot',async()=>{try{window.open(await remote.feedbackScreenshotUrl(item.screenshot_path),'_blank','noopener');}catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}});card.append(view);}
+      $('feedback-inbox-list').append(card);
+    }
+  }catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}
+}
+$('feedback').onclick=showFeedback;
+$('feedback-inbox').onclick=showFeedbackInbox;
+$('feedback-description').addEventListener('input',updateFeedbackCount);
+$('feedback-form').onsubmit=async event=>{
+  event.preventDefault();if(!user||working)return;working=true;$('feedback-submit').disabled=true;$('feedback-error').textContent='';
+  try{
+    const file=$('feedback-screenshot').files[0];
+    if(file&&(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>5*1024*1024))throw new Error('Use a PNG, JPEG, or WebP screenshot no larger than 5 MB.');
+    $('feedback-submit').textContent=file?'Uploading screenshot...':'Sending...';
+    const screenshotPath=file?await remote.uploadFeedbackScreenshot(file):null;
+    await remote.submitFeedback($('feedback-type').value,$('feedback-description').value.trim(),screenshotPath);
+    $('feedback-dialog').close();status('Thanks. Your feedback was sent.');
+  }catch(error){$('feedback-error').textContent=errorMessage(error);}
+  finally{working=false;$('feedback-submit').disabled=false;$('feedback-submit').textContent='Send feedback';}
+};
+
 async function refresh() {
   if (currentRoute() === '/' && (user || guestMode)) navigate('/home', true);
   const route = currentRoute();
@@ -418,6 +453,9 @@ async function refresh() {
   let cached = [];
   $('pricing-nav-link').hidden = showingPricing;
   $('account').textContent = user ? 'Account' : 'Sign in';
+  $('feedback-inbox').hidden=true;
+  feedbackAdmin=false;
+  if(user){const feedbackUserId=user.id;remote.feedbackAdmin().then(isAdmin=>{if(user?.id!==feedbackUserId)return;feedbackAdmin=Boolean(isAdmin);$('feedback-inbox').hidden=!feedbackAdmin;}).catch(()=>{});}
   $('welcome').hidden=showingPricing||showingSubscriptionWelcome||Boolean(user)||guestMode;
   $('subscription-welcome').hidden=!showingSubscriptionWelcome;
   $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
@@ -1182,16 +1220,37 @@ $('share-form').onsubmit = async event => {
   finally { working = false; $('share-submit').disabled = false; }
 };
 
+function updateRenameCount() {
+  const input=$('rename-title');
+  input.maxLength=100;
+  input.setCustomValidity(input.value.length>100?'Use no more than 100 characters.':'');
+  $('manage-info').textContent=`${input.value.length} / 100 characters`;
+}
+$('rename-title').addEventListener('input',updateRenameCount);
 function showManage(kind,p) {
   manage={kind,p}; $('manage-error').textContent=''; $('rename-label').hidden=kind!=='rename'; $('rename-title').required=kind==='rename'; $('rename-title').value=p.title;
   $('manage-title').textContent=kind==='rename'?'Rename project':kind==='delete'?'Delete this project?':p.archived?'Restore project?':'Archive project?';
   $('manage-info').textContent=kind==='delete'?`This removes “${p.title}”, its original file, and saved progress from this library. Download a backup first if you need to keep it.`:kind==='archive'?'Archived projects keep their book and all saved progress. Find them using the library filter.':'';
+  $('rename-title').setCustomValidity('');
+  if(kind==='rename')updateRenameCount();
   $('manage-submit').textContent=kind==='delete'?'Delete project':'Save'; $('manage-dialog').showModal();
 }
 $('manage-form').onsubmit=async e=>{
   e.preventDefault(); if(working)return; working=true; $('manage-submit').disabled=true;
   try {
     await acquire(manage.p.id);
+    if(manage.kind==='rename'){
+      const title=$('rename-title').value.trim();
+      if(!title || title.length>100)throw new Error('Enter a title of 1 to 100 characters.');
+      $('manage-submit').textContent='Saving...';
+      const metadata=user&&manage.p.storage!=='local'
+        ?await remote.rename(manage.p,title)
+        :{title,updatedAt:new Date().toISOString()};
+      await local.rename(owner(),manage.p.id,title,metadata);
+      projects=projects.map(p=>p.id===manage.p.id?{...p,...metadata}:p);
+      if(active?.id===manage.p.id)Object.assign(active,metadata);
+      render();$('manage-dialog').close();return;
+    }
     const cached=await local.get(owner(),manage.p.id);
     let p=cached;
     if(manage.kind==='delete'){
@@ -1212,7 +1271,7 @@ $('manage-form').onsubmit=async e=>{
     }
     $('manage-dialog').close();await refresh();
   }catch(err){$('manage-error').textContent=errorMessage(err);}
-  finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;}
+  finally{releaseLock?.();releaseLock=null;working=false;$('manage-submit').disabled=false;$('manage-submit').textContent=manage.kind==='delete'?'Delete project':'Save';}
 };
 
 let findReplaceMatches = [], findReplacePreview = null, findReplaceIndex = -1, preserveEditorReview = false;
