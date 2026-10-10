@@ -1086,17 +1086,29 @@ $('save-now').onclick = saveNow;
 async function leave({ updateRoute = true } = {}) {
   if (!active || streaming || closing) return;
   closing=true; clearTimeout(saveTimer); saveTimer=null;
-  await projectCollaboration?.flush();await draftQueue; saveError=''; await flush();
-  if (saveError) {
-    const cached=await local.get(owner(),active.id);
-    const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
-    if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?')){closing=false;return;}
+  try {
+    await projectCollaboration?.flush();await draftQueue; saveError=''; await flush();
+    if (saveError) {
+      const cached=await local.get(owner(),active.id);
+      const safe=cached&&JSON.stringify(cached.snapshot)===JSON.stringify(cleanSnapshot(active.snapshot));
+      if(!safe||!window.confirm('Cloud sync is incomplete, but your latest draft is saved on this device. Return to the library and retry later?'))return;
+    }
+    projectPresence?.stop(); projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
+    pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id);
+    comments.stop();
+    $('editor').src='about:blank'; active=null; editorReady=false;
+    await releaseProjectLock();
+    // Replace the editor entry before refreshing. A failed refresh must never
+    // leave a library-looking page whose stale URL reopens and relocks a book.
+    if (updateRoute) navigate('/home', true);
+    $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open');
+    try{await refresh();}catch(error){status(`Could not refresh your library: ${errorMessage(error)}`);}
+    $('search').focus();
+  } catch(error) {
+    announceSave(errorMessage(error));
+  } finally {
+    closing=false;
   }
-  projectPresence?.stop(); projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
-  pendingCollaborativeEdits=pendingCollaborativeEdits.filter(edit=>edit.projectId!==active.id);
-  comments.stop();
-  $('editor').src='about:blank'; active=null; editorReady=false; await releaseProjectLock(); $('workspace').hidden=true; $('library').hidden=false; document.body.classList.remove('workspace-open'); closing=false; await refresh(); $('search').focus();
-  if (updateRoute) navigate('/home');
 }
 $('back').onclick=leave;
 $('brand').onclick=e=>{
