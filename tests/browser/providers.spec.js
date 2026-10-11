@@ -28,6 +28,12 @@ test('custom provider manual model, URL validation and mobile title bounds',asyn
   await page.setViewportSize({width:390,height:844});const editor=await openEditor(page);
   await editor.locator('.provider-disclosure > summary').click();
   await editor.locator('#model-import').click();await editor.locator('#provider-select').selectOption('custom');
+  const dialogBounds=await editor.locator('#model-import-dialog').evaluate(element=>{
+    const box=element.getBoundingClientRect();
+    return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:innerWidth,height:innerHeight};
+  });
+  expect(Math.abs(dialogBounds.left-(dialogBounds.width-dialogBounds.right))).toBeLessThanOrEqual(1);
+  expect(Math.abs(dialogBounds.top-(dialogBounds.height-dialogBounds.bottom))).toBeLessThanOrEqual(1);
   await editor.locator('#provider-base-url').fill('http://example.com/v1');await editor.locator('#manual-model').fill('test-model');
   await editor.locator('#model-import-dialog').getByRole('button',{name:'Close',exact:true}).click();await editor.locator('#api-key').fill('custom-test-key');await editor.locator('#model-import').click();
   await editor.getByRole('button',{name:'Use model ID'}).click();await expect(editor.locator('#model-import-status')).toContainText('HTTPS');
