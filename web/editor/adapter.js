@@ -598,6 +598,7 @@ window.addEventListener('message', async e => {
     projectTitle.textContent = p.title;
     projectTitle.title = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; needsReview={}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
+    restoreRememberedProviderSettings();
     if (p.snapshot) {
       novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; needsReview=p.snapshot.needsReview||{}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
       if (p.fileName.toLowerCase().endsWith('.epub')) epubZip = await JSZip.loadAsync(p.file);

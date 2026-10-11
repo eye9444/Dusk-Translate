@@ -37,6 +37,25 @@ test('custom provider manual model, URL validation and mobile title bounds',asyn
   const bounds=await editor.locator('#host-project-title').evaluate(el=>({title:el.getBoundingClientRect().right,parent:el.closest('.host-identity').getBoundingClientRect().right,overflow:getComputedStyle(el).textOverflow}));
   expect(bounds.title).toBeLessThanOrEqual(bounds.parent);expect(bounds.overflow).toBe('ellipsis');
 });
+test('provider key and URL are remembered only after explicit opt-in',async({page})=>{
+  const editor=await openEditor(page),key='custom-device-only-test-key',url='https://tokify.sale/v1';
+  await editor.locator('#model-import').click();
+  await editor.locator('#provider-select').selectOption('custom');
+  await editor.locator('#provider-base-url').fill(url);
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('dusk-provider-settings'))).toBeNull();
+  await editor.locator('#remember-provider-settings').check();
+  await editor.locator('#model-import-dialog').getByRole('button',{name:'Close',exact:true}).click();
+  await editor.locator('#api-key').fill(key);
+  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('dusk-provider-settings')));
+  expect(stored).toMatchObject({key,url,provider:'custom'});expect(stored.expiresAt).toBeGreaterThan(Date.now());
+  await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(editor.locator('#api-key')).toHaveValue(key);
+  await editor.locator('#model-import').click();
+  await expect(editor.locator('#provider-base-url')).toHaveValue(url);
+  await expect(editor.locator('#provider-select')).toHaveValue('custom');
+  await editor.locator('#remember-provider-settings').uncheck();
+  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('dusk-provider-settings'))).toBeNull();
+});
 test('mobile reader truncates long chapter tabs and keeps their full labels',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   const title='非常に長い章のタイトル'.repeat(15),zip=new JSZip();
