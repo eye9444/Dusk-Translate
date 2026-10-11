@@ -217,7 +217,8 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
   <form method="dialog">
     <p class="eyebrow">LIVE PROVIDER CATALOG</p>
     <h2 id="model-import-title">Import models</h2>
-    <p id="model-import-help">Enter a supported API key first. Your key is used only for this provider request and is never saved.</p>
+    <p id="model-import-help">Enter a supported API key first. It stays in this editor session unless you explicitly choose to remember it on this device.</p>
+    <label class="remember-provider-settings"><input id="remember-provider-settings" type="checkbox" onchange="toggleRememberProviderSettings()"> <span>Remember API key and URL on this device<small>Optional and at your own risk. Anyone with access to this browser, a malicious extension, or injected site code may be able to read them.</small></span></label>
     <label for="provider-select">Provider</label>
     <select id="provider-select" onchange="changeProvider()">
       <option value="auto">Detect from key</option><option value="ai">Google AI Studio</option><option value="or">OpenRouter</option>
@@ -225,7 +226,7 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
     </select>
     <div id="custom-endpoint-fields" hidden>
       <label for="provider-base-url">API base URL</label>
-      <input id="provider-base-url" type="url" placeholder="https://your-provider.example/v1" autocomplete="off" onchange="resetProviderModels()">
+      <input id="provider-base-url" type="url" maxlength="1000" placeholder="https://your-provider.example/v1" autocomplete="off" oninput="persistRememberedProviderSettings()" onchange="resetProviderModels()">
       <p>Your key and translation text go directly to this endpoint. Use a key issued for a service you trust. The endpoint must support browser requests and OpenAI Chat Completions.</p>
     </div>
     <label for="manual-model">Model ID (if model import is unavailable)</label>
@@ -333,6 +334,32 @@ let epubZip = null;
 let devMode = false;
 let devLog = []; // stores API log entries when dev mode is on // stores the original JSZip object for epub round-trip
 
+const PROVIDER_STORAGE_KEY='dusk-provider-settings';
+function readRememberedProviderSettings(){
+  try{
+    const value=JSON.parse(localStorage.getItem(PROVIDER_STORAGE_KEY));
+    if(!value||typeof value!=='object'||Date.now()>Number(value.expiresAt)){localStorage.removeItem(PROVIDER_STORAGE_KEY);return null;}
+    return value;
+  }catch{return null;}
+}
+function persistRememberedProviderSettings(){
+  if(!document.getElementById('remember-provider-settings')?.checked)return;
+  localStorage.setItem(PROVIDER_STORAGE_KEY,JSON.stringify({key:getKey().slice(0,2048),url:customEndpoint().slice(0,1000),provider:document.getElementById('provider-select').value,expiresAt:Date.now()+30*24*60*60*1000}));
+}
+function restoreRememberedProviderSettings(){
+  const value=readRememberedProviderSettings(),toggle=document.getElementById('remember-provider-settings');
+  toggle.checked=Boolean(value);if(!value)return;
+  document.getElementById('api-key').value=typeof value.key==='string'?value.key:'';
+  document.getElementById('provider-base-url').value=typeof value.url==='string'?value.url:'';
+  const provider=['auto','ai','or','openai','claude','custom'].includes(value.provider)?value.provider:'auto';
+  document.getElementById('provider-select').value=provider;
+  document.getElementById('custom-endpoint-fields').hidden=provider!=='custom';
+}
+function toggleRememberProviderSettings(){
+  if(document.getElementById('remember-provider-settings').checked)persistRememberedProviderSettings();
+  else localStorage.removeItem(PROVIDER_STORAGE_KEY);
+}
+
 function getKey()      { return document.getElementById('api-key').value.trim(); }
 function getModelVal() { return document.getElementById('model-select').value; }
 function getProvider() { return getModelVal().split('|')[0]; }
@@ -392,6 +419,7 @@ function changeProvider() {
   document.getElementById('custom-endpoint-fields').hidden = document.getElementById('provider-select').value !== 'custom';
   document.getElementById('import-free-models').hidden = !['or','ai'].includes(providerForKey(getKey()));
   resetProviderModels();
+  persistRememberedProviderSettings();
 }
 function customEndpoint() { return document.getElementById('provider-base-url').value.trim(); }
 function confirmEndpoint(provider) {
@@ -512,6 +540,7 @@ function onKeyInput() {
   document.getElementById('load-json-btn').disabled = novel?.projectType === 'web-novel' ? false : !ready;
   if (novel) document.getElementById('btn-tl').disabled = !ready;
   if (ready) document.getElementById('empty-text').innerHTML = 'Load an EPUB to begin, or a JSON if you already extracted one.<br>Drag onto the page or click a button.';
+  persistRememberedProviderSettings();
 }
 
 document.body.addEventListener('dragover', e => e.preventDefault());
