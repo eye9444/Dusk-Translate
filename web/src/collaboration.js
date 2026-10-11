@@ -15,8 +15,9 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
   const localOrigin={},remoteOrigin='remote';
   const canonical=await remote.initializeDocument(project.id,createDocumentSeed(project.snapshot));
   const doc=openSharedDocument(canonical instanceof Uint8Array?canonical:new Uint8Array(canonical));
-  let stopped=false,pollTimer,lastCreatedAt=null,flushing=false,queueTask=Promise.resolve();
+  let stopped=false,pollTimer,lastCreatedAt=null,flushing=false,connectionStatus='',queueTask=Promise.resolve();
   const applied=new Set();
+  const reportStatus=message=>{if(connectionStatus===message)return;connectionStatus=message;onStatus(message);};
 
   const notify=()=>{
     for(const chapter of project.snapshot.novel.chapters){
@@ -43,15 +44,15 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
         await remote.appendDocumentUpdate(project.id,update.operationId,new Uint8Array(update.payload));
         applied.add(update.operationId);await local.removeDocumentUpdate(update.operationId);
       }
-      onStatus('Live collaboration connected');
-    }catch{onStatus('Working offline - collaboration will reconnect');}
+      reportStatus('Live collaboration connected');
+    }catch{reportStatus('Working offline - collaboration will reconnect');}
     finally{flushing=false;}
   }
   const updateHandler=(update,origin)=>{
     if(origin!==localOrigin)return;
     const operationId=crypto.randomUUID();
     queueTask=queueTask.catch(()=>{}).then(()=>local.queueDocumentUpdate(project.id,operationId,update)).then(flushOutbox).catch(()=>{
-      onStatus('Working offline - collaboration will reconnect');
+      reportStatus('Working offline - collaboration will reconnect');
     });
   };
   doc.on('update',updateHandler);
@@ -59,7 +60,7 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
   async function poll(){
     if(stopped)return;
     try{const rows=await remote.documentUpdates(project.id,lastCreatedAt);applyRows(rows);if(rows.length)notify();await flushOutbox();}
-    catch{onStatus('Working offline - collaboration will reconnect');}
+    catch{reportStatus('Working offline - collaboration will reconnect');}
     finally{if(!stopped)pollTimer=setTimeout(poll,pollInterval);}
   }
   pollTimer=setTimeout(poll,pollInterval);await flushOutbox();

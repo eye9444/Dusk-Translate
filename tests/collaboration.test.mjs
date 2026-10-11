@@ -39,3 +39,20 @@ test('collaboration keeps failed updates durable and replays them after reconnec
   assert.deepEqual(restored.at(-1),['one','Hello offline']);
   second.stop();
 });
+
+test('collaboration reports connection status only when it changes',async()=>{
+  const seed=createDocumentSeed(project().snapshot),statuses=[];let online=true;
+  const remote={
+    async initializeDocument(){return seed;},
+    async documentUpdates(){if(!online)throw new Error('offline');return[];},
+    async appendDocumentUpdate(){}
+  };
+  const collaboration=await startCollaboration({project:project(),local:localStore(),remote,onText:()=>{},onStatus:message=>statuses.push(message),pollInterval:10});
+  await delay(35);
+  assert.deepEqual(statuses,['Live collaboration connected']);
+  online=false;await delay(35);
+  assert.deepEqual(statuses,['Live collaboration connected','Working offline - collaboration will reconnect']);
+  online=true;await delay(35);
+  assert.deepEqual(statuses,['Live collaboration connected','Working offline - collaboration will reconnect','Live collaboration connected']);
+  collaboration.stop();
+});

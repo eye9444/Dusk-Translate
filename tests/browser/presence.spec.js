@@ -69,3 +69,17 @@ test('desktop provider feedback stops before collaborator and action controls',a
   expect(presence.x+presence.width).toBeLessThanOrEqual(actions.x+1);
   expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
 });
+
+test('editor header announcements clear after ten seconds',async ({page})=>{
+  await page.addInitScript(()=>sessionStorage.setItem('dusk-guest','true'));
+  await page.goto('/');
+  await page.locator('#new-project').click();
+  await page.locator('#new-title').fill('Announcement timeout test');
+  await page.locator('#new-file').setInputFiles({name:'source.txt',mimeType:'text/plain',buffer:Buffer.from('A source paragraph.')});
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  const editor=page.frameLocator('#editor');
+  await expect(page.locator('#save-status')).toHaveText('Saved on this device');
+  await expect(editor.locator('#host-save-status')).toHaveText('Saved on this device');
+  await expect(page.locator('#save-status')).toBeEmpty({timeout:11000});
+  await expect(editor.locator('#host-save-status')).toBeEmpty();
+});
