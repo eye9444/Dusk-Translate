@@ -42,3 +42,30 @@ test('presence avatars and matching remote cursors stay outside editable content
   await page.evaluate(()=>document.getElementById('editor').contentWindow.postMessage({type:'host:presence',unavailable:true},location.origin));
   await expect(editor.locator('#collaborator-presence')).toHaveText('Presence unavailable');
 });
+
+test('desktop provider feedback stops before collaborator and action controls',async ({page})=>{
+  await page.setViewportSize({width:1800,height:900});
+  await page.addInitScript(()=>sessionStorage.setItem('dusk-guest','true'));
+  await page.goto('/');
+  await page.locator('#new-project').click();
+  await page.locator('#new-title').fill('Presence layout test');
+  await page.locator('#new-file').setInputFiles({name:'source.txt',mimeType:'text/plain',buffer:Buffer.from('A source paragraph.')});
+  await page.getByRole('button',{name:'Create project',exact:true}).click();
+  const editor=page.frameLocator('#editor');
+  await expect(editor.locator('#src-txt')).toContainText('A source paragraph');
+  await editor.locator('.key-status').evaluate(element=>{element.textContent='Google AI Studio key set - ready';});
+  await editor.locator('#host-save-status').evaluate(element=>{element.textContent='Saved to your account';});
+  await page.evaluate(()=>document.getElementById('editor').contentWindow.postMessage({
+    type:'host:presence',selfId:'self',members:[
+      {user_id:'self',display_name:'Account Builder',online:true,location:{}},
+      {user_id:'peer',display_name:'Lead Member',online:false,location:{}},
+    ],
+  },location.origin));
+  await expect(editor.locator('.collaborator-avatar')).toHaveCount(2);
+  const feedback=await editor.locator('.provider-feedback').boundingBox();
+  const presence=await editor.locator('#collaborator-presence').boundingBox();
+  const actions=await editor.locator('.host-header-actions').boundingBox();
+  expect(feedback.x+feedback.width).toBeLessThanOrEqual(presence.x+1);
+  expect(presence.x+presence.width).toBeLessThanOrEqual(actions.x+1);
+  expect(await editor.locator('.key-bar').evaluate(element=>element.scrollWidth<=element.clientWidth)).toBe(true);
+});
