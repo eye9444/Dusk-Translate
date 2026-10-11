@@ -136,9 +136,19 @@ function navigate(path, replace = false) {
 if (currentRoute() === '/editor') location.replace('/home');
 function status(message) { $('library-status').textContent = message; }
 function errorMessage(error) { return error?.message || 'Something went wrong. Please try again.'; }
+const SAVE_ANNOUNCEMENT_DURATION = 10000;
+let saveAnnouncementTimer = null;
 function announceSave(message) {
+  clearTimeout(saveAnnouncementTimer);
   $('save-status').textContent = message;
   if (active) $('editor').contentWindow?.postMessage({type:'host:status',message}, location.origin);
+  if (!message) return;
+  saveAnnouncementTimer=setTimeout(()=>{
+    if ($('save-status').textContent !== message) return;
+    $('save-status').textContent='';
+    if (active) $('editor').contentWindow?.postMessage({type:'host:status',message:''},location.origin);
+    saveAnnouncementTimer=null;
+  },SAVE_ANNOUNCEMENT_DURATION);
 }
 function openActiveEditorProject() {
   if (!active) return;
