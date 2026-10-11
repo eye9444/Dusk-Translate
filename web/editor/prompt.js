@@ -1,7 +1,10 @@
 // Shared by the hosted editor and deterministic prompt-contract tests.
-globalThis.DuskTranslationPrompt = function ({ source, style, glossary = '', context = '', resume = false, customInstructions = '' }) {
+globalThis.DuskTranslationPrompt = function ({ source, style, glossary = '', context = '', resume = false, customInstructions = '', sourceLanguage = 'ja', targetLanguage = 'en' }) {
+  const names={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish'};
+  const sourceName=names[sourceLanguage]||'source-language';
+  const targetName=names[targetLanguage]||'target-language';
   const boundary = 'TARGET_' + (globalThis.crypto?.randomUUID?.() || 'PASSAGE');
-  return `Translate the identified Japanese target passage into English.
+  return `Translate the identified ${sourceName} target passage into ${targetName}.
 
 FIDELITY RULES (apply regardless of style):
 - Translate only supplied target content. Preserve meaning, uncertainty, ambiguity, negation, numbers, names, dialogue attribution, and narrative viewpoint.
@@ -13,7 +16,7 @@ FIDELITY RULES (apply regardless of style):
 - If a fragment cannot be translated reliably, retain that fragment rather than fabricate a meaning.
 
 STYLE GUIDANCE (never overrides fidelity):
-${style || 'Use natural, readable English while preserving the source meaning.'}
+${style || `Use natural, readable ${targetName} while preserving the source meaning.`}
 ${customInstructions ? `Project-specific guidance, subordinate to fidelity:\n${customInstructions}` : ''}
 
 GLOSSARY REFERENCE (not additional source to translate):

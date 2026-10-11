@@ -11,7 +11,8 @@ import { createPricingPage } from './pricing.js';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
-import { emptyWebNovel, parseSourceFile } from './source-import.js';
+import { detectEpubLanguage, emptyWebNovel, parseSourceFile } from './source-import.js';
+import { TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
 import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
@@ -603,9 +604,20 @@ document.addEventListener('keydown',event=>{
   }
 });
 let importingProject = false;
+let languageSelectionTouched=false;
+function renderTargetLanguages(preferred){
+  const source=$('new-source-language').value,targets=TRANSLATION_TARGETS[source]||TRANSLATION_TARGETS.ja;
+  const selected=targets.includes(preferred)?preferred:targets[0];
+  $('new-target-language').replaceChildren(...targets.map(code=>{const option=document.createElement('option');option.value=code;option.textContent=languageName(code);return option;}));
+  $('new-target-language').value=selected;
+}
+$('new-source-language').onchange=()=>{languageSelectionTouched=true;renderTargetLanguages();};
+$('new-target-language').onchange=()=>{languageSelectionTouched=true;};
 function showProjectDialog(importing = false) {
   importingProject = importing;
   $('project-form').reset(); $('new-error').textContent='';
+  languageSelectionTouched=false;$('new-source-language').value='ja';renderTargetLanguages('en');$('new-languages').hidden=importing;
+  $('new-language-help').textContent='The language pair cannot be changed after translation begins.';
   $('project-dialog-eyebrow').textContent = importing ? 'RESTORE A PROJECT' : 'A NEW CHAPTER';
   $('project-dialog-title').textContent = importing ? 'Import a project' : 'Start a project';
   $('new-title-label').hidden = importing;
@@ -632,7 +644,17 @@ $('new-project').onclick = () => showProjectDialog();
 $('import-project').onclick = () => showProjectDialog(true);
 $('welcome-signin').onclick=()=>showAuth('signin');$('welcome-signup').onclick=()=>showAuth('signup');
 $('welcome-guest').onclick=()=>{guestMode=true;sessionStorage.setItem('dusk-guest','true');refresh();};
-$('new-file').onchange = () => { if (!$('new-title').value) $('new-title').value = ($('new-file').files[0]?.name || '').replace(/\.[^.]+$/,'').slice(0,120); };
+$('new-file').onchange = async () => {
+  const file=$('new-file').files[0];if (!$('new-title').value) $('new-title').value = (file?.name || '').replace(/\.[^.]+$/,'').slice(0,120);
+  if(!file||importingProject||languageSelectionTouched)return;
+  try{
+    const detected=await detectEpubLanguage(file);
+    if(!languageSelectionTouched&&Object.hasOwn(TRANSLATION_TARGETS,detected)){
+      $('new-source-language').value=detected;renderTargetLanguages();
+      $('new-language-help').textContent=`Source suggested from the EPUB: ${languageName(detected)}. The pair cannot be changed after translation begins.`;
+    }
+  }catch{/* Source parsing reports actionable errors during project creation. */}
+};
 
 let chapterDrafts=[];
 const chapterCount=text=>Array.from(text).length;
@@ -679,7 +701,8 @@ $('project-form').onsubmit = async e => {
     let file = $('new-file').files[0];
     if(!emptyProject)validateFile(file);
     if (importingProject && !/\.zip$/i.test(file.name)) throw new Error('Choose a DuskTranslate project ZIP.');
-    let snapshot = emptyProject ? cleanSnapshot({novel:emptyWebNovel(),translations:{}}) : null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
+    const chosenLanguages=normalizeLanguagePair($('new-source-language').value,$('new-target-language').value);
+    let snapshot = emptyProject ? cleanSnapshot({novel:emptyWebNovel(),translations:{},...chosenLanguages}) : null, importedTitle = '', importedStorage='', importedDocument=null, importedImages=[];
     if (!emptyProject && /\.zip$/i.test(file.name)) {
       const {default:JSZip} = await import('jszip');
       const archive = await JSZip.loadAsync(file);
@@ -697,7 +720,7 @@ $('project-form').onsubmit = async e => {
     }
     if(!emptyProject&&!importingProject&&!snapshot){
       const novel=await parseSourceFile(file);
-      snapshot=cleanSnapshot({novel,translations:{}});
+      snapshot=cleanSnapshot({novel,translations:{},...chosenLanguages});
     }
     const title = (importingProject ? importedTitle : $('new-title').value.trim()) || $('new-title').value.trim();
     if (!title) throw new Error(importingProject ? 'This backup does not include a usable project title.' : 'Enter a project title.');

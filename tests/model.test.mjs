@@ -19,6 +19,13 @@ test('spellcheck defaults to true and respects false',()=>{
   const defaultSnap = cleanSnapshot({novel,translations:{one:'A'}});
   assert.equal(defaultSnap.spellcheck,true);
 });
+test('language pairs default safely and reject unsupported production routes',()=>{
+  assert.deepEqual(cleanSnapshot({novel,translations:{}}).sourceLanguage,'ja');
+  const supported=cleanSnapshot({novel,translations:{},sourceLanguage:'en',targetLanguage:'ru'});
+  assert.equal(supported.sourceLanguage,'en');assert.equal(supported.targetLanguage,'ru');
+  const unsupported=cleanSnapshot({novel,translations:{},sourceLanguage:'de',targetLanguage:'ja'});
+  assert.equal(unsupported.sourceLanguage,'ja');assert.equal(unsupported.targetLanguage,'en');
+});
 test('upload boundaries are enforced',()=>{
   assert.throws(()=>validateFile({name:'book.exe',size:10}));
   assert.doesNotThrow(()=>validateFile({name:'book.epub',size:50*1024*1024}));

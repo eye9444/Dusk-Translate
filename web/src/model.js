@@ -1,3 +1,5 @@
+import { normalizeLanguagePair } from './languages.js';
+
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 /** Reject unsupported, empty, or oversized files before parsing or upload. */
 export function validateFile(file) {
@@ -35,8 +37,10 @@ export function cleanSnapshot(s) {
       ? [[ch.id, { chunkIndex: index, ...(sourceOverride ? { sourceOverride } : {}) }]]
       : [];
   }));
+  const languages=normalizeLanguagePair(s.sourceLanguage,s.targetLanguage);
   return {
     novel: { chapters, ...(s.novel.projectType === 'web-novel' ? { projectType:'web-novel' } : {}), _epubOpfPath: s.novel._epubOpfPath, _epubOpfDir: s.novel._epubOpfDir },
+    ...languages,
     translations, partialResumes, exportExcluded, needsReview, cur: chapters.length ? Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))) : 0,
     glossary: String(s.glossary || ''), model: String(s.model || ''),
     style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural',

@@ -8,6 +8,9 @@ let lastBulkReplacement = null;
 let exportExcluded = [];
 let canEdit = true;
 let cloudProject = false;
+let sourceLanguage='ja';
+let targetLanguage='en';
+const editorLanguageNames={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish'};
 globalThis.DuskCapabilities = {};
 let quotaMeterState=null;
 function renderQuotaMeter() {
@@ -81,7 +84,7 @@ function snapshot() {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, sourceLanguage, targetLanguage, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -204,7 +207,7 @@ keyBar.append(providerDisclosure.details);
 // Yomitan reads ordinary selectable page text, so the source pane remains real
 // Japanese DOM text rather than a canvas or custom rendering surface.
 const sourceText=document.getElementById('src-txt');
-sourceText.lang='ja';sourceText.setAttribute('translate','no');
+sourceText.lang=sourceLanguage;sourceText.setAttribute('translate','no');
 const showDictionary=()=>send('editor:dictionary');
 
 const editorMenu = document.createElement('div'); editorMenu.className = 'host-menu-wrap';
@@ -344,7 +347,7 @@ renderList = function () {
     const row = document.createElement('div'); row.id = 'ci' + i; row.className = 'ch-item'; row.tabIndex = 0; row.setAttribute('role','button');
     const id = document.createElement('div'); id.className = 'ch-id'; id.textContent = ch.id;
     const sourcePreview = ch.text.split('\n').find(line => line.trim().length > 2) || ch.id;
-    const title = document.createElement('div'); title.className = 'ch-title'; title.lang='ja'; title.setAttribute('translate','no'); title.textContent = (namedChapters ? ch.title || sourcePreview : sourcePreview).slice(0,45);
+    const title = document.createElement('div'); title.className = 'ch-title'; title.lang=sourceLanguage; title.setAttribute('translate','no'); title.textContent = (namedChapters ? ch.title || sourcePreview : sourcePreview).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
     row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);
@@ -599,6 +602,13 @@ window.addEventListener('message', async e => {
     projectTitle.title = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; needsReview={}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
     restoreRememberedProviderSettings();
+    sourceLanguage=p.snapshot?.sourceLanguage||'ja';targetLanguage=p.snapshot?.targetLanguage||'en';
+    sourceText.lang=sourceLanguage;document.getElementById('tl-out').lang=targetLanguage;
+    const sourceName=editorLanguageNames[sourceLanguage]||sourceLanguage,targetName=editorLanguageNames[targetLanguage]||targetLanguage;
+    const subtitle=editorIdentity.querySelector('span');if(subtitle)subtitle.title=`${sourceName} to ${targetName}`;
+    const glossary=document.getElementById('glossary');glossary.placeholder=`One entry per line, format: ${sourceName} = ${targetName}`;
+    const glossaryHint=document.querySelector('.glossary-hint');if(glossaryHint)glossaryHint.innerHTML=`One entry per line<br>${sourceName} = ${targetName}`;
+    const dictionaryAction=document.getElementById('host-dictionary');if(dictionaryAction)dictionaryAction.hidden=sourceLanguage!=='ja';
     if (p.snapshot) {
       novel = checkNovel(p.snapshot.novel); translations = p.snapshot.translations || {}; partialResumes = p.snapshot.partialResumes || {}; needsReview=p.snapshot.needsReview||{}; exportExcluded = (p.snapshot.exportExcluded || []).filter(id => novel.chapters.some(chapter => chapter.id === id));
       if (p.fileName.toLowerCase().endsWith('.epub')) epubZip = await JSZip.loadAsync(p.file);

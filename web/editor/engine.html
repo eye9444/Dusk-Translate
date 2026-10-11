@@ -875,9 +875,9 @@ async function translateCurrent({ resume = null } = {}) {
   setStatus('Translating ' + ch.id + '…', true);
 
   const styleMap = {
-    natural:  'Translate naturally into readable English. Adapt idioms. Preserve honorifics (san, kun, chan, sama) as-is.',
-    faithful: 'Translate faithfully and literally, staying close to original structures. Preserve all honorifics. Keep Japanese name order.',
-    liberal:  'Use vivid, idiomatic English prose while preserving every source fact, action, relationship, and line of dialogue. Improve phrasing, never content.'
+    natural:  `Translate naturally into readable ${editorLanguageNames?.[targetLanguage] || targetLanguage}. Adapt idioms.${sourceLanguage==='ja'?' Preserve honorifics (san, kun, chan, sama) as-is.':''}`,
+    faithful: `Translate faithfully and literally, staying close to original structures.${sourceLanguage==='ja'?' Preserve all honorifics and Japanese name order.':''}`,
+    liberal:  `Use vivid, idiomatic ${editorLanguageNames?.[targetLanguage] || targetLanguage} prose while preserving every source fact, action, relationship, and line of dialogue. Improve phrasing, never content.`
   };
 
   const glossaryRaw = document.getElementById('glossary').value.trim();
@@ -893,6 +893,7 @@ async function translateCurrent({ resume = null } = {}) {
       source, style: styleMap[style], glossary: glossaryLines.join('\n'),
       context: continuity, resume: resumesCurrentChunk,
       customInstructions: globalThis.DuskCustomInstructions || '',
+      sourceLanguage,targetLanguage,
     });
     const continuitySection = continuity
       ? resumesCurrentChunk
