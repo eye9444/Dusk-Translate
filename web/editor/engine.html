@@ -70,7 +70,7 @@ body { background: var(--paper); color: var(--ink); font-family: 'Syne', sans-se
 }
 .model-picker { display: flex; align-items: center; gap: 5px; min-width: 0; }
 .model-picker select { min-width: 260px; max-width: 360px; }
-.model-import-dialog { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--ink); padding: 0; box-shadow: 0 24px 70px #0007; }
+.model-import-dialog { position: fixed; inset: 0; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; overflow: auto; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--ink); padding: 0; box-shadow: 0 24px 70px #0007; }
 .model-import-dialog::backdrop { background: #0009; backdrop-filter: blur(5px); }
 .model-import-dialog form { padding: 20px; }
 .model-import-dialog h2 { font-family: 'Shippori Mincho', serif; font-size: 1.6rem; margin: 5px 0 10px; }

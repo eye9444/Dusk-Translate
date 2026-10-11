@@ -5,7 +5,7 @@ html::-webkit-scrollbar,body::-webkit-scrollbar{display:none}
 #fi, #fi-epub { display:none!important; }
 .key-input-wrap input { min-width:0; }
 #sub-title { user-select:none!important; }
-#model-import-dialog{max-width:min(560px,calc(100vw - 24px));max-height:90dvh;overflow:auto}
+#model-import-dialog{inset:0;max-width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);margin:auto;overflow:auto}
 #model-import-dialog label{display:block;margin:12px 0 5px}
 #model-import-dialog input,#model-import-dialog select{box-sizing:border-box;width:100%;min-width:0;padding:9px;color:var(--ink);background:var(--paper);border:1px solid var(--border)}
 .remember-provider-settings{display:flex!important;align-items:flex-start;gap:9px;padding:11px;border:1px solid var(--border);border-radius:6px;background:var(--aged);font-size:12px!important;line-height:1.4}.remember-provider-settings input{width:16px!important;height:16px;margin:1px 0 0;padding:0!important;flex:none;accent-color:var(--accent)}.remember-provider-settings span{min-width:0}.remember-provider-settings small{display:block;margin-top:4px;color:var(--muted);font:9px/1.45 'DM Mono',monospace}
