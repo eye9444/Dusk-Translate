@@ -31,7 +31,15 @@ The same **Continue with Google** button signs in returning users and creates ac
 6. Set `VITE_GOOGLE_CLIENT_ID` in Vercel to the same Web client ID. This identifier is public browser configuration; do not use the client secret. Keep Supabase's Site URL and redirect allowlist configured for the custom domain for email confirmation and password recovery.
 7. Redeploy after setting all three public frontend variables. Verify with a real Google test account: sign up, sign out, sign back in, reload, and confirm its private library returns. Check another account cannot see its projects.
 
-Google Identity Services returns a signed ID token to the page, which is immediately exchanged for a Supabase session. A fresh random nonce is held in memory, while only its SHA-256 digest is sent to Google; the token is never stored by application code. Email confirmation and password recovery continue to use Supabase PKCE links. Cancelled and expired legacy callbacks are still cleaned from the address bar. Local projects are not automatically uploaded when you log in.
+## Protect email authentication with Turnstile
+
+1. Create a Cloudflare Turnstile widget for `dusktranslate.com` and `www.dusktranslate.com`.
+2. Set its public site key as `VITE_TURNSTILE_SITE_KEY` in Vercel.
+3. In Supabase, open Authentication > Bot and Abuse Protection, enable CAPTCHA, choose Cloudflare Turnstile, and enter the matching secret key.
+4. Change the Supabase Reset password email template to include the six-digit `{{ .Token }}` value. DuskTranslate verifies that recovery code before accepting a new password.
+5. Redeploy and test sign-in, sign-up, reset request, recovery code, and password change with an email/password test account.
+
+Google Identity Services returns a signed ID token to the page, which is immediately exchanged for a Supabase session. A fresh random nonce is held in memory, while only its SHA-256 digest is sent to Google; the token is never stored by application code. Email confirmation continues to use Supabase PKCE links, while password recovery accepts the emailed verification code. Cancelled and expired legacy callbacks are still cleaned from the address bar. Local projects are not automatically uploaded when you log in.
 
 ### Brand the Google sign-in screen
 

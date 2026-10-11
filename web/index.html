@@ -102,10 +102,14 @@
       <div class="auth-divider"><span>or use your email</span></div>
     </div>
     <label>Email<input id="email" type="email" autocomplete="email" required></label>
+    <label id="current-password-label" hidden>Current password<input id="current-password" type="password" autocomplete="current-password" minlength="8"></label>
+    <label id="recovery-code-label" hidden>Verification code<input id="recovery-code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6-digit code"></label>
     <label id="password-label">Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+    <label id="confirm-password-label" hidden>Confirm new password<input id="confirm-password" type="password" autocomplete="new-password" minlength="8"></label>
     <label class="consent-row" id="consent-row"><input id="terms-accept" type="checkbox"><span>I agree to the <a href="/terms.html" target="_blank" rel="noopener">Terms</a> and acknowledge the <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
     <label class="remember-row" id="remember-row"><input id="remember-me" type="checkbox" checked><span>Remember me on this device<small>Leave unchecked on a shared computer.</small></span></label>
     <p id="auth-message" role="status" aria-live="polite"></p>
+    <div id="auth-captcha" hidden></div>
     <div class="dialog-actions"><button type="button" data-close>Close</button><button class="primary" id="auth-submit">Sign in</button></div>
     <div class="auth-links"><button type="button" id="auth-switch">Create an account</button><button type="button" id="forgot">Forgot password?</button></div>
   </form></dialog>
