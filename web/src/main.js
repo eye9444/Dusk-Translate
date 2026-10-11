@@ -34,6 +34,7 @@ let authBusy = false;
 let user = null, projects = [], invitations = [], active = null, working = false;
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null, lockRequest = null, lockReleaseTask = Promise.resolve(), feedbackAdmin = false;
+let recoveryEmail = '', captchaToken = '', turnstileWidget = null, turnstileScript = null;
 let editorReady = false, closing = false, opening = false, libraryRequest = 0;
 let projectPresence = null;
 let projectCollaboration = null;
@@ -1594,25 +1595,44 @@ async function checkConsistency() {
 
 function showAuth(mode='signin') {
   if(authBusy)return;
-  authMode=mode; $('auth-message').textContent=''; $('password').value='';
-  $('auth-title').textContent={signin:'Welcome back.',signup:'Make room for your books.',reset:'Reset your password.',update:'Choose a new password.'}[mode];
-  $('auth-submit').textContent={signin:'Sign in',signup:'Create account',reset:'Send reset link',update:'Update password'}[mode];
+  authMode=mode; $('auth-message').textContent=''; $('password').value='';$('current-password').value='';$('confirm-password').value='';$('recovery-code').value='';
+  $('auth-title').textContent={signin:'Welcome back.',signup:'Make room for your books.',reset:'Reset your password.',recover:'Enter your verification code.',update:'Change your password.',recoveryUpdate:'Choose a new password.'}[mode];
+  $('auth-submit').textContent={signin:'Sign in',signup:'Create account',reset:'Send verification code',recover:'Verify and update password',update:'Update password',recoveryUpdate:'Update password'}[mode];
   $('auth-switch').textContent=mode==='signup'?'I already have an account':'Create an account';
+  const settingPassword=['update','recover','recoveryUpdate'].includes(mode);
   $('password-label').hidden=mode==='reset'; $('password').required=mode!=='reset'; $('password').autocomplete=mode==='signin'?'current-password':'new-password';
-  $('email').parentElement.hidden=mode==='update'; $('email').required=mode!=='update';
-  $('google-option').hidden=mode==='reset'||mode==='update';
-  $('forgot').hidden=mode==='reset'||mode==='update';
-  $('auth-switch').hidden=mode==='update';
-  $('remember-row').hidden=mode==='update';$('remember-me').checked=authStorage.remembered();
+  $('current-password-label').hidden=mode!=='update';$('current-password').required=mode==='update';
+  $('confirm-password-label').hidden=!settingPassword;$('confirm-password').required=settingPassword;
+  $('recovery-code-label').hidden=mode!=='recover';$('recovery-code').required=mode==='recover';
+  $('email').parentElement.hidden=settingPassword; $('email').required=!settingPassword;
+  $('google-option').hidden=!['signin','signup'].includes(mode);
+  $('forgot').hidden=!['signin','signup','update'].includes(mode);
+  $('auth-switch').hidden=settingPassword;
+  $('remember-row').hidden=settingPassword||mode==='reset';$('remember-me').checked=authStorage.remembered();
   $('consent-row').hidden=mode!=='signup';
   $('terms-accept').checked=false;
   $('terms-accept').required=mode==='signup';
   resetGoogleButton();
-  $('auth-info').textContent=cloud?'Use Google or your email and password. AI-provider keys are separate and never saved with your account.':'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.';
+  $('auth-info').textContent=!cloud?'Cloud accounts are not configured on this deployment yet. Your browser library works now; account sign-in will be enabled when the project owner connects Supabase.':mode==='update'?'Confirm your current password, then enter the new password twice.':mode==='reset'?'Enter your account email and we will send a temporary verification code.':mode==='recover'?'Enter the six-digit code from your email and your new password twice.':'Use Google or your email and password. AI-provider keys are separate and never saved with your account.';
   setAuthBusy(false);
   if(!$('auth-dialog').open)$('auth-dialog').showModal();
   if(mode==='signin'||mode==='signup')prepareGoogleButton();
+  void renderAuthCaptcha(mode);
 }
+const TURNSTILE_SITE_KEY=import.meta.env.VITE_TURNSTILE_SITE_KEY||'';
+function loadTurnstile(){
+  if(globalThis.turnstile)return Promise.resolve(globalThis.turnstile);
+  if(turnstileScript)return turnstileScript;
+  turnstileScript=new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.async=true;script.defer=true;script.onload=()=>resolve(globalThis.turnstile);script.onerror=()=>reject(new Error('The security check could not load. Please disable blocking for Cloudflare Turnstile and retry.'));document.head.append(script);});
+  return turnstileScript;
+}
+async function renderAuthCaptcha(mode){
+  const container=$('auth-captcha'),required=Boolean(TURNSTILE_SITE_KEY)&&['signin','signup','reset'].includes(mode);captchaToken='';
+  if(turnstileWidget!==null&&globalThis.turnstile){globalThis.turnstile.remove(turnstileWidget);turnstileWidget=null;}
+  container.replaceChildren();container.hidden=!required;if(!required)return;
+  try{const turnstile=await loadTurnstile();if(authMode!==mode)return;turnstileWidget=turnstile.render(container,{sitekey:TURNSTILE_SITE_KEY,theme:localStorage.getItem('theme')==='light'?'light':'dark',callback:token=>{captchaToken=token;$('auth-message').textContent='';},'expired-callback':()=>{captchaToken='';},'error-callback':()=>{captchaToken='';$('auth-message').textContent='The security check failed to load. Please retry.';}});}catch(error){$('auth-message').textContent=errorMessage(error);}
+}
+function resetAuthCaptcha(){if(turnstileWidget!==null&&globalThis.turnstile)globalThis.turnstile.reset(turnstileWidget);captchaToken='';}
 function setAuthBusy(busy) {
   authBusy=busy;
   $('auth-form').setAttribute('aria-busy',String(busy));
@@ -1659,19 +1679,26 @@ $('forgot').onclick=()=>showAuth('reset');
 $('auth-form').onsubmit=async e=>{
   e.preventDefault();if(!cloud||authBusy)return;setAuthBusy(true);$('auth-message').textContent='';
   try{
-    if(authMode!=='update')authStorage.choose($('remember-me').checked);
+    if(TURNSTILE_SITE_KEY&&['signin','signup','reset'].includes(authMode)&&!captchaToken)throw new Error('Complete the security check first.');
+    if(!['update','recover','recoveryUpdate'].includes(authMode))authStorage.choose($('remember-me').checked);
     const email=$('email').value.trim(),password=$('password').value;
+    if(['update','recover','recoveryUpdate'].includes(authMode)&&password!==$('confirm-password').value)throw new Error('The new passwords do not match.');
     const redirectTo=location.origin+'/'; let result;
-    if(authMode==='signup') result=await cloud.auth.signUp({email,password,options:{emailRedirectTo:redirectTo}});
-    else if(authMode==='reset') result=await cloud.auth.resetPasswordForEmail(email,{redirectTo});
-    else if(authMode==='update') result=await cloud.auth.updateUser({password});
-    else result=await cloud.auth.signInWithPassword({email,password});
+    if(authMode==='signup') result=await cloud.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,captchaToken}});
+    else if(authMode==='reset') result=await cloud.auth.resetPasswordForEmail(email,{redirectTo,captchaToken});
+    else if(authMode==='recover'){
+      result=await cloud.auth.verifyOtp({email:recoveryEmail,token:$('recovery-code').value.trim(),type:'recovery'});
+      if(!result.error)result=await cloud.auth.updateUser({password});
+    }
+    else if(authMode==='update') result=await cloud.auth.updateUser({password,current_password:$('current-password').value,email:user.email});
+    else if(authMode==='recoveryUpdate') result=await cloud.auth.updateUser({password});
+    else result=await cloud.auth.signInWithPassword({email,password,options:{captchaToken}});
     if(result.error)throw result.error;
-    $('password').value='';
-    if(authMode==='reset')$('auth-message').textContent='If that email has an account, a reset link is on its way.';
+    $('password').value='';$('current-password').value='';$('confirm-password').value='';
+    if(authMode==='reset'){recoveryEmail=email;setAuthBusy(false);showAuth('recover');$('auth-message').textContent='If that email has an account, a verification code is on its way.';}
     else if(authMode==='signup'&&!result.data.session)$('auth-message').textContent='Check your email to confirm your account, then sign in.';
     else{user=result.data.user || user;$('auth-dialog').close();await refresh();}
-  }catch(err){$('auth-message').textContent=errorMessage(err);}
+  }catch(err){$('auth-message').textContent=errorMessage(err);resetAuthCaptcha();}
   finally{setAuthBusy(false);}
 };
 let authError='',currentSession=null;
@@ -1679,7 +1706,7 @@ if(cloud){
   cloud.auth.onAuthStateChange((event,session)=>{
     const next=session?.user || null;
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
-    if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('update'),0);
+    if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('recoveryUpdate'),0);
     if(user?.id!==next?.id){
       comments.stop();
       projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
