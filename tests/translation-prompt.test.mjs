@@ -26,4 +26,17 @@ for(const [sourceLanguage,targetLanguage,sourceName,targetName] of [
   const prompt=globalThis.DuskTranslationPrompt({source:'SOURCE',sourceLanguage,targetLanguage});
   assert.match(prompt,new RegExp(`Translate the identified ${sourceName} target passage into ${targetName}`));
 });
+test('custom master prompt replaces the built-in master but keeps data boundaries',()=>{
+  const prompt=globalThis.DuskTranslationPrompt({source:'BOOK CONTENT',customInstructions:'MY MASTER PROMPT',glossary:'term = value'});
+  assert.ok(prompt.startsWith('MY MASTER PROMPT'));
+  assert.doesNotMatch(prompt,/FIDELITY RULES/);
+  assert.match(prompt,/GLOSSARY REFERENCE/);
+  assert.match(prompt,/BOOK CONTENT/);
+});
+test('the prompt editor can display the exact built-in master prompt',()=>{
+  const master=globalThis.DuskDefaultMasterPrompt({sourceLanguage:'ja',targetLanguage:'de'});
+  const prompt=globalThis.DuskTranslationPrompt({source:'SOURCE',sourceLanguage:'ja',targetLanguage:'de'});
+  assert.ok(prompt.startsWith(master));
+  assert.match(master,/Japanese target passage into German/);
+});
 // These fixtures validate construction, not the output of a probabilistic model.

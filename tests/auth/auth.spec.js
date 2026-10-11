@@ -167,7 +167,7 @@ test('PKCE password recovery opens password update, not Google login',async({pag
   resetURL.searchParams.set('code','recovery-code');await page.goto(resetURL.href);
   await expect(page.locator('#auth-title')).toHaveText('Choose a new password.');
   await expect(page.locator('#google-option')).toBeHidden();
-  await page.locator('#password').fill('NewPassword123!');await page.locator('#auth-submit').click();
+  await page.locator('#password').fill('NewPassword123!');await page.locator('#confirm-password').fill('NewPassword123!');await page.locator('#auth-submit').click();
   await expect(page.locator('#auth-dialog')).not.toBeVisible();expect(updated).toBe(true);
 });
 

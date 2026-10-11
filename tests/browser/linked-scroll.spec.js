@@ -37,15 +37,18 @@ test('quota meter distinguishes local work and shows completed, reserved, and re
   const editor=await editorWithLongText(page);
   const meter=editor.locator('#host-quota-meter');
   await expect(meter).toContainText('Local: no daily app limit');
-  await page.evaluate(()=>{
+  const resetAt=await page.evaluate(()=>{
     const frame=document.getElementById('editor');
     const id=new URL(location.href).searchParams.get('project');
-    frame.contentWindow.postMessage({type:'host:quota',projectId:id,quota:{completed:16000,reserved:2000,remaining:12000,resetAt:new Date(Date.now()+3600000).toISOString()}},location.origin);
+    const reset=new Date(Date.now()+3600000).toISOString();
+    frame.contentWindow.postMessage({type:'host:quota',projectId:id,quota:{completed:16000,reserved:2000,remaining:12000,resetAt:reset}},location.origin);
+    return reset;
   });
   await expect(meter).toContainText('16,000 / 30,000 today');
   await expect(meter).toContainText('2,000 reserved');
   await expect(meter).toContainText('12,000 remaining');
-  await expect(meter).toHaveAttribute('title',/00:00 UTC/);
+  const resetLabel=new Date(resetAt).toLocaleString('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',timeZoneName:'short'});
+  await expect(meter).toHaveAttribute('title',new RegExp(`Resets ${resetLabel.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`));
 });
 
 test('guest API spending notice can be canceled and has no account preference checkbox',async({page})=>{

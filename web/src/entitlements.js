@@ -4,7 +4,7 @@ export const TIER_ORDER = Object.freeze({ free: 0, pro: 1, advanced: 2 });
 export const TIER_LABELS = Object.freeze({ free: 'Starter', pro: 'Pro', advanced: 'Teams' });
 export const FEATURE_TIERS = Object.freeze({
   consistency: 'pro', rubyEdit: 'pro', replaceImages: 'pro', exportSelection: 'pro',
-  customPrompt: 'advanced', readerLinks: 'advanced', readerComments: 'advanced',
+  customPrompt: 'advanced', workflow: 'advanced', readerLinks: 'advanced', readerComments: 'advanced',
 });
 export const PLAN_LIMITS = Object.freeze({
   free: Object.freeze({ projects: 3, storageBytes: 100_000_000, seats: 2, dailyCharacters: 30_000 }),

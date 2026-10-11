@@ -106,7 +106,7 @@ export function createPricingPage({ createCheckout, onFree, section = document.g
       }
       const total = priceTotals.get(tier.priceId[activeTerm]);
       section.querySelector(`[data-price-for="${tier.name}"]`).textContent = total ?? 'Price unavailable';
-      section.querySelector(`[data-period-for="${tier.name}"]`).textContent = total ? `per ${activeTerm === 'month' ? 'month' : 'year'}` : '';
+      section.querySelector(`[data-period-for="${tier.name}"]`).textContent = `per ${activeTerm === 'month' ? 'month' : 'year'}`;
     }
     for (const button of termButtons) {
       const selected = button.dataset.billingTerm === activeTerm;
