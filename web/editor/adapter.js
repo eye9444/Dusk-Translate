@@ -33,13 +33,13 @@ function renderQuotaMeter() {
     const text=document.createElement('span');text.className='quota-meter-label';text.textContent=label;meter.append(track,text);meter.title=title;
   };
   const q=quotaMeterState;
-  if(q.local){renderBar('No daily limit',100,'Local projects have no app-imposed daily limit.');return;}
+  if(q.local){renderBar('Local: no daily app limit',100,'Local projects have no app-imposed daily limit.');return;}
   if(q.readOnly){meter.textContent='Read-only project';meter.title='This project is read-only.';return;}
   if(q.unavailable){meter.textContent='Usage unavailable';meter.title='Retry before translating.';return;}
   if(q.unlimited){renderBar('Unlimited',100,'Teams access has no app-imposed daily cloud translation limit.');return;}
-  const total=30000,remaining=Math.max(0,Math.min(total,Number(q.remaining)||0)),percent=Math.round((remaining/total)*100);
-  const reset=q.resetAt?` Resets ${new Date(q.resetAt).toLocaleString()}.`:'';
-  renderBar(`${percent}% left`,percent,`Cloud translation: ${remaining.toLocaleString()} of ${total.toLocaleString()} characters remaining today.${reset}`);
+  const total=30000,remaining=Math.max(0,Math.min(total,Number(q.remaining)||0)),completed=Math.max(0,Number(q.completed)||total-remaining),reserved=Math.max(0,Number(q.reserved)||0),percent=Math.round((remaining/total)*100);
+  const reset=q.resetAt?` Resets ${new Date(q.resetAt).toLocaleString('en-GB',{timeZone:'UTC',hour:'2-digit',minute:'2-digit',timeZoneName:'short'})}.`:'';
+  renderBar(`${completed.toLocaleString()} / ${total.toLocaleString()} today · ${reserved.toLocaleString()} reserved · ${remaining.toLocaleString()} remaining`,percent,`Cloud translation usage.${reset}`);
 }
 setInterval(renderQuotaMeter,5000);
 function setEntitlements(rights = {tier:'free',capabilities:{}}) {
@@ -51,7 +51,9 @@ function setEntitlements(rights = {tier:'free',capabilities:{}}) {
   for(const [id,feature,label,required] of [
     ['host-consistency','consistency','Check consistency','Pro'],
     ['host-export-settings','exportSelection','Choose exported chapters','Pro'],
-    ['host-custom-prompt','customPrompt','Translation instructions','Teams'],
+    ['host-custom-prompt','customPrompt','Edit prompt','Teams'],
+    ['host-prompt-button','customPrompt','Edit prompt','Teams'],
+    ['host-workflow','workflow','Review workflow','Teams'],
     ['host-ruby','rubyEdit','Ruby text','Pro'],
     ['host-selection-ruby','rubyEdit','Ruby','Pro'],
   ]){
@@ -239,7 +241,9 @@ const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replac
 });
 undoFindReplace.disabled=true; updateSpellcheckAction();
 toolMenu.append(menuAction('host-chapters','Manage source chapters','chapters'),localMenuAction('host-dictionary','Japanese dictionary (Yomitan)',showDictionary),spellcheckAction,menuAction('host-images','EPUB images','images'),menuAction('host-find-replace','Find and replace','findReplace'),undoFindReplace,menuAction('host-consistency','Check consistency','consistency'),menuAction('host-export-settings','Choose exported chapters','exportSettings'));
-toolMenu.append(menuAction('host-custom-prompt','Translation instructions','customPrompt'));
+toolMenu.append(menuAction('host-custom-prompt','Edit prompt','customPrompt'));
+const workflowAction=localMenuAction('host-workflow','Review workflow',()=>send('editor:action',{action:'workflow',chapterId:novel?.chapters?.[cur]?.id,source:novel?.chapters?.[cur]?.text||'',translation:document.getElementById('tl-out').textContent||''}));
+toolMenu.append(workflowAction);
 const editorIdentity = document.createElement('a'); editorIdentity.className = 'host-identity'; editorIdentity.href = '/home'; editorIdentity.title = 'Return to DuskTranslate home'; editorIdentity.setAttribute('aria-label', 'Return to DuskTranslate home');
 // Home belongs to the host application; navigating this iframe nests libraries
 // and leaves every parent editor holding its project lock.
@@ -315,6 +319,9 @@ function updateFindNavigator({ position, total, reviewAction = 'findReview', rev
 }
 const toolDisclosure = makeDisclosure('Translation tools', 'tool-disclosure');
 const controls = document.querySelector('.controls'); controls.before(toolDisclosure.details); toolDisclosure.content.append(controls);
+const promptButton=menuAction('host-prompt-button','Edit prompt','customPrompt');promptButton.className='btn sm';
+controls.insertBefore(promptButton,document.getElementById('btn-export'));
+document.getElementById('btn-export').onclick=()=>send('editor:action',{action:'exportTxt'});
 const chapterDisclosure = makeDisclosure('Chapter list', 'chapter-disclosure');
 const chapterSidebar = document.querySelector('.sidebar'); chapterSidebar.before(chapterDisclosure.details); chapterDisclosure.content.append(chapterSidebar);
 const editorLayout = document.querySelector('.layout');
@@ -512,6 +519,9 @@ window.addEventListener('message', async e => {
   if (e.origin !== location.origin || e.source !== parent) return;
   if(e.data.type==='host:quota' && e.data.projectId===projectId){quotaMeterState=e.data.quota;renderQuotaMeter();return;}
   if(e.data.type==='host:entitlements' && e.data.projectId===projectId){setEntitlements(e.data.entitlements);return;}
+  if(e.data.type==='host:workflow-published'&&e.data.projectId===projectId&&e.data.chapterId===novel?.chapters?.[cur]?.id){
+    translations[e.data.chapterId]=String(e.data.translation||'');document.getElementById('tl-out').textContent=translations[e.data.chapterId];updateMark(cur,translations[e.data.chapterId]);updateProg();emit(true);return;
+  }
   if (e.data.type === 'host:flush') { emit(true); send('editor:flushed'); return; }
   if (e.data.type === 'host:theme') { document.body.classList.toggle('eclipse', e.data.theme === 'eclipse'); return; }
   if (e.data.type === 'host:status') { saveStatus.textContent=e.data.message || ''; return; }

@@ -32,7 +32,7 @@ async function backend(context,state){
 }
 async function signin(page,remember=true){
   await page.goto('/');await page.locator('#account').click();await page.locator('#email').fill(user.email);await page.locator('#password').fill('TestPassword123!');
-  await page.locator('#remember-me').setChecked(remember);await page.locator('#auth-submit').click();await expect(page.locator('#account')).toHaveText('Sign out');
+  await page.locator('#remember-me').setChecked(remember);await page.locator('#auth-submit').click();await expect(page.locator('#account')).toHaveText('Account');
 }
 test('cloud saves original, translation, glossary and position across a fresh browser',async({page,context,browser})=>{
   const state={source:'Original test chapter\n\nA second paragraph.'};await backend(context,state);await signin(page);
@@ -58,13 +58,13 @@ test('failed cloud sync retains a resumable local draft and can retry',async({pa
   page.on('dialog',dialog=>dialog.accept());await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await expect(page.locator('#library')).toBeVisible();
   state.failList=true;await page.locator('#refresh').click();await expect(page.locator('#library-status')).toContainText('cached',{timeout:15000});
   await page.getByRole('button',{name:'Open project',exact:true}).click();await expect(page.frameLocator('#editor').locator('#tl-out')).toHaveText('Keep this offline draft.');
-  state.failSave=false;state.failList=false;await editor.locator('#host-tools').click();await editor.locator('#host-save').click();await expect(page.locator('#save-status')).toHaveText('Saved to your account');expect(Object.values(state.row.snapshot.translations)).toContain('Keep this offline draft.');
+  state.failSave=false;state.failList=false;await editor.locator('#host-menu').click();await editor.locator('#host-save').click();await expect(page.locator('#save-status')).toHaveText('Saved to your account');expect(Object.values(state.row.snapshot.translations)).toContain('Keep this offline draft.');
 });
 test('unchecked remember me keeps login tokens out of persistent storage',async({page,context})=>{
   const state={};await backend(context,state);await signin(page,false);
   const tokens=await page.evaluate(()=>({persistent:localStorage.getItem('sb-dusk-test-auth-token'),session:sessionStorage.getItem('sb-dusk-test-auth-token')}));
-  expect(tokens.persistent).toBeNull();expect(tokens.session).toBeTruthy();await page.reload();await expect(page.locator('#account')).toHaveText('Sign out');
-  await page.locator('#account').click();await expect(page.locator('#welcome')).toBeVisible();await expect(page.locator('#library')).toBeHidden();
+  expect(tokens.persistent).toBeNull();expect(tokens.session).toBeTruthy();await page.reload();await expect(page.locator('#account')).toHaveText('Account');
+  await page.locator('#account').click();await page.getByRole('button',{name:'Sign out',exact:true}).click();await expect(page.locator('#welcome')).toBeVisible();await expect(page.locator('#library')).toBeHidden();
 });
 test('remembered login restores in a fresh browser session without signing in again',async({page,context,browser})=>{
   const state={};await backend(context,state);await signin(page,true);
@@ -73,7 +73,7 @@ test('remembered login restores in a fresh browser session without signing in ag
   await backend(freshContext,state);
   try{
     const freshPage=await freshContext.newPage();await freshPage.goto('/');
-    await expect(freshPage.locator('#account')).toHaveText('Sign out');
+    await expect(freshPage.locator('#account')).toHaveText('Account');
     await expect(freshPage.locator('#storage-label')).toHaveText('YOUR CLOUD LIBRARY');
     await expect(freshPage.locator('#storage-info')).toContainText(user.email);
   }finally{await freshContext.close();}

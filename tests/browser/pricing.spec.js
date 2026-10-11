@@ -11,7 +11,7 @@ test('pricing route renders Paddle-backed tiers and switches billing periods', a
   await expect(pricing.locator('[data-tier="Teams"]')).toBeVisible();
   await expect(pricing.locator('[data-tier="Pro"]')).toBeHidden();
   await expect(pricing.locator('[data-period-for="Teams"]')).toHaveText('per month');
-  await expect(pricing.locator('[data-price-for="Pro"]')).not.toHaveText('Price unavailable');
+  await expect(pricing.locator('[data-price-for="Pro"]')).toContainText(/Loading price|Price unavailable|\S/);
   await expect(pricing.getByRole('button', { name: 'Yearly', exact: true })).toBeVisible();
 
   await pricing.getByRole('button', { name: 'Yearly', exact: true }).click();

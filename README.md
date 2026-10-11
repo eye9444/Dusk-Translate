@@ -1,7 +1,7 @@
 # DuskTranslate
 
 <p align="center">
-  <a href="https://dusk-translate.vercel.app">
+  <a href="https://www.dusktranslate.com">
     <img src="docs/screenshots/welcome-desktop.png" alt="DuskTranslate signed-out web app welcome screen" width="100%" />
   </a>
 </p>
@@ -11,28 +11,32 @@
 </p>
 
 <p align="center">
-  <a href="https://dusk-translate.vercel.app"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.2.0" src="https://img.shields.io/badge/web_release-v0.2.0-17120f?style=for-the-badge" />
+  <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
+  <img alt="Web release 0.3.0" src="https://img.shields.io/badge/web_release-v0.3.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-**[Launch DuskTranslate](https://dusk-translate.vercel.app)** in a modern browser. No installation or downloaded HTML release is required.
+**[Launch DuskTranslate](https://www.dusktranslate.com)** in a modern browser. No installation or downloaded HTML release is required.
 
-You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. Your AI-provider key is entered only when translating and remains in the current editor session rather than being stored with your account.
+You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
 
 ## Current Web Release
 
 - Import EPUB, TXT, JSON project, and backup files
-- Translate Japanese source text into English chapter by chapter
+- Translate Japanese into English, Vietnamese, Russian, German, or Spanish
+- Translate English into Vietnamese, Russian, German, or Spanish
 - Compare the source and editable translation side by side
 - Maintain a project glossary for names and preferred terminology
 - Save projects locally or sync them to a private signed-in library
 - Rename, archive, restore, back up, and resume projects
 - Read standalone EPUBs, source books, and completed translated books in the built-in reader
 - Export translated work as TXT or EPUB
-- Use Google AI Studio or OpenRouter models with your own API key
+- Use Google AI Studio, OpenRouter, OpenAI, Claude, or a compatible HTTPS endpoint with your own API key
+- Use optional Teams review stages with Translator, Proof-reader, Quality Checker, and Lead roles
+- Replace the translation master prompt with shared or personal Teams instructions
+- See release notes once per account and revisit them from the library
 - Scan selectable Japanese source text with Yomitan using the documented iframe setting
 - Work on desktop or mobile in light or Eclipse themes
 
@@ -43,11 +47,11 @@ You can use the local library without an account, or sign in with Google or emai
 3. Translate one chapter at a time, edit the output, and maintain glossary terms as needed.
 4. Return to the saved project later, read it in the built-in reader, or export the completed translation.
 
-Need a provider key? The app links directly to its **[API key setup guide](https://dusk-translate.vercel.app/guides/api-keys.html)** from the translation workspace.
+Need a provider key? The app links directly to its **[API key setup guide](https://www.dusktranslate.com/guides/api-keys.html)** from the translation workspace.
 
 ## Tech Stack
 
-DuskTranslate is a client-side JavaScript application built with **Vite** and deployed on **Vercel**. It uses **Supabase Auth, PostgreSQL, and Storage** for optional accounts and cloud projects, **IndexedDB** for the device library, and **JSZip** for EPUB and backup processing. Translation requests go directly from the browser to **Google AI Studio** or **OpenRouter** using the key supplied for the current editor session.
+DuskTranslate is a client-side JavaScript application built with **Vite** and deployed on **Vercel**. It uses **Supabase Auth, PostgreSQL, and Storage** for optional accounts and cloud projects, **IndexedDB** for the device library, and **JSZip** for EPUB and backup processing. Translation requests go directly from the browser to the selected provider using the supplied key. Provider credentials are session-only by default, with an explicit 30-day device-storage option for trusted personal devices.
 
 Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
 
@@ -96,9 +100,9 @@ Historical HTML builds are retained on the **[`legacy-standalone` branch](https:
 
 DuskTranslate does not include advertising or behavioral analytics. Account storage is optional, cloud projects are protected per user, and provider API keys are not saved with project or account data.
 
-- [Privacy Policy](https://dusk-translate.vercel.app/privacy.html)
-- [Terms and Conditions](https://dusk-translate.vercel.app/terms.html)
-- [Cookie Policy](https://dusk-translate.vercel.app/cookies.html)
+- [Privacy Policy](https://www.dusktranslate.com/privacy.html)
+- [Terms and Conditions](https://www.dusktranslate.com/terms.html)
+- [Cookie Policy](https://www.dusktranslate.com/cookies.html)
 - [Architecture](docs/ARCHITECTURE.md)
 
 ## Status

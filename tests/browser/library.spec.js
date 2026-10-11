@@ -126,6 +126,23 @@ test('feedback asks guests to sign in and supports an optional screenshot',async
   await expect(page.locator('#feedback-dialog')).toHaveCount(1);
   await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
 });
+test('new projects expose only the nine supported production language routes',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();
+  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish']);
+  await page.locator('#new-source-language').selectOption('en');
+  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish']);
+  await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
+});
+test('What’s New history opens from the library navigation',async({page})=>{
+  await page.goto('/');await page.getByRole('button',{name:'What’s New',exact:true}).click();
+  const dialog=page.locator('#whats-new-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('heading',{name:'Language routes and team review'})).toBeVisible();
+  await expect(dialog).toContainText('Provider model import now opens in a centered dialog.');
+  await dialog.getByRole('button',{name:'Close',exact:true}).click();
+  await expect(dialog).toBeHidden();
+});
 test('untrusted titles render as text',async({page})=>{
   const malicious={chapters:[{id:'<img src=x onerror=alert(1)>',text:'<svg onload=alert(2)> book text'}]};
   let dialogs=0;page.on('dialog',async d=>{dialogs++;await d.dismiss();});

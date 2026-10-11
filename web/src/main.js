@@ -13,6 +13,7 @@ import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { detectEpubLanguage, emptyWebNovel, parseSourceFile } from './source-import.js';
 import { TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
+import { LATEST_RELEASE_ID, RELEASES } from './releases.js';
 import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
@@ -107,7 +108,7 @@ async function showImages(){
 }
 async function exportTranslatedEpub(){
   if(!active)return;
-  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),base=rights.capabilities.exportSelection?active.snapshot:{...active.snapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=isEpub(active)?await buildTranslatedEpub(source,snapshot):await buildWebNovelEpub(active.title,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
+  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),workflowSnapshot=await workflowExportSnapshot(active),base=rights.capabilities.exportSelection?workflowSnapshot:{...workflowSnapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=isEpub(active)?await buildTranslatedEpub(source,snapshot):await buildWebNovelEpub(active.title,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
   catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
 }
 $('images-preview').defaultChecked=true;
@@ -157,6 +158,12 @@ function textExport(snapshot) {
     return translation ? [`${'─'.repeat(60)}\n[${chapter.id}]\n${'─'.repeat(60)}\n\n${translation}`] : [];
   }).join('\n\n');
 }
+async function workflowExportSnapshot(project){
+  if(!project||!isCloud(project))return project?.snapshot;
+  const state=await remote.workflow(project.id);
+  if(!state.config?.enabled)return project.snapshot;
+  return {...project.snapshot,translations:await remote.workflowPublished(project.id)};
+}
 function showExportSettings() {
   if (!active?.snapshot?.novel) return;
   const excluded = new Set(active.snapshot.exportExcluded || []);
@@ -201,7 +208,13 @@ async function currentEntitlements(project=active) {
     ? await remote.entitlements(project.id)
     : user ? await billingRequest('/api/paddle/status') : {tier:'free'};
   const result={...data,...describeEntitlements(data.tier)};
-  if(project&&!isCloud(project) && user&&result.capabilities.customPrompt)result.customInstructions=localStorage.getItem(`dusk-prompt:${user.id}:${project.id}`)||'';
+  if(project&&user&&result.capabilities.customPrompt){
+    const shared=isCloud(project)?result.customInstructions||'':localStorage.getItem(`dusk-prompt-shared:${user.id}:${project.id}`)||localStorage.getItem(`dusk-prompt:${user.id}:${project.id}`)||'';
+    const personal=localStorage.getItem(`dusk-prompt-personal:${user.id}:${project.id}`);
+    result.sharedInstructions=shared;
+    result.customInstructions=personal===null?shared:personal;
+    result.promptScope=personal===null?(shared?'shared':'builtin'):'personal';
+  }
   if(project && project===active){
     active.entitlements=result;
     $('editor').contentWindow?.postMessage({type:'host:entitlements',projectId:active.id,entitlements:result},location.origin);
@@ -213,7 +226,7 @@ async function requireFeature(feature) {
     const project=active,rights=await currentEntitlements();
     if(project!==active)return false;
     if(rights.capabilities[feature])return true;
-    const labels={consistency:'Consistency checking',rubyEdit:'Editing ruby',replaceImages:'Replacing book images',exportSelection:'Choosing exported chapters',customPrompt:'Custom translation instructions',readerLinks:'Public reader links'};
+    const labels={consistency:'Consistency checking',rubyEdit:'Editing ruby',replaceImages:'Replacing book images',exportSelection:'Choosing exported chapters',customPrompt:'Custom translation instructions',workflow:'Staged team review',readerLinks:'Public reader links'};
     await showUpgrade({feature:labels[feature]||feature,required:TIER_LABELS[FEATURE_TIERS[feature]]});
   } catch(error){announceSave(errorMessage(error));}
   return false;
@@ -221,23 +234,65 @@ async function requireFeature(feature) {
 async function showCustomInstructions(){
   const project=active;
   if(!project || project.accessRole==='viewer')return;
-  const dialog=document.createElement('dialog');dialog.className='quota-dialog';
-  dialog.innerHTML='<form><h2>Translation instructions</h2><p>These instructions supplement the shared fidelity rules. They do not guarantee error-free translation.</p><label>Project instructions<textarea rows="8" maxlength="10000"></textarea></label><p role="status"></p><footer><button type="button">Cancel</button><button type="submit">Save instructions</button></footer></form>';
-  const input=dialog.querySelector('textarea'),notice=dialog.querySelector('[role="status"]');
-  input.value=project.entitlements?.customInstructions||'';
-  dialog.querySelector('[type="button"]').onclick=()=>dialog.close();
-  dialog.addEventListener('close',()=>dialog.remove());
-  dialog.querySelector('form').onsubmit=async event=>{
+  const dialog=$('prompt-dialog'),input=$('prompt-text'),notice=$('prompt-error');
+  const rights=await currentEntitlements(project),source=project.snapshot?.sourceLanguage||'ja',target=project.snapshot?.targetLanguage||'en';
+  const builtin=$('editor').contentWindow?.DuskDefaultMasterPrompt?.({sourceLanguage:source,targetLanguage:target})||`Translate the identified ${languageName(source)} target passage into ${languageName(target)}.`;
+  const personalKey=`dusk-prompt-personal:${user.id}:${project.id}`;
+  const values={builtin,shared:rights.sharedInstructions||'',personal:localStorage.getItem(personalKey)??''};
+  let scope=rights.promptScope||'builtin';dialog.querySelector(`[name="prompt-scope"][value="${scope}"]`).checked=true;
+  const render=()=>{scope=dialog.querySelector('[name="prompt-scope"]:checked').value;input.value=values[scope]||builtin;input.readOnly=scope==='builtin';$('prompt-count').textContent=`${input.value.length.toLocaleString()} / 20,000 characters`;};
+  dialog.querySelectorAll('[name="prompt-scope"]').forEach(radio=>radio.onchange=render);
+  input.oninput=()=>{values[scope]=input.value;$('prompt-count').textContent=`${input.value.length.toLocaleString()} / 20,000 characters`;};
+  $('prompt-reset').onclick=()=>{if(scope!=='builtin'){values[scope]='';input.value='';input.dispatchEvent(new Event('input'));}};
+  $('prompt-form').onsubmit=async event=>{
     event.preventDefault();
     try{
       if(active!==project)throw new Error('Project changed. Reopen the instructions.');
-      if(!await requireFeature('customPrompt'))return;
-      if(!isCloud(project))localStorage.setItem(`dusk-prompt:${user.id}:${project.id}`,input.value);
-      else await remote.setInstructions(project.id,input.value);
+      const bytes=new TextEncoder().encode(input.value).length;
+      if(input.value.length>20000||bytes>80000)throw new Error('Prompts are limited to 20,000 characters and 80 KB.');
+      if(scope==='personal')localStorage.setItem(personalKey,input.value);else localStorage.removeItem(personalKey);
+      if(scope==='shared'){
+        if(!isCloud(project))localStorage.setItem(`dusk-prompt-shared:${user.id}:${project.id}`,input.value);
+        else await remote.setInstructions(project.id,input.value);
+      }
       await currentEntitlements(project);dialog.close();
     }catch(error){notice.textContent=errorMessage(error);}
   };
-  document.body.append(dialog);dialog.showModal();input.focus();
+  notice.textContent='';render();dialog.showModal();if(!input.readOnly)input.focus();
+}
+async function showWorkflow(context={}){
+  const project=active;if(!project||!isCloud(project))return announceSave('Team workflow is available for cloud projects.');
+  const dialog=$('workflow-dialog'),error=$('workflow-error');error.textContent='';
+  const refresh=async()=>{
+    const data=await remote.workflow(project.id),config=data.config,role=data.role;
+    $('workflow-summary').textContent=config?.enabled?`Your role: ${role||'Not assigned'} · Translator → ${config.proofreader_enabled?'Proof-reader → ':''}${config.qc_enabled?'Quality Checker → ':''}Lead → Published`:'Staged review is not enabled. Ordinary live collaboration remains active.';
+    const ownerProject=project.owner===user.id,form=$('workflow-config');form.hidden=!ownerProject;
+    $('workflow-enabled').checked=config?.enabled||false;$('workflow-proofreader').checked=config?.proofreader_enabled??true;$('workflow-qc').checked=config?.qc_enabled??true;
+    form.onsubmit=async event=>{event.preventDefault();try{await remote.configureWorkflow(project.id,$('workflow-enabled').checked,$('workflow-proofreader').checked,$('workflow-qc').checked);await refresh();}catch(e){error.textContent=errorMessage(e);}};
+    const members=$('workflow-members');members.replaceChildren();
+    if((role==='lead'||ownerProject)&&config?.enabled){
+      const collaborators=await remote.collaborators(project.id);members.append(el('h3','','Workflow roles'));
+      for(const member of collaborators){
+        const row=el('div','workflow-member'),label=el('span','',member.email||member.user_id),select=document.createElement('select');
+        for(const value of ['translator','proofreader','qc','lead']){const option=document.createElement('option');option.value=value;option.textContent={translator:'Translator / Junior Translator',proofreader:'Proof-reader',qc:'Quality Checker',lead:'Lead Translator'}[value];select.append(option);}
+        select.value=data.members.find(item=>item.userId===member.user_id)?.role||'translator';select.onchange=async()=>{try{await remote.setWorkflowRole(project.id,member.user_id,select.value);await refresh();}catch(e){error.textContent=errorMessage(e);}};row.append(label,select);members.append(row);
+      }
+    }
+    const queue=$('workflow-queue');queue.replaceChildren(),chapters=data.chapters||[];
+    for(const item of chapters.filter(ch=>ch.stage===role||role==='lead')){const row=el('article'),label=el('span','',`${item.chapter_id} · ${item.stage}${item.claimed_by?' · claimed':''}`);row.append(label);queue.append(row);}if(!queue.children.length)queue.append(el('p','field-hint','No chapters in your queue yet.'));
+    const current=$('workflow-current');current.replaceChildren();if(!context.chapterId||!config?.enabled)return;
+    const state=chapters.find(ch=>ch.chapter_id===context.chapterId)||{stage:'translator'},revisions=await remote.workflowRevisions(project.id,context.chapterId);
+    current.append(el('strong','',`${context.chapterId} · ${state.stage}`));
+    const tabs=el('div','reference-tabs'),compare=el('div','workflow-compare'),original=el('div','workflow-reference'),reference=el('div','workflow-reference'),refs={'Base MTL':revisions[0]?.base_mtl||'','Previous revision':revisions[0]?.translation||'',Published:revisions.find(rev=>rev.to_stage==='published')?.translation||''};
+    original.textContent=context.source||'No source available.';for(const [name,value] of Object.entries(refs))tabs.append(button(name,()=>{reference.textContent=value||'No reference available.';}));reference.textContent=refs['Base MTL']||refs['Previous revision']||'No reference available.';
+    let syncing=false;for(const [from,to] of [[original,reference],[reference,original]])from.addEventListener('scroll',()=>{if(syncing)return;syncing=true;const max=from.scrollHeight-from.clientHeight,other=to.scrollHeight-to.clientHeight;to.scrollTop=max>0?(from.scrollTop/max)*other:0;requestAnimationFrame(()=>{syncing=false;});});compare.append(original,reference);current.append(tabs,compare);
+    const translation=document.createElement('textarea');translation.value=context.translation||revisions[0]?.translation||'';translation.placeholder='Working translation';current.append(translation);
+    const base=document.createElement('textarea');base.value=revisions[0]?.base_mtl||'';base.placeholder='Optional base MTL. This is frozen when submitted.';base.rows=4;current.append(base);
+    const actions=el('div','workflow-actions'),run=async operation=>{try{const result=await remote.workflowAction(project.id,context.chapterId,operation,{translation:translation.value,baseMtl:base.value});if(result.stage==='published')$('editor').contentWindow.postMessage({type:'host:workflow-published',projectId:project.id,chapterId:context.chapterId,translation:result.translation},location.origin);await refresh();}catch(e){error.textContent=errorMessage(e);}};
+    if(state.stage===role){actions.append(button('Claim chapter',()=>run('claim')),button(role==='lead'?'Publish chapter':'Submit to next stage',()=>run(role==='lead'?'publish':'submit')));const order=['translator','proofreader','qc','lead'],target=document.createElement('select');for(const stage of order.filter(stage=>order.indexOf(stage)<order.indexOf(state.stage))){const option=document.createElement('option');option.value=stage;option.textContent=`Return to ${stage}`;target.append(option);}const note=document.createElement('input');note.placeholder='Required revision note';if(target.options.length)actions.append(target,note,button('Send back',async()=>{try{await remote.workflowAction(project.id,context.chapterId,'return',{targetStage:target.value,note:note.value,translation:translation.value,baseMtl:base.value});await refresh();}catch(e){error.textContent=errorMessage(e);}}));}
+    current.append(actions);
+  };
+  try{await refresh();dialog.showModal();}catch(e){error.textContent=errorMessage(e);dialog.showModal();}
 }
 async function quotaRequest(operation, data) {
   const result = await billingRequest('/api/translation-quota','POST',{...data,operation});
@@ -442,6 +497,29 @@ async function showFeedbackInbox(){
   }catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}
 }
 $('feedback').onclick=showFeedback;
+$('whats-new').onclick=()=>showWhatsNew(false);
+let releaseNoticeCheckedFor='';
+let releaseNoticeScheduledFor='';
+let releaseNoticeLastInteraction=Date.now();
+document.addEventListener('pointerdown',()=>{releaseNoticeLastInteraction=Date.now();},{passive:true});
+document.addEventListener('keydown',()=>{releaseNoticeLastInteraction=Date.now();},{passive:true});
+async function showWhatsNew(automatic=false){
+  const list=$('release-list');list.replaceChildren();for(const release of RELEASES){const article=el('article','release-note');article.append(el('p','eyebrow',release.date),el('h3','',release.title));const ul=document.createElement('ul');for(const item of release.items)ul.append(el('li','',item));article.append(ul);list.append(article);}
+  $('whats-new-dialog').showModal();
+  if(!automatic)return;
+  try{if(user)await billingRequest('/api/account-preferences','PUT',{lastSeenRelease:LATEST_RELEASE_ID});else localStorage.setItem('dusk-last-seen-release',LATEST_RELEASE_ID);}catch(error){$('whats-new-error').textContent=errorMessage(error);}
+}
+async function maybeShowWhatsNew(){
+  if(active||document.querySelector('dialog[open]')||Date.now()-releaseNoticeLastInteraction<5000)return;
+  const identity=user?.id||'guest';if(releaseNoticeCheckedFor===identity)return;releaseNoticeCheckedFor=identity;
+  try{const seen=user?(await billingRequest('/api/account-preferences')).lastSeenRelease:localStorage.getItem('dusk-last-seen-release');if(seen!==LATEST_RELEASE_ID&&!active&&!document.querySelector('dialog[open]'))await showWhatsNew(true);}catch{}
+}
+function scheduleWhatsNew(){
+  const identity=user?.id||'guest';
+  if(releaseNoticeScheduledFor===identity)return;
+  releaseNoticeScheduledFor=identity;
+  setTimeout(()=>{if((user?.id||'guest')===identity)maybeShowWhatsNew();},15000);
+}
 $('feedback-inbox').onclick=showFeedbackInbox;
 $('feedback-description').addEventListener('input',updateFeedbackCount);
 $('feedback-form').onsubmit=async event=>{
@@ -495,12 +573,12 @@ async function refresh() {
     })]:result;
     invitations=pendingInvitations;
     status('');render();
-    setLoading(false);
+    setLoading(false);scheduleWhatsNew();
   }catch(e){
     if(request !== libraryRequest || libraryOwner !== owner()) { setLoading(false); return; }
     projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
-    setLoading(false);
+    setLoading(false);scheduleWhatsNew();
   }
 }
 function render() {
@@ -870,10 +948,10 @@ async function openReader(id, edition = 'original', updateRoute = true) {
     const project = await loadProject(id);
     if (!project?.file) throw new Error('This project file is unavailable.');
     if(isEpub(project)){
-      const projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,project.snapshot):projectFile;
+      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot,projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,snapshot):projectFile;
       await presentReader(file,project.fileName,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION',project);
     }else{
-      prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,project.snapshot,edition);await renderReader();$('reader-editor').hidden=false;$('reader-status').textContent='Ready to read';
+      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot;prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,snapshot,edition);await renderReader();$('reader-editor').hidden=false;$('reader-status').textContent='Ready to read';
     }
     if (updateRoute) navigate(projectRoute('/reader', id, edition));
     status('');
@@ -1015,13 +1093,14 @@ window.addEventListener('message', async e => {
     return;
   }
   if (e.data.type === 'editor:action') {
-    const gated={ruby:'rubyEdit',rubyUpgrade:'rubyEdit',removeRuby:'rubyEdit',updateRuby:'rubyEdit',exportSettings:'exportSelection',consistency:'consistency',consistencyReview:'consistency',customPrompt:'customPrompt'};
+    const gated={ruby:'rubyEdit',rubyUpgrade:'rubyEdit',removeRuby:'rubyEdit',updateRuby:'rubyEdit',exportSettings:'exportSelection',consistency:'consistency',consistencyReview:'consistency',customPrompt:'customPrompt',workflow:'workflow'};
     if(gated[e.data.action] && !await requireFeature(gated[e.data.action]))return;
     if (e.data.action === 'comments' && e.data.projectId === active.id) comments.open(e.data.selection);
     if (e.data.action === 'ruby' && e.data.projectId === active.id) openRuby(e.data.selection);
     if (e.data.action === 'images' && e.data.projectId === active.id) showImages();
     if (e.data.action === 'chapters' && e.data.projectId === active.id) showChapterManager();
     if (e.data.action === 'exportEpub' && e.data.projectId === active.id) exportTranslatedEpub();
+    if (e.data.action === 'exportTxt' && e.data.projectId === active.id) {const snapshot=await workflowExportSnapshot(active),text=textExport(snapshot);if(!text)return announceSave('No published translations are ready to export.');download(`${safeFileName(active.title)}-translation.txt`,new Blob([text],{type:'text/plain;charset=utf-8'}));announceSave('Translation TXT downloaded');}
     if (['removeRuby','updateRuby'].includes(e.data.action) && e.data.projectId===active.id && active.accessRole!=='viewer' && typeof e.data.rubyId==='string' && projectCollaboration) {
       try{if(e.data.action==='updateRuby')projectCollaboration.updateRuby(e.data.rubyId,e.data.reading);else projectCollaboration.removeRuby(e.data.rubyId);}
       catch(error){announceSave(errorMessage(error));}
@@ -1036,6 +1115,7 @@ window.addEventListener('message', async e => {
     if (e.data.action === 'consistency') checkConsistency();
     if (e.data.action === 'consistencyReview') checkConsistency();
     if (e.data.action === 'customPrompt') showCustomInstructions();
+    if (e.data.action === 'workflow') showWorkflow(e.data);
     return;
   }
   if (e.data.type === 'editor:dictionary') {
