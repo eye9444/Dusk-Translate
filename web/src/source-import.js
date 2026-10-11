@@ -71,6 +71,7 @@ export async function parseEpubSource(file) {
   const opfEntry = zip.file(opfPath);
   if (!opfEntry) throw new Error('EPUB package could not be found.');
   const opf = parseXml(await opfEntry.async('string'), 'EPUB package');
+  const packageLanguage=(opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'').trim().toLowerCase().split(/[-_]/)[0];
   const opfDirectory = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/')) : '';
   const titles = await navigationTitles(opf, zip, opfDirectory);
   const items = new Map([...opf.getElementsByTagName('item')].map(item => [item.getAttribute('id'), item]));
@@ -93,7 +94,19 @@ export async function parseEpubSource(file) {
     });
   }
   if (!chapters.length) throw new Error('No readable chapters found in this book.');
-  return { chapters, _epubOpfPath:opfPath, _epubOpfDir:opfDirectory ? `${opfDirectory}/` : '' };
+  return { chapters, _epubOpfPath:opfPath, _epubOpfDir:opfDirectory ? `${opfDirectory}/` : '', ...(packageLanguage?{sourceLanguage:packageLanguage}:{}) };
+}
+
+export async function detectEpubLanguage(file) {
+  if (!/\.epub$/i.test(file?.name || '')) return '';
+  const zip=await JSZip.loadAsync(file);
+  const containerEntry=zip.file('META-INF/container.xml');
+  if(!containerEntry)return '';
+  const container=parseXml(await containerEntry.async('string'),'EPUB container');
+  const opfPath=archivePath(container.getElementsByTagName('rootfile')[0]?.getAttribute('full-path'));
+  const opfEntry=zip.file(opfPath);if(!opfEntry)return '';
+  const opf=parseXml(await opfEntry.async('string'),'EPUB package');
+  return (opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'').trim().toLowerCase().split(/[-_]/)[0];
 }
 
 export async function parseSourceFile(file) {

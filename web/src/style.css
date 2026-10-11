@@ -55,3 +55,4 @@ dialog{width:min(500px,calc(100% - 24px));max-height:90dvh;overflow:auto;color:v
 .feedback-item[open] summary{margin-bottom:18px}
 .feedback-preview{display:block;width:100%;height:auto;max-height:65vh;object-fit:contain;margin:16px 0;border-radius:6px}
 .feedback-body{white-space:pre-wrap;overflow-wrap:anywhere}
+.language-pair{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:end;gap:10px}.language-pair label{margin:0}.language-pair span{padding-bottom:12px;color:var(--muted)}#new-languages small{display:block;margin-top:8px;color:var(--muted)}

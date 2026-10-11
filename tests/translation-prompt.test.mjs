@@ -18,4 +18,12 @@ for (const fixture of fixtures) test('prompt contract: '+fixture.name,()=>{
   assert.match(prompt,/Return translation only/);
   assert.equal(prompt.split(fixture.source).length,2);
 });
+for(const [sourceLanguage,targetLanguage,sourceName,targetName] of [
+  ['ja','en','Japanese','English'],['ja','vi','Japanese','Vietnamese'],['ja','ru','Japanese','Russian'],
+  ['ja','de','Japanese','German'],['ja','es','Japanese','Spanish'],['en','vi','English','Vietnamese'],
+  ['en','ru','English','Russian'],['en','de','English','German'],['en','es','English','Spanish'],
+]) test(`prompt contract: ${sourceLanguage} to ${targetLanguage}`,()=>{
+  const prompt=globalThis.DuskTranslationPrompt({source:'SOURCE',sourceLanguage,targetLanguage});
+  assert.match(prompt,new RegExp(`Translate the identified ${sourceName} target passage into ${targetName}`));
+});
 // These fixtures validate construction, not the output of a probabilistic model.
