@@ -516,21 +516,23 @@ let releaseNoticeLastInteraction=Date.now();
 document.addEventListener('pointerdown',()=>{releaseNoticeLastInteraction=Date.now();},{passive:true});
 document.addEventListener('keydown',()=>{releaseNoticeLastInteraction=Date.now();},{passive:true});
 async function showWhatsNew(automatic=false){
+  if(!user)return;
   const list=$('release-list');list.replaceChildren();for(const release of RELEASES){const article=el('article','release-note');article.append(el('p','eyebrow',release.date),el('h3','',release.title));const ul=document.createElement('ul');for(const item of release.items)ul.append(el('li','',item));article.append(ul);list.append(article);}
   $('whats-new-dialog').showModal();
   if(!automatic)return;
-  try{if(user)await billingRequest('/api/account-preferences','PUT',{lastSeenRelease:LATEST_RELEASE_ID});else localStorage.setItem('dusk-last-seen-release',LATEST_RELEASE_ID);}catch(error){$('whats-new-error').textContent=errorMessage(error);}
+  try{await billingRequest('/api/account-preferences','PUT',{lastSeenRelease:LATEST_RELEASE_ID});}catch(error){$('whats-new-error').textContent=errorMessage(error);}
 }
 async function maybeShowWhatsNew(){
-  if(active||document.querySelector('dialog[open]')||Date.now()-releaseNoticeLastInteraction<5000)return;
-  const identity=user?.id||'guest';if(releaseNoticeCheckedFor===identity)return;releaseNoticeCheckedFor=identity;
-  try{const seen=user?(await billingRequest('/api/account-preferences')).lastSeenRelease:localStorage.getItem('dusk-last-seen-release');if(seen!==LATEST_RELEASE_ID&&!active&&!document.querySelector('dialog[open]'))await showWhatsNew(true);}catch{}
+  if(!user||active||document.querySelector('dialog[open]')||Date.now()-releaseNoticeLastInteraction<5000)return;
+  const identity=user.id;if(releaseNoticeCheckedFor===identity)return;releaseNoticeCheckedFor=identity;
+  try{const seen=(await billingRequest('/api/account-preferences')).lastSeenRelease;if(user?.id===identity&&seen!==LATEST_RELEASE_ID&&!active&&!document.querySelector('dialog[open]'))await showWhatsNew(true);}catch{}
 }
 function scheduleWhatsNew(){
-  const identity=user?.id||'guest';
+  if(!user)return;
+  const identity=user.id;
   if(releaseNoticeScheduledFor===identity)return;
   releaseNoticeScheduledFor=identity;
-  setTimeout(()=>{if((user?.id||'guest')===identity)maybeShowWhatsNew();},15000);
+  setTimeout(()=>{if(user?.id===identity)maybeShowWhatsNew();},15000);
 }
 $('feedback-inbox').onclick=showFeedbackInbox;
 $('feedback-description').addEventListener('input',updateFeedbackCount);
@@ -557,6 +559,8 @@ async function refresh() {
   let cached = [];
   $('pricing-nav-link').hidden = showingPricing;
   $('account').textContent = user ? 'Account' : 'Sign in';
+  $('whats-new').hidden=!user;
+  if(!user)$('whats-new-dialog').close();
   $('feedback-inbox').hidden=true;
   feedbackAdmin=false;
   if(user){const feedbackUserId=user.id;remote.feedbackAdmin().then(isAdmin=>{if(user?.id!==feedbackUserId)return;feedbackAdmin=Boolean(isAdmin);$('feedback-inbox').hidden=!feedbackAdmin;}).catch(()=>{});}
@@ -1823,6 +1827,8 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('recoveryUpdate'),0);
     if(user?.id!==next?.id){
+      $('whats-new-dialog').close();
+      releaseNoticeCheckedFor='';releaseNoticeScheduledFor='';
       comments.stop();
       projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;
       if(active){$('editor').src='about:blank';active=null;void releaseProjectLock();$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}

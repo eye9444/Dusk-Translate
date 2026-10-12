@@ -30,6 +30,14 @@ test('primary actions use accessible white text on the deeper orange',async({pag
   await expect(page.locator('#new-project')).toHaveCSS('color','rgb(255, 255, 255)');
 });
 
+test('signed-out welcome never automatically opens release notes',async({page})=>{
+  await page.clock.install();
+  await page.goto('/');
+  await expect(page.locator('#welcome-signin')).toBeVisible();
+  await page.clock.fastForward(20000);
+  await expect(page.locator('#whats-new-dialog')).toBeHidden();
+});
+
 test('the welcome planet spins, fades its cards, and rewards sustained rotation',async({page})=>{
   await page.route('https://www.youtube-nocookie.com/**',route=>route.fulfill({contentType:'text/html',body:'<p>Video player fixture</p>'}));
   await page.setViewportSize({width:1440,height:900});await page.goto('/');

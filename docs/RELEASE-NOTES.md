@@ -1,5 +1,10 @@
 # Release Notes
 
+## 0.4.3 - 2026-10-13
+
+- Show What's New only to signed-in accounts; guests and the sign-in page never open the popup.
+- Close release notes on account changes and discard checks started by a previous account.
+
 ## 0.4.2 - 2026-10-13
 
 - Replaced the copper moon with a grey cratered lunar surface.
