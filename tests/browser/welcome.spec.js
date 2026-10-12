@@ -29,3 +29,21 @@ test('primary actions use accessible white text on the deeper orange',async({pag
   await expect(page.locator('#new-project')).toHaveCSS('background-color','rgb(185, 71, 45)');
   await expect(page.locator('#new-project')).toHaveCSS('color','rgb(255, 255, 255)');
 });
+
+test('the welcome planet spins, fades its cards, and rewards sustained rotation',async({page})=>{
+  await page.setViewportSize({width:1440,height:900});await page.goto('/');
+  const art=page.locator('.welcome-art'),box=await art.boundingBox();
+  const visibleMoonLayers=await art.locator('.moon-revolution').evaluateAll((layers)=>layers.filter((layer)=>getComputedStyle(layer).visibility!=='hidden').length);
+  expect(visibleMoonLayers).toBe(1);
+  await expect(art.locator('.planet-auto-spin')).not.toHaveCSS('animation-name','none');
+  await page.mouse.move(box.x+120,box.y+box.height/2);await page.mouse.down();
+  await page.mouse.move(box.x+520,box.y+box.height/2,{steps:4});
+  expect(Number(await art.evaluate(node=>getComputedStyle(node).getPropertyValue('--card-opacity')))).toBeLessThan(1);
+  for(let index=0;index<3;index++){
+    await page.mouse.move(box.x+120,box.y+box.height/2,{steps:2});
+    await page.mouse.move(box.x+520,box.y+box.height/2,{steps:2});
+  }
+  await expect(page.locator('#heaven-sequence')).toBeVisible();
+  await expect(page.locator('#heaven-sequence')).toContainText('MADE IN HEAVEN');
+  await page.mouse.up();
+});

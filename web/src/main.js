@@ -25,8 +25,10 @@ import { startCollaboration } from './collaboration.js';
 import { startLocalDocument } from './local-document.js';
 import { listEpubImages, validateReplacement, applyImageReplacements } from './image-assets.js';
 import { setLoading } from './loading.js';
+import { createWelcomePlanet } from './welcome-planet.js';
 
 const $ = id => document.getElementById(id);
+createWelcomePlanet(document.querySelector('.welcome-art'),$('heaven-sequence'));
 const bytesToBase64=bytes=>{let value='';for(let index=0;index<bytes.length;index+=0x8000)value+=String.fromCharCode(...bytes.subarray(index,index+0x8000));return btoa(value);};
 const authReturn = new URL(location.href);
 const authParams = new URLSearchParams(authReturn.hash.slice(1));

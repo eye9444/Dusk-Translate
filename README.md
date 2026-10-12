@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.3.0" src="https://img.shields.io/badge/web_release-v0.3.0-17120f?style=for-the-badge" />
+  <img alt="Web release 0.4.0" src="https://img.shields.io/badge/web_release-v0.4.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
@@ -34,16 +34,18 @@ You can use the local library without an account, or sign in with Google or emai
 - Read standalone EPUBs, source books, and completed translated books in the built-in reader
 - Export translated work as TXT or EPUB
 - Use Google AI Studio, OpenRouter, OpenAI, Claude, or a compatible HTTPS endpoint with your own API key
-- Use optional Teams review stages with Translator, Proof-reader, Quality Checker, and Lead roles
+- Assign Translator, Proof-reader, Quality Checker, and Lead roles in optional Teams review stages
+- Compare source text, base MTL, and submitted revisions before approving a final chapter
 - Replace the translation master prompt with shared or personal Teams instructions
 - See release notes once per account and revisit them from the library
 - Scan selectable Japanese source text with Yomitan using the documented iframe setting
 - Work on desktop or mobile in light or Eclipse themes
+- Spin the animated landing-page planet and discover its hidden time-acceleration sequence
 
 ## Typical Workflow
 
 1. Open the website and create a project from an EPUB, TXT, or saved project file.
-2. Enter a Google AI Studio or OpenRouter API key in the translation workspace.
+2. Enter a supported provider key, choose its model, and optionally remember the provider settings on your trusted device.
 3. Translate one chapter at a time, edit the output, and maintain glossary terms as needed.
 4. Return to the saved project later, read it in the built-in reader, or export the completed translation.
 
@@ -54,6 +56,8 @@ Need a provider key? The app links directly to its **[API key setup guide](https
 DuskTranslate is a client-side JavaScript application built with **Vite** and deployed on **Vercel**. It uses **Supabase Auth, PostgreSQL, and Storage** for optional accounts and cloud projects, **IndexedDB** for the device library, and **JSZip** for EPUB and backup processing. Translation requests go directly from the browser to the selected provider using the supplied key. Provider credentials are session-only by default, with an explicit 30-day device-storage option for trusted personal devices.
 
 Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
+
+Version changes in `package.json` are verified by GitHub Actions and automatically receive a matching `v*` tag and GitHub Release after the checks pass.
 
 See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for the complete architecture, data flow, security boundaries, generated files, and a description of every tracked file.
 
@@ -82,6 +86,12 @@ npm run test:auth
 ```
 
 Account and cloud-project features require Supabase environment variables. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for the deployment configuration.
+
+To refresh the README screenshots in Eclipse mode, run the preview server and then:
+
+```bash
+npm run screenshots:readme
+```
 
 ## Active Project Structure
 
