@@ -72,7 +72,7 @@ function setAccess(role = 'owner') {
   canEdit = role !== 'viewer';
   document.body.classList.toggle('view-only', !canEdit);
   document.getElementById('tl-out').contentEditable = canEdit && !busy ? 'true' : 'false';
-  ['api-key','model-select','model-import','style-sel','glossary','btn-tl','btn-abort','btn-import','btn-retry','btn-clear','load-btn','load-json-btn'].forEach(id => {
+  ['api-key','model-select','model-import','glossary','btn-tl','btn-abort','btn-import','btn-retry','btn-clear','load-btn','load-json-btn'].forEach(id => {
     const control = document.getElementById(id);
     if (control) control.disabled = !canEdit;
   });
@@ -86,7 +86,7 @@ function snapshot() {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, sourceLanguage, targetLanguage, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style: document.getElementById('style-sel').value, spellcheck: spellcheckEnabled };
+  return { novel, sourceLanguage, targetLanguage, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style:'natural', spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -169,7 +169,6 @@ document.getElementById('tl-out').addEventListener('paste', e => {
   }
 });
 document.getElementById('glossary').addEventListener('input', () => emit());
-document.getElementById('style-sel').addEventListener('change', () => emit());
 document.getElementById('model-select').addEventListener('change', () => emit());
 const keyInput = document.getElementById('api-key');
 keyInput.type = 'password'; keyInput.autocomplete = 'off'; hidden = true;
@@ -177,7 +176,6 @@ toggleVis = function () { hidden = !hidden; keyInput.type = hidden ? 'password' 
 document.getElementById('vis-btn').setAttribute('aria-label', 'Show API key');
 document.getElementById('api-key').setAttribute('aria-label','AI provider API key');
 document.getElementById('model-select').setAttribute('aria-label','AI provider model');
-document.getElementById('style-sel').setAttribute('aria-label','Translation style');
 document.getElementById('src-txt').setAttribute('aria-label','Source text');
 document.getElementById('tl-out').setAttribute('aria-label','Editable translation');
 document.getElementById('glossary').setAttribute('aria-label','Glossary');
@@ -627,7 +625,6 @@ window.addEventListener('message', async e => {
     else { const text = await p.file.text(); novel = checkNovel({ chapters:[{id:'chapter-1',text,jp_char_count:(text.match(/[\u3040-\u9fff]/g)||[]).length}] }); }
     document.getElementById('glossary').value = p.snapshot?.glossary || '';
     restoreModelSelection(p.snapshot?.model);
-    document.getElementById('style-sel').value = p.snapshot?.style || 'natural';
     if (p.snapshot?.spellcheck === false) {
       spellcheckEnabled = false;
       document.getElementById('tl-out').spellcheck = false;
