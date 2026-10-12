@@ -16,12 +16,14 @@ export const PRICING_TIERS = Object.freeze([
     name: 'Starter',
     description: 'Generous essentials for personal translation projects.',
     features: [
-      'Unlimited local projects and translation with your own AI key',
+      'Unlimited local projects with EPUB, TXT, JSON, and pasted chapters',
+      'Japanese to English, Vietnamese, Russian, German, or Spanish',
+      'English to Vietnamese, Russian, German, or Spanish',
+      'Google AI Studio, OpenRouter, OpenAI, Claude, and compatible HTTPS endpoints',
       '3 cloud projects and 100 MB of cloud storage',
       '30,000 cloud translation characters per day',
       '2 people per cloud project, including the owner',
-      'Editor, glossary, dictionary, reader, and find/replace',
-      'TXT/EPUB exports, backups, and collaborator comments',
+      'Glossary, dictionary, reader, find/replace, TXT/EPUB exports, and backups',
     ],
     priceId: {
       month: 'pri_01m3ytbcem2m6vyat2nrgmx0zk',
@@ -38,6 +40,7 @@ export const PRICING_TIERS = Object.freeze([
       '5 people per cloud project, including the owner',
       'Consistency checker and ruby text editing',
       'Replace EPUB images and choose exported chapters',
+      'Public reader preparation and advanced project tools',
     ],
     priceId: {
       month: 'pri_01m41bn725t30w2ta3zjf181mx',
@@ -46,12 +49,15 @@ export const PRICING_TIERS = Object.freeze([
   },
   {
     name: 'Teams',
-    description: 'Advanced publishing and collaboration for larger projects.',
+    description: 'A staged translation room for organized publishing teams.',
     features: [
       'Everything in Pro',
       '200 cloud projects and 5 GB of cloud storage',
       '10 people per cloud project, including the owner',
-      'Custom project translation instructions',
+      'Lead, Translator, Proof-reader, and Quality Checker roles',
+      'Assigned chapter queues with submit, return, review, and final approval stages',
+      'Side-by-side source, base MTL, and revision comparison',
+      'Shared project prompts and personal master-prompt overrides',
       'Public EPUB reader links with reader comments',
     ],
     priceId: {

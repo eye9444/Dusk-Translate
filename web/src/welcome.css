@@ -25,3 +25,46 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 *:focus,*:focus-visible{outline:none!important}
 #brand{user-select:none}
 .welcome-actions .primary .button-arrow{margin-left:12px}.welcome-actions .button-arrow{width:16px;height:16px}
+
+/* The hero illustration behaves like a small mechanical orrery. */
+.welcome-art{--card-opacity:1;cursor:grab;touch-action:pan-y;user-select:none}
+.welcome-art:focus-visible{outline:1px solid var(--accent)!important;outline-offset:10px;border-radius:50%}
+.welcome-art.is-dragging{cursor:grabbing}
+.planet-scene{z-index:0}
+.specimen{z-index:2;opacity:var(--card-opacity);transition:opacity .32s ease,filter .32s ease}
+.welcome-art.is-spinning .specimen{filter:blur(.8px)}
+.art-caption{z-index:3}
+.planet-drag-spin,.planet-auto-spin,.orbit-back,.orbit-front{transform-box:view-box;transform-origin:350px 290px}
+.planet-auto-spin{animation:planet-idle-spin 28s linear infinite}
+.planet-surface{fill:#7d240f42;stroke:#ffd28a30;stroke-width:1.2}
+.planet-surface .surface-line{fill:none;stroke:#ffd28a24;stroke-width:1}
+.orbit-back,.orbit-front{stroke:#e8783260;animation:orbit-idle-drift 18s ease-in-out infinite alternate}
+.orbit-front{animation-direction:alternate-reverse}
+.moon-revolution{pointer-events:none}
+.moon-back{visibility:hidden}
+.hero-moon{filter:drop-shadow(0 3px 8px #150600aa)}
+.moon-glint{fill:none;stroke:#fff0cf99;stroke-width:2;stroke-linecap:round}
+.welcome-art.is-spinning .planet-auto-spin{animation-duration:1.6s}
+.welcome-art.is-spinning .orbit-back,.welcome-art.is-spinning .orbit-front{animation-duration:1.2s}
+@keyframes planet-idle-spin{to{transform:rotate(360deg)}}
+@keyframes orbit-idle-drift{from{transform:rotate(-2deg)}to{transform:rotate(3deg)}}
+
+.heaven-sequence{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;justify-items:center;overflow:hidden;background:radial-gradient(circle at 50% 46%,#ffb35f55 0 8%,#551e15cc 30%,#080706f7 72%);color:#fff;pointer-events:none;opacity:0}
+.heaven-sequence[hidden]{display:none}
+.heaven-sequence.is-running{animation:heaven-arrival 6.2s ease-in-out both}
+.heaven-stars{position:absolute;inset:-35%;background:repeating-conic-gradient(from 0deg at 50% 50%,#ffb15f00 0 4deg,#ffb15f66 4.2deg 4.5deg,#ffb15f00 4.8deg 9deg);mask:radial-gradient(circle,#0000 0 8%,#000 32%);animation:heaven-stars 1.1s linear infinite}
+.heaven-clock{position:relative;width:min(48vw,420px);aspect-ratio:1;border:1px solid #ffbe7a99;border-radius:50%;box-shadow:0 0 80px #ff713b44,inset 0 0 60px #ff713b22;animation:heaven-clock 1s linear infinite}
+.heaven-clock:before,.heaven-clock:after,.heaven-clock i{content:'';position:absolute;left:50%;top:50%;width:2px;height:42%;background:linear-gradient(#fff,#ff783e);transform-origin:50% 100%;box-shadow:0 0 12px #fff}
+.heaven-clock:before{transform:translate(-50%,-100%) rotate(70deg);animation:heaven-hand .46s linear infinite}
+.heaven-clock:after{height:30%;transform:translate(-50%,-100%) rotate(210deg);animation:heaven-hand 2.1s linear infinite reverse}
+.heaven-clock i{height:15%;transform:translate(-50%,-100%) rotate(320deg)}
+.heaven-sequence p,.heaven-sequence strong,.heaven-sequence small{position:relative;text-align:center;text-shadow:0 3px 24px #000;letter-spacing:.26em}
+.heaven-sequence p{margin:28px 0 6px;font:11px 'IBM Plex Mono',monospace}
+.heaven-sequence strong{font:italic clamp(42px,8vw,110px)/.9 'Newsreader',serif;color:#ffb06d;letter-spacing:-.04em}
+.heaven-sequence small{margin-top:18px;font:9px 'IBM Plex Mono',monospace;color:#e9d5c3}
+@keyframes heaven-arrival{0%,100%{opacity:0}8%,86%{opacity:1}}
+@keyframes heaven-stars{to{transform:rotate(360deg) scale(1.15)}}
+@keyframes heaven-clock{to{transform:rotate(360deg)}}
+@keyframes heaven-hand{to{transform:translate(-50%,-100%) rotate(430deg)}}
+
+@media(prefers-reduced-motion:reduce){.planet-auto-spin,.orbit-back,.orbit-front,.heaven-stars,.heaven-clock,.heaven-clock:before,.heaven-clock:after{animation:none!important}.specimen{transition:none}.heaven-sequence.is-running{animation:heaven-arrival 6.2s ease-in-out both}}

@@ -1,6 +1,6 @@
 {
   "name": "dusk-translate",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test --config=config/playwright.config.js",
     "test:auth": "playwright test --config=config/playwright.auth.config.js",
-    "test:modules": "playwright test --config=config/playwright.modules.config.js"
+    "test:modules": "playwright test --config=config/playwright.modules.config.js",
+    "screenshots:readme": "node scripts/capture-readme-screenshots.mjs"
   },
   "dependencies": {
     "@paddle/paddle-js": "^1.6.5",
