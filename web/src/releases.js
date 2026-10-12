@@ -1,4 +1,8 @@
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-12-v041',date:'2026-10-12',title:'A smoother spin',items:Object.freeze([
+    'The smooth orange globe returns with moving lighting, connected orbits, and rotation controlled by dragging.',
+    'Cards fade completely during a spin and return afterward, with no blur or click-triggered acceleration.',
+  ])}),
   Object.freeze({id:'2026-10-12-v040',date:'2026-10-12',title:'A world in motion',items:Object.freeze([
     'The landing-page planet, orbit lines, and moon now move, and the globe can be spun with a pointer, touch, or keyboard.',
     'Plan details now describe supported providers, language routes, and the complete Teams review pipeline.',
