@@ -134,14 +134,12 @@ test('new projects expose only the nine supported production language routes',as
   await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish']);
   await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
 });
-test('What’s New history opens from the library navigation',async({page})=>{
-  await page.goto('/');await page.getByRole('button',{name:'What’s New',exact:true}).click();
-  const dialog=page.locator('#whats-new-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('heading',{name:'Language routes and team review'})).toBeVisible();
-  await expect(dialog).toContainText('Provider model import now opens in a centered dialog.');
-  await dialog.getByRole('button',{name:'Close',exact:true}).click();
-  await expect(dialog).toBeHidden();
+test('What’s New stays hidden for the local guest library',async({page})=>{
+  await page.clock.install();
+  await page.goto('/');
+  await expect(page.locator('#whats-new')).toBeHidden();
+  await page.clock.fastForward(20000);
+  await expect(page.locator('#whats-new-dialog')).toBeHidden();
 });
 test('untrusted titles render as text',async({page})=>{
   const malicious={chapters:[{id:'<img src=x onerror=alert(1)>',text:'<svg onload=alert(2)> book text'}]};
