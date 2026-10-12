@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.4.1" src="https://img.shields.io/badge/web_release-v0.4.1-17120f?style=for-the-badge" />
+  <img alt="Web release 0.4.2" src="https://img.shields.io/badge/web_release-v0.4.2-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 

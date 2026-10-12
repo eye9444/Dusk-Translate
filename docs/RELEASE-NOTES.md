@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.4.2 - 2026-10-13
+
+- Replaced the copper moon with a grey cratered lunar surface.
+- Prevented text selection and image dragging during globe interaction.
+- Made the hidden sequence require fifteen turns within fifteen seconds, resetting after a pause.
+- Replaced the generated cutscene with the selected JoJo Land animation, loaded from YouTube only after unlocking, with attribution and a Close control.
+
 ## 0.4.1 - 2026-10-12
 
 - Restored the smooth orange planet with moving directional lighting.

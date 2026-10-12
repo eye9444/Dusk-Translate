@@ -1,4 +1,8 @@
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-13-v042',date:'2026-10-13',title:'Moonlight and a hidden animation',items:Object.freeze([
+    'A cratered grey moon now follows the globe, and dragging no longer selects the card text.',
+    'Sustained spinning unlocks a Made in Heaven fan animation with playback controls and creator credit.',
+  ])}),
   Object.freeze({id:'2026-10-12-v041',date:'2026-10-12',title:'A smoother spin',items:Object.freeze([
     'The smooth orange globe returns with moving lighting, connected orbits, and rotation controlled by dragging.',
     'Cards fade completely during a spin and return afterward, with no blur or click-triggered acceleration.',

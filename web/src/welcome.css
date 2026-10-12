@@ -30,6 +30,7 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 .welcome-art{--card-opacity:1;cursor:grab;touch-action:pan-y;user-select:none}
 .welcome-art:focus-visible{outline:1px solid var(--accent)!important;outline-offset:10px;border-radius:50%}
 .welcome-art.is-dragging{cursor:grabbing}
+.welcome-art,.welcome-art *{-webkit-user-select:none;user-select:none;-webkit-user-drag:none}
 .planet-scene{z-index:0}
 .welcome-art .specimen{z-index:2;opacity:1;transition:opacity .22s ease;pointer-events:none}
 .welcome-art.is-spinning .specimen{opacity:0}
@@ -40,22 +41,19 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 .hero-moon{filter:drop-shadow(0 3px 8px #150600aa)}
 .moon-glint{fill:none;stroke:#fff0cf99;stroke-width:2;stroke-linecap:round}
 
-.heaven-sequence{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;justify-items:center;overflow:hidden;background:radial-gradient(circle at 50% 46%,#ffb35f55 0 8%,#551e15cc 30%,#080706f7 72%);color:#fff;pointer-events:none;opacity:0}
+.heaven-sequence{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:clamp(16px,4vw,64px);overflow:auto;background:#080706f5;backdrop-filter:blur(10px);color:#f4eee4}
 .heaven-sequence[hidden]{display:none}
-.heaven-sequence.is-running{animation:heaven-arrival 6.2s ease-in-out both}
-.heaven-stars{position:absolute;inset:-35%;background:repeating-conic-gradient(from 0deg at 50% 50%,#ffb15f00 0 4deg,#ffb15f66 4.2deg 4.5deg,#ffb15f00 4.8deg 9deg);mask:radial-gradient(circle,#0000 0 8%,#000 32%);animation:heaven-stars 1.1s linear infinite}
-.heaven-clock{position:relative;width:min(48vw,420px);aspect-ratio:1;border:1px solid #ffbe7a99;border-radius:50%;box-shadow:0 0 80px #ff713b44,inset 0 0 60px #ff713b22;animation:heaven-clock 1s linear infinite}
-.heaven-clock:before,.heaven-clock:after,.heaven-clock i{content:'';position:absolute;left:50%;top:50%;width:2px;height:42%;background:linear-gradient(#fff,#ff783e);transform-origin:50% 100%;box-shadow:0 0 12px #fff}
-.heaven-clock:before{transform:translate(-50%,-100%) rotate(70deg);animation:heaven-hand .46s linear infinite}
-.heaven-clock:after{height:30%;transform:translate(-50%,-100%) rotate(210deg);animation:heaven-hand 2.1s linear infinite reverse}
-.heaven-clock i{height:15%;transform:translate(-50%,-100%) rotate(320deg)}
-.heaven-sequence p,.heaven-sequence strong,.heaven-sequence small{position:relative;text-align:center;text-shadow:0 3px 24px #000;letter-spacing:.26em}
-.heaven-sequence p{margin:28px 0 6px;font:11px 'IBM Plex Mono',monospace}
-.heaven-sequence strong{font:italic clamp(42px,8vw,110px)/.9 'Newsreader',serif;color:#ffb06d;letter-spacing:-.04em}
-.heaven-sequence small{margin-top:18px;font:9px 'IBM Plex Mono',monospace;color:#e9d5c3}
-@keyframes heaven-arrival{0%,100%{opacity:0}8%,86%{opacity:1}}
-@keyframes heaven-stars{to{transform:rotate(360deg) scale(1.15)}}
-@keyframes heaven-clock{to{transform:rotate(360deg)}}
-@keyframes heaven-hand{to{transform:translate(-50%,-100%) rotate(430deg)}}
-
-@media(prefers-reduced-motion:reduce){.planet-auto-spin,.orbit-back,.orbit-front,.heaven-stars,.heaven-clock,.heaven-clock:before,.heaven-clock:after{animation:none!important}.specimen{transition:none}.heaven-sequence.is-running{animation:heaven-arrival 6.2s ease-in-out both}}
+.heaven-cinema{width:min(1100px,100%);animation:cinema-arrive .5s ease both}
+.heaven-cinema header,.heaven-cinema footer{display:flex;align-items:center;justify-content:space-between;gap:18px}
+.heaven-cinema header{padding-bottom:22px}
+.heaven-cinema p{font:9px 'IBM Plex Mono',monospace;letter-spacing:.22em;color:#c39163;margin:0 0 10px}
+.heaven-cinema h2{font:italic clamp(32px,5vw,64px)/1 'Newsreader',serif;margin:0}
+.heaven-screen{aspect-ratio:16/9;background:#000;border:1px solid #c3916344;box-shadow:0 30px 100px #0008}
+.heaven-screen iframe{display:block;width:100%;height:100%;border:0}
+.heaven-cinema footer{padding-top:18px;color:#b6a897;font:11px 'IBM Plex Mono',monospace;flex-wrap:wrap}
+.heaven-original{color:#dfb080;text-underline-offset:4px}
+.heaven-skip{color:#f4eee4;border:1px solid #c3916355;background:#201910;padding:10px 14px;white-space:nowrap}
+.heaven-skip span{font:10px 'IBM Plex Mono',monospace;opacity:.55;margin-left:12px}
+.heaven-skip:focus-visible,.heaven-original:focus-visible{outline:2px solid #dfb080!important;outline-offset:4px}
+@keyframes cinema-arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.heaven-cinema{animation:none}.welcome-art .specimen{transition:none}}

@@ -31,23 +31,39 @@
           <defs>
             <radialGradient id="hero-planet" cx="42%" cy="36%" r="72%"><stop offset="0" stop-color="#ffd184"/><stop offset=".24" stop-color="#ff8b37"/><stop offset=".75" stop-color="#c33f17"/><stop offset="1" stop-color="#591607"/></radialGradient>
             <clipPath id="hero-planet-clip"><circle cx="350" cy="290" r="225"/></clipPath>
-            <radialGradient id="hero-moon" cx="35%" cy="30%" r="70%"><stop offset="0" stop-color="#ffe0b7"/><stop offset=".48" stop-color="#cf774d"/><stop offset="1" stop-color="#4a1e18"/></radialGradient>
+            <radialGradient id="hero-moon" cx="30%" cy="26%" r="76%"><stop offset="0" stop-color="#e2ded3"/><stop offset=".5" stop-color="#99988f"/><stop offset=".82" stop-color="#53555a"/><stop offset="1" stop-color="#24282e"/></radialGradient>
+            <g id="lunar-body">
+              <circle r="18" fill="url(#hero-moon)"/>
+              <path d="M-11-8Q-3-14 1-8T8-4Q12 2 5 6T-9 4Q-15 1-11-8" fill="#4b5055" opacity=".3"/>
+              <g fill="#55595c" stroke="#ddd9cb" stroke-opacity=".4" stroke-width=".6">
+                <circle cx="-7" cy="-7" r="3.4"/><circle cx="5" cy="-10" r="2.1"/>
+                <circle cx="8" cy="4" r="4.2"/><circle cx="-6" cy="8" r="2.8"/>
+                <circle cx="-12" cy="1" r="1.3"/><circle cx="1" cy="1" r="1.5"/>
+              </g>
+              <path d="M-10-12a16 16 0 0 1 14-3" fill="none" stroke="#f2eee1" stroke-opacity=".55" stroke-linecap="round"/>
+            </g>
           </defs>
           <g class="orbit-back" fill="none" stroke-width="1"><path d="M -340 0 A 340 95 0 0 1 340 0" transform="translate(350 290) rotate(10)"/><path d="M -320 0 A 320 85 0 0 1 320 0" transform="translate(350 290) rotate(-31)"/></g>
-          <g class="moon-revolution moon-back" transform="translate(76 455)"><circle class="hero-moon" r="18" fill="url(#hero-moon)"/><path class="moon-glint" d="M-8-11a14 14 0 0 1 16-2"/></g>
+          <g class="moon-revolution moon-back" transform="translate(76 455)"><use href="#lunar-body"/></g>
           <g class="planet-drag-spin">
             <g class="planet-auto-spin">
               <circle class="hero-planet" cx="350" cy="290" r="225" fill="url(#hero-planet)"/>
             </g>
           </g>
           <g class="orbit-front" fill="none" stroke-width="1"><path d="M 340 0 A 340 95 0 0 1 -340 0" transform="translate(350 290) rotate(10)"/><path d="M 320 0 A 320 85 0 0 1 -320 0" transform="translate(350 290) rotate(-31)"/></g>
-          <g class="moon-revolution moon-front" transform="translate(76 455)"><circle class="hero-moon" r="18" fill="url(#hero-moon)"/><path class="moon-glint" d="M-8-11a14 14 0 0 1 16-2"/></g>
+          <g class="moon-revolution moon-front" transform="translate(76 455)"><use href="#lunar-body"/></g>
         </svg>
         <div class="specimen source-page"><span>01 / ORIGINAL</span><p lang="ja">物語は、<br>ここから。</p><small>JAPANESE</small></div>
         <div class="specimen translated-page"><img src="/brand/dusk-mark.svg" width="42" height="42" alt="DuskTranslate logo"><span>02 / A NEW PERSPECTIVE</span><p>The story<br>starts <em>here.</em></p><small>ENGLISH</small></div>
         <span class="art-caption">DRAG THE WORLD. KEEP THE WORDS.</span>
       </div>
-      <div id="heaven-sequence" class="heaven-sequence" hidden aria-live="polite"><div class="heaven-stars"></div><div class="heaven-clock" aria-hidden="true"><i></i></div><p>TIME ACCELERATES</p><strong>MADE IN HEAVEN</strong><small>A NEW READING UNIVERSE</small></div>
+      <div id="heaven-sequence" class="heaven-sequence" hidden role="dialog" aria-modal="true" aria-label="Made in Heaven">
+        <div class="heaven-cinema">
+          <header><div><p>YOU HAVE ACCELERATED TIME</p><h2>Made in Heaven</h2></div><button type="button" class="heaven-skip">Close <span>Esc</span></button></header>
+          <div class="heaven-screen"><iframe title="Made in Heaven fan animation" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+          <footer><span>Time is about to speed up! / JoJo Land</span><a class="heaven-original" target="_blank" rel="noopener noreferrer">Watch original on YouTube</a></footer>
+        </div>
+      </div>
       <div class="welcome-notes"><p><span>01</span>Import EPUB, TXT, or JSON.</p><p><span>02</span>Translate, edit, and export.</p><p><span>03</span>Resume saved projects.</p></div>
     </section>
     <section id="pricing" class="pricing-page" hidden aria-labelledby="pricing-title">
