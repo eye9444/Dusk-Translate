@@ -31,6 +31,7 @@ test('primary actions use accessible white text on the deeper orange',async({pag
 });
 
 test('the welcome planet spins, fades its cards, and rewards sustained rotation',async({page})=>{
+  await page.route('https://www.youtube-nocookie.com/**',route=>route.fulfill({contentType:'text/html',body:'<p>Video player fixture</p>'}));
   await page.setViewportSize({width:1440,height:900});await page.goto('/');
   const art=page.locator('.welcome-art'),box=await art.boundingBox();
   const visibleMoonLayers=await art.locator('.moon-revolution').evaluateAll((layers)=>layers.filter((layer)=>getComputedStyle(layer).visibility!=='hidden').length);
@@ -51,8 +52,18 @@ test('the welcome planet spins, fades its cards, and rewards sustained rotation'
     await page.mouse.move(box.x+120,box.y+box.height/2,{steps:2});
     await page.mouse.move(box.x+520,box.y+box.height/2,{steps:2});
   }
+  await expect(page.locator('#heaven-sequence')).toBeHidden();
+  expect(await page.evaluate(()=>getSelection().toString())).toBe('');
+  for(let index=0;index<12;index++){
+    await page.mouse.move(box.x+120,box.y+box.height/2,{steps:2});
+    await page.mouse.move(box.x+520,box.y+box.height/2,{steps:2});
+  }
   await expect(page.locator('#heaven-sequence')).toBeVisible();
-  await expect(page.locator('#heaven-sequence')).toContainText('MADE IN HEAVEN');
+  await expect(page.locator('#heaven-sequence iframe')).toHaveAttribute('src',/youtube-nocookie.com\/embed\/jWOetWUeAts/);
   await page.mouse.up();
+  await page.getByRole('button',{name:'Close Esc'}).click();
+  await expect(page.locator('#heaven-sequence')).toBeHidden();
+  await expect(page.locator('#heaven-sequence iframe')).not.toHaveAttribute('src');
+  await expect(page.locator('#welcome')).not.toHaveAttribute('inert');
   await expect(art.locator('.source-page')).toHaveCSS('opacity','1');
 });

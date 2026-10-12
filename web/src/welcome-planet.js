@@ -5,7 +5,14 @@ export function createWelcomePlanet(stage, sequence) {
   const moons = [...stage.querySelectorAll('.moon-revolution')];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let angle=0, total=0, phase=Math.PI, pointer=null, lastX=0, lastMove=0, distance=0;
-  let velocity=0, previous=null, frame, timer, triggered=false;
+  let velocity=0, previous=null, frame, timer, triggered=false, lastTurn=0, burstStarted=0;
+  let returnFocus=null, inertStates=[];
+  const closeSequence=()=>{
+    clearTimeout(timer); sequence.hidden=true;sequence.classList.remove('is-running');
+    sequence.querySelector('iframe').removeAttribute('src');
+    for(const [child,inert] of inertStates)child.inert=inert;
+    returnFocus?.focus({preventScroll:true});
+  };
   function render() {
     const radians=angle*Math.PI/180, tilt=3*Math.sin(radians);
     light.setAttribute('cx', `${50-8*Math.cos(radians)+12*Math.sin(radians)}%`);
@@ -20,10 +27,23 @@ export function createWelcomePlanet(stage, sequence) {
     stage.dataset.rotation=String(angle);
   }
   function turn(delta) {
+    const now=performance.now();
+    if(now-lastTurn>1200||now-burstStarted>15000){total=0;burstStarted=now;}
+    lastTurn=now;
     angle+=delta; phase+=delta*Math.PI/180; total+=Math.abs(delta);
-    if(total>=1440&&!triggered&&sequence) {
-      triggered=true; sequence.hidden=false; sequence.classList.add('is-running');
-      timer=setTimeout(()=>{sequence.hidden=true;sequence.classList.remove('is-running');},6200);
+    if(total>=5400&&!triggered&&sequence) {
+      triggered=true;
+      sequence.querySelector('iframe').src='https://www.youtube-nocookie.com/embed/jWOetWUeAts?autoplay=1&playsinline=1&rel=0';
+      sequence.querySelector('a').href='https://www.youtube.com/watch?v=jWOetWUeAts';
+      // Lift the overlay out of the welcome section so navigation and stacking cannot clip it.
+      document.body.append(sequence);
+      returnFocus=document.activeElement;
+      if(pointer!==null&&stage.hasPointerCapture(pointer))stage.releasePointerCapture(pointer);
+      pointer=null;velocity=0;stage.classList.remove('is-dragging','is-spinning');
+      inertStates=[...document.querySelector('.app-window').children].map(child=>[child,child.inert]);
+      for(const child of document.querySelector('.app-window').children)child.inert=true;
+      sequence.hidden=false; sequence.classList.add('is-running');
+      sequence.querySelector('button').focus({preventScroll:true});
     }
     render();
   }
@@ -43,11 +63,14 @@ export function createWelcomePlanet(stage, sequence) {
   }
   function down(event) {
     if(event.button!==0||pointer!==null)return;
+    event.preventDefault();
+    window.getSelection()?.removeAllRanges();
     pointer=event.pointerId;lastX=event.clientX;lastMove=performance.now();distance=0;velocity=0;
     stage.setPointerCapture(pointer);
   }
   function move(event) {
     if(event.pointerId!==pointer)return;
+    event.preventDefault();
     const now=performance.now(), dx=event.clientX-lastX;
     distance+=Math.abs(dx);
     const delta=dx*360/Math.max(200,stage.clientWidth);
@@ -59,6 +82,7 @@ export function createWelcomePlanet(stage, sequence) {
     if(event.pointerId!==pointer)return;
     if(performance.now()-lastMove>100||event.type==='pointercancel'||reduced)velocity=0;
     pointer=null;stage.classList.remove('is-dragging');
+    window.getSelection()?.removeAllRanges();
     if(stage.hasPointerCapture(event.pointerId))stage.releasePointerCapture(event.pointerId);
   }
   function key(event) {
@@ -67,7 +91,11 @@ export function createWelcomePlanet(stage, sequence) {
     const delta=event.key==='ArrowRight'?18:-18;turn(delta);velocity=reduced?0:delta/100;
   }
   render();frame=requestAnimationFrame(animate);
-  const handlers={pointerdown:down,pointermove:move,pointerup:release,pointercancel:release,keydown:key};
+  const blockSelection=event=>event.preventDefault();
+  const escape=event=>{if(!sequence?.hidden&&event.key==='Escape')closeSequence();};
+  sequence?.querySelector('button').addEventListener('click',closeSequence);
+  document.addEventListener('keydown',escape);
+  const handlers={pointerdown:down,pointermove:move,pointerup:release,pointercancel:release,keydown:key,selectstart:blockSelection,dragstart:blockSelection};
   for(const [name,handler] of Object.entries(handlers))stage.addEventListener(name,handler);
-  return {destroy(){cancelAnimationFrame(frame);clearTimeout(timer);for(const [name,handler] of Object.entries(handlers))stage.removeEventListener(name,handler);}};
+  return {destroy(){cancelAnimationFrame(frame);clearTimeout(timer);document.removeEventListener('keydown',escape);sequence?.querySelector('button').removeEventListener('click',closeSequence);for(const [name,handler] of Object.entries(handlers))stage.removeEventListener(name,handler);}};
 }
