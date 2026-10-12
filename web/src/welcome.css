@@ -31,23 +31,14 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 .welcome-art:focus-visible{outline:1px solid var(--accent)!important;outline-offset:10px;border-radius:50%}
 .welcome-art.is-dragging{cursor:grabbing}
 .planet-scene{z-index:0}
-.specimen{z-index:2;opacity:var(--card-opacity);transition:opacity .32s ease,filter .32s ease}
-.welcome-art.is-spinning .specimen{filter:blur(.8px)}
+.welcome-art .specimen{z-index:2;opacity:1;transition:opacity .22s ease;pointer-events:none}
+.welcome-art.is-spinning .specimen{opacity:0}
 .art-caption{z-index:3}
-.planet-drag-spin,.planet-auto-spin,.orbit-back,.orbit-front{transform-box:view-box;transform-origin:350px 290px}
-.planet-auto-spin{animation:planet-idle-spin 28s linear infinite}
-.planet-surface{fill:#7d240f42;stroke:#ffd28a30;stroke-width:1.2}
-.planet-surface .surface-line{fill:none;stroke:#ffd28a24;stroke-width:1}
-.orbit-back,.orbit-front{stroke:#e8783260;animation:orbit-idle-drift 18s ease-in-out infinite alternate}
-.orbit-front{animation-direction:alternate-reverse}
+.orbit-back,.orbit-front{stroke:#e8783260}
 .moon-revolution{pointer-events:none}
 .moon-back{visibility:hidden}
 .hero-moon{filter:drop-shadow(0 3px 8px #150600aa)}
 .moon-glint{fill:none;stroke:#fff0cf99;stroke-width:2;stroke-linecap:round}
-.welcome-art.is-spinning .planet-auto-spin{animation-duration:1.6s}
-.welcome-art.is-spinning .orbit-back,.welcome-art.is-spinning .orbit-front{animation-duration:1.2s}
-@keyframes planet-idle-spin{to{transform:rotate(360deg)}}
-@keyframes orbit-idle-drift{from{transform:rotate(-2deg)}to{transform:rotate(3deg)}}
 
 .heaven-sequence{position:fixed;inset:0;z-index:2000;display:grid;place-content:center;justify-items:center;overflow:hidden;background:radial-gradient(circle at 50% 46%,#ffb35f55 0 8%,#551e15cc 30%,#080706f7 72%);color:#fff;pointer-events:none;opacity:0}
 .heaven-sequence[hidden]{display:none}

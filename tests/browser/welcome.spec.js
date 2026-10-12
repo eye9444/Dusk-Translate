@@ -35,15 +35,24 @@ test('the welcome planet spins, fades its cards, and rewards sustained rotation'
   const art=page.locator('.welcome-art'),box=await art.boundingBox();
   const visibleMoonLayers=await art.locator('.moon-revolution').evaluateAll((layers)=>layers.filter((layer)=>getComputedStyle(layer).visibility!=='hidden').length);
   expect(visibleMoonLayers).toBe(1);
-  await expect(art.locator('.planet-auto-spin')).not.toHaveCSS('animation-name','none');
+  await expect(art.locator('.planet-surface')).toHaveCount(0);
   await page.mouse.move(box.x+120,box.y+box.height/2);await page.mouse.down();
+  const heldRotation=await art.getAttribute('data-rotation');
+  await page.waitForTimeout(300);
+  expect(await art.getAttribute('data-rotation')).toBe(heldRotation);
+  await expect(art.locator('.source-page')).toHaveCSS('opacity','1');
   await page.mouse.move(box.x+520,box.y+box.height/2,{steps:4});
-  expect(Number(await art.evaluate(node=>getComputedStyle(node).getPropertyValue('--card-opacity')))).toBeLessThan(1);
-  for(let index=0;index<3;index++){
+  await expect(art.locator('.source-page')).toHaveCSS('opacity','0');
+  await expect(art.locator('.translated-page')).toHaveCSS('opacity','0');
+  await expect(art.locator('.source-page')).toHaveCSS('filter','none');
+  expect(Number(await art.getAttribute('data-rotation'))).toBeGreaterThan(Number(heldRotation));
+  expect(await art.locator('.orbit-front').getAttribute('transform')).toBe(await art.locator('.orbit-back').getAttribute('transform'));
+  for(let index=0;index<5;index++){
     await page.mouse.move(box.x+120,box.y+box.height/2,{steps:2});
     await page.mouse.move(box.x+520,box.y+box.height/2,{steps:2});
   }
   await expect(page.locator('#heaven-sequence')).toBeVisible();
   await expect(page.locator('#heaven-sequence')).toContainText('MADE IN HEAVEN');
   await page.mouse.up();
+  await expect(art.locator('.source-page')).toHaveCSS('opacity','1');
 });

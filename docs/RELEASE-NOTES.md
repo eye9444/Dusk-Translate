@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.4.1 - 2026-10-12
+
+- Restored the smooth orange planet with moving directional lighting.
+- Kept orbit halves and the moon aligned in one shared orbital plane.
+- Made rotation follow dragging with momentum on release; clicking alone does not accelerate it.
+- Cards now fade fully away during dragging without blur and return as momentum settles.
+
 ## 0.4.0 - 2026-10-12
 
 - Updated plan details for supported providers, language routes, and the complete Teams review workflow.
