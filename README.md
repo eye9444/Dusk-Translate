@@ -59,6 +59,8 @@ Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interf
 
 Version changes in `package.json` are verified by GitHub Actions and automatically receive a matching `v*` tag and GitHub Release after the checks pass.
 
+Only product features and bug fixes warrant version changes. Visual and aesthetic updates ship silently within the existing version, without a new tag, release, or What's New popup. The in-app What's New history contains feature updates only; bug-fix details belong in the GitHub release notes. When correcting announcement history, preserve account acknowledgements so users are not notified again about older features.
+
 See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for the complete architecture, data flow, security boundaries, generated files, and a description of every tracked file.
 
 ## Responsive Interface

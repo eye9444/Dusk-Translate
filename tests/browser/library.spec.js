@@ -86,7 +86,9 @@ test('editor logo returns to the outer library without nesting apps or retaining
     await expect(page).toHaveURL(/\/home$/);
     await expect(page.locator('#library')).toBeVisible();
     await expect.poll(()=>page.evaluate(async()=> (await navigator.locks.query()).held.filter(lock=>lock.name.startsWith('dusk-project-')).length)).toBe(0);
-    expect(page.frames().length).toBe(2);
+    // The welcome cutscene has its own unloaded iframe, separate from the editor.
+    await expect(page.locator('iframe')).toHaveCount(2);
+    await expect(page.frameLocator('#editor').locator('#editor')).toHaveCount(0);
   }
   for(const name of ['Logo first','Logo second','Logo third']){
     const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name,exact:true})});
