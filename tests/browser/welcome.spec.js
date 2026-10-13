@@ -1,4 +1,30 @@
 import {test,expect} from '@playwright/test';
+test('touch rotation interpolates between samples and stops rendering when hidden',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await page.goto('/');
+  const art=page.locator('.welcome-art');
+  await art.scrollIntoViewIfNeeded();
+  const box=await art.boundingBox();
+  const client=await page.context().newCDPSession(page);
+  const point={x:box.x+box.width*.3,y:box.y+box.height*.5};
+  await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});
+  const before=Number(await art.getAttribute('data-rotation'));
+  await client.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{...point,x:point.x+90}]});
+  await page.waitForTimeout(20);
+  const first=Number(await art.getAttribute('data-rotation'));
+  await page.waitForTimeout(120);
+  const later=Number(await art.getAttribute('data-rotation'));
+  expect(first).toBeGreaterThan(before);
+  expect(later).toBeGreaterThan(first);
+  expect(await page.evaluate(()=>getSelection().toString())).toBe('');
+  await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.locator('#welcome-guest').click();
+  await expect(art).toBeHidden();
+  await page.waitForTimeout(100);
+  const stopped=await art.getAttribute('data-rotation');
+  await page.waitForTimeout(150);
+  expect(await art.getAttribute('data-rotation')).toBe(stopped);
+});
 test('signed-out welcome hides projects and offers authentication',async({page})=>{
   await page.goto('/');await expect(page.locator('#welcome')).toBeVisible();await expect(page.locator('#library')).toBeHidden();
   await page.locator('#welcome-signup').click();await expect(page.locator('#auth-submit')).toHaveText('Create account');

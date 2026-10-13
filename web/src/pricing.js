@@ -82,13 +82,13 @@ export function createPricingPage({ createCheckout, onFree, section = document.g
     paddlePromise = initializePaddle({ environment, token }).then(instance => {
       if (!instance) throw new Error('Paddle could not initialize. Check the client token.');
       return instance;
-    });
+    }).catch(error => { paddlePromise=undefined; throw error; });
     return paddlePromise;
   }
 
   async function detectCountry() {
     try {
-      const response = await fetch('/api/billing-context', { cache: 'no-store' });
+      const response = await fetch('/api/billing-context', { cache: 'no-store', signal: AbortSignal.timeout(2500) });
       if (!response.ok) return null;
       const { country } = await response.json();
       return /^[A-Z]{2}$/.test(country ?? '') ? country : null;

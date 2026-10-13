@@ -13,7 +13,7 @@ import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { detectEpubLanguage, emptyWebNovel, parseSourceFile } from './source-import.js';
 import { TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
-import { LATEST_RELEASE_ID, RELEASES } from './releases.js';
+import { LATEST_RELEASE_ID, RELEASES, hasSeenLatestRelease } from './releases.js';
 import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
 import { createComments } from './comments.js';
@@ -525,7 +525,7 @@ async function showWhatsNew(automatic=false){
 async function maybeShowWhatsNew(){
   if(!user||active||document.querySelector('dialog[open]')||Date.now()-releaseNoticeLastInteraction<5000)return;
   const identity=user.id;if(releaseNoticeCheckedFor===identity)return;releaseNoticeCheckedFor=identity;
-  try{const seen=(await billingRequest('/api/account-preferences')).lastSeenRelease;if(user?.id===identity&&seen!==LATEST_RELEASE_ID&&!active&&!document.querySelector('dialog[open]'))await showWhatsNew(true);}catch{}
+  try{const seen=(await billingRequest('/api/account-preferences')).lastSeenRelease;if(user?.id===identity&&!hasSeenLatestRelease(seen)&&!active&&!document.querySelector('dialog[open]'))await showWhatsNew(true);}catch{}
 }
 function scheduleWhatsNew(){
   if(!user)return;
@@ -579,19 +579,29 @@ async function refresh() {
   if(user)status('Refreshing your account library...');
   setLoading(true, 'Refreshing library…');
   try {
-    cached=await local.list(libraryOwner);
-    const result=user?await remote.list():cached;
-    const pendingInvitations=user?await remote.inbox().catch(()=>[]):[];
-    if(request !== libraryRequest || libraryOwner !== owner()) { setLoading(false); return; }
+    const invitationRequest=user?remote.inbox().catch(()=>[]):Promise.resolve([]);
+    const [localResult, remoteResult]=await Promise.allSettled([
+      local.list(libraryOwner), user?remote.list():Promise.resolve(null),
+    ]);
+    if(localResult.status==='fulfilled')cached=localResult.value;
+    if(remoteResult.status==='rejected')throw remoteResult.reason;
+    if(localResult.status==='rejected')throw localResult.reason;
+    const result=user?remoteResult.value:cached;
+    if(request !== libraryRequest || libraryOwner !== owner()) return;
     projects=user?[...cached.filter(p=>p.storage==='local'),...result.map(p=>{
       const draft=cached.find(c=>c.id===p.id);
       return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
     })]:result;
-    invitations=pendingInvitations;
     status('');render();
     setLoading(false);scheduleWhatsNew();
+    invitationRequest.then(pendingInvitations=>{
+      if(request!==libraryRequest||libraryOwner!==owner())return;
+      invitations=pendingInvitations;
+      $('invite-count').textContent=String(invitations.length);
+      if(libraryView==='inbox')renderInvitationInbox();
+    });
   }catch(e){
-    if(request !== libraryRequest || libraryOwner !== owner()) { setLoading(false); return; }
+    if(request !== libraryRequest || libraryOwner !== owner()) return;
     projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
     setLoading(false);scheduleWhatsNew();
