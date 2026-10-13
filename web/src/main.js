@@ -559,6 +559,7 @@ async function refresh() {
   let cached = [];
   $('pricing-nav-link').hidden = showingPricing;
   $('account').textContent = user ? 'Account' : 'Sign in';
+  $('feedback').hidden = Boolean(active) || showingPricing || showingSubscriptionWelcome || (!user && !guestMode);
   $('whats-new').hidden=!user;
   if(!user)$('whats-new-dialog').close();
   $('feedback-inbox').hidden=true;

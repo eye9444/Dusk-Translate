@@ -57,4 +57,4 @@ body.eclipse{--paper:#100f0d;--aged:#211911;--panel:#201910;--ink:#f4eee4;--mute
 .heaven-skip:focus-visible,.heaven-original:focus-visible{outline:2px solid #dfb080!important;outline-offset:4px}
 @keyframes cinema-arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.heaven-cinema{animation:none}.welcome-art .specimen{transition:none}}
-.welcome-links{display:flex;align-items:center;gap:22px;flex-wrap:wrap}.welcome-links a,.masthead-features{font-size:11px;color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}.masthead-features{color:var(--ink);font-size:13px}
+.welcome-links{display:flex;align-items:center;gap:22px;flex-wrap:wrap}.welcome-links a{font-size:11px;color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}.welcome-notes a{color:var(--accent);text-decoration:none}
