@@ -593,7 +593,7 @@ async function refresh() {
       return draft?.dirty?draft:draft?.revision===p.revision?{...p,snapshot:draft.snapshot}:p;
     })]:result;
     status('');render();
-    setLoading(false);scheduleWhatsNew();
+    scheduleWhatsNew();
     invitationRequest.then(pendingInvitations=>{
       if(request!==libraryRequest||libraryOwner!==owner())return;
       invitations=pendingInvitations;
@@ -604,7 +604,10 @@ async function refresh() {
     if(request !== libraryRequest || libraryOwner !== owner()) return;
     projects=cached;
     render();status(`${errorMessage(e)}${projects.length?' Showing projects cached on this device.':''}`);
-    setLoading(false);scheduleWhatsNew();
+    scheduleWhatsNew();
+  }finally{
+    // The loader is reference-counted: superseded requests must release their slot too.
+    setLoading(false);
   }
 }
 function render() {
