@@ -17,6 +17,7 @@ export default defineConfig({
         privacy: page('privacy.html'),
         terms: page('terms.html'),
         cookies: page('cookies.html'),
+        features: page('features.html'),
         apiKeys: page('guides/api-keys.html')
       }
     }
