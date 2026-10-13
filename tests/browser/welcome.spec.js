@@ -41,6 +41,13 @@ test('public feature page is crawlable and usable on mobile',async({page})=>{
   await expect(page.getByRole('link',{name:'Start translating'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
+test('feedback stays in the library and features move to the hero footer',async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('#feedback')).toBeHidden();
+  await expect(page.locator('.welcome-notes a',{hasText:'Explore features'})).toBeVisible();
+  await page.locator('#welcome-guest').click();
+  await expect(page.locator('#feedback')).toBeVisible();
+});
 test('welcome layout fits desktop and mobile in both themes',async({page})=>{
   for(const width of [1920,390,320]){
     await page.setViewportSize({width,height:1080});await page.goto('/');
