@@ -20,8 +20,9 @@ for (const fixture of fixtures) test('prompt contract: '+fixture.name,()=>{
 });
 for(const [sourceLanguage,targetLanguage,sourceName,targetName] of [
   ['ja','en','Japanese','English'],['ja','vi','Japanese','Vietnamese'],['ja','ru','Japanese','Russian'],
-  ['ja','de','Japanese','German'],['ja','es','Japanese','Spanish'],['en','vi','English','Vietnamese'],
-  ['en','ru','English','Russian'],['en','de','English','German'],['en','es','English','Spanish'],
+  ['ja','de','Japanese','German'],['ja','es','Japanese','Spanish'],['ja','it','Japanese','Italian'],
+  ['en','vi','English','Vietnamese'],['en','ru','English','Russian'],['en','de','English','German'],
+  ['en','es','English','Spanish'],['en','it','English','Italian'],
 ]) test(`prompt contract: ${sourceLanguage} to ${targetLanguage}`,()=>{
   const prompt=globalThis.DuskTranslationPrompt({source:'SOURCE',sourceLanguage,targetLanguage});
   assert.match(prompt,new RegExp(`Translate the identified ${sourceName} target passage into ${targetName}`));

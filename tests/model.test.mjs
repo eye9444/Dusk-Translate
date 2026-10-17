@@ -23,6 +23,8 @@ test('language pairs default safely and reject unsupported production routes',()
   assert.deepEqual(cleanSnapshot({novel,translations:{}}).sourceLanguage,'ja');
   const supported=cleanSnapshot({novel,translations:{},sourceLanguage:'en',targetLanguage:'ru'});
   assert.equal(supported.sourceLanguage,'en');assert.equal(supported.targetLanguage,'ru');
+  const italian=cleanSnapshot({novel,translations:{},sourceLanguage:'ja',targetLanguage:'it'});
+  assert.equal(italian.sourceLanguage,'ja');assert.equal(italian.targetLanguage,'it');
   const unsupported=cleanSnapshot({novel,translations:{},sourceLanguage:'de',targetLanguage:'ja'});
   assert.equal(unsupported.sourceLanguage,'ja');assert.equal(unsupported.targetLanguage,'en');
 });

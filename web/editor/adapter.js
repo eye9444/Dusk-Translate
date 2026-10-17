@@ -10,7 +10,7 @@ let canEdit = true;
 let cloudProject = false;
 let sourceLanguage='ja';
 let targetLanguage='en';
-const editorLanguageNames={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish'};
+const editorLanguageNames={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish',it:'Italian'};
 globalThis.DuskCapabilities = {};
 let quotaMeterState=null;
 function renderQuotaMeter() {

@@ -12,7 +12,7 @@ test('public pages expose canonical crawl and product metadata',()=>{
   assert.match(home,/Japanese-to-English book translation/);
   assert.match(features,/rel="canonical" href="https:\/\/www\.dusktranslate\.com\/features\.html"/);
   assert.match(features,/Japanese to English/);
-  assert.match(features,/Vietnamese, Russian, German, and Spanish/);
+  assert.match(features,/Vietnamese, Russian, German, Spanish, and Italian/);
 });
 
 test('sitemap and robots publish the same canonical feature routes',()=>{

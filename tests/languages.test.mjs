@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { TRANSLATION_TARGETS, isSupportedLanguagePair } from '../web/src/languages.js';
 
-test('production exposes exactly the approved nine translation routes',()=>{
+test('production exposes exactly the approved eleven translation routes',()=>{
   const routes=Object.entries(TRANSLATION_TARGETS).flatMap(([source,targets])=>targets.map(target=>`${source}-${target}`));
-  assert.deepEqual(routes,['ja-en','ja-vi','ja-ru','ja-de','ja-es','en-vi','en-ru','en-de','en-es']);
+  assert.deepEqual(routes,['ja-en','ja-vi','ja-ru','ja-de','ja-es','ja-it','en-vi','en-ru','en-de','en-es','en-it']);
   assert.equal(isSupportedLanguagePair('en','ja'),false);
   assert.equal(isSupportedLanguagePair('de','en'),false);
 });

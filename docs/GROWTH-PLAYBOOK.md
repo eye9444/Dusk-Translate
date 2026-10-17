@@ -46,7 +46,7 @@ The existing r/mangapiracy and r/machinetranslation posts should be followed wit
 
 ### Short directory description
 
-DuskTranslate is a browser-based workspace for translating books and web novels. Import EPUB or TXT, translate and edit chapter by chapter, keep names consistent with a glossary, review source and output side by side, collaborate through staged roles, and export TXT or EPUB. Japanese-to-English is the primary route, with selected Japanese and English routes into Vietnamese, Russian, German, and Spanish.
+DuskTranslate is a browser-based workspace for translating books and web novels. Import EPUB or TXT, translate and edit chapter by chapter, keep names consistent with a glossary, review source and output side by side, collaborate through staged roles, and export TXT or EPUB. Japanese-to-English is the primary route, with selected Japanese and English routes into Vietnamese, Russian, German, Spanish, and Italian.
 
 ### Show HN title
 

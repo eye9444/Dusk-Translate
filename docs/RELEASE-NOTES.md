@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.4.6 - 2026-10-18
+
+- Added Japanese-to-Italian and English-to-Italian production translation routes.
+- Added Italian prompt naming, editor language labels, EPUB language metadata, plan details, and route validation.
+- Added a signed-in What's New announcement for Italian support.
+
 ## 0.4.3 - 2026-10-13
 
 - Show What's New only to signed-in accounts; guests and the sign-in page never open the popup.
