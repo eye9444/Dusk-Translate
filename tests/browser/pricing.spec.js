@@ -12,6 +12,7 @@ test('pricing route renders Paddle-backed tiers and switches billing periods', a
   await expect(pricing.locator('[data-tier="Teams"]')).toContainText('Proof-reader');
   await expect(pricing.locator('[data-tier="Teams"]')).toContainText('base MTL');
   await expect(pricing.locator('[data-tier="Starter"]')).toContainText('Russian');
+  await expect(pricing.locator('[data-tier="Starter"]')).toContainText('Italian');
   await expect(pricing.locator('[data-tier="Starter"]')).toContainText('Claude');
   await expect(pricing.locator('[data-tier="Pro"]')).toBeHidden();
   await expect(pricing.locator('[data-period-for="Teams"]')).toHaveText('per month');

@@ -5,11 +5,12 @@ export const LANGUAGES = Object.freeze({
   ru: Object.freeze({ name:'Russian', nativeName:'Русский' }),
   de: Object.freeze({ name:'German', nativeName:'Deutsch' }),
   es: Object.freeze({ name:'Spanish', nativeName:'Español' }),
+  it: Object.freeze({ name:'Italian', nativeName:'Italiano' }),
 });
 
 export const TRANSLATION_TARGETS = Object.freeze({
-  ja: Object.freeze(['en','vi','ru','de','es']),
-  en: Object.freeze(['vi','ru','de','es']),
+  ja: Object.freeze(['en','vi','ru','de','es','it']),
+  en: Object.freeze(['vi','ru','de','es','it']),
 });
 
 export function languageName(code) {

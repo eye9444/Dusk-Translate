@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.4.5" src="https://img.shields.io/badge/web_release-v0.4.5-17120f?style=for-the-badge" />
+  <img alt="Web release 0.4.6" src="https://img.shields.io/badge/web_release-v0.4.6-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
@@ -22,13 +22,13 @@
 
 You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
 
-DuskTranslate is centered on Japanese-to-English book translation, with deliberate routes from Japanese and English into Vietnamese, Russian, German, and Spanish. It handles the work around a translation too: source organization, terminology, revision, reading, collaboration, and final export.
+DuskTranslate is centered on Japanese-to-English book translation, with deliberate routes from Japanese and English into Vietnamese, Russian, German, Spanish, and Italian. It handles the work around a translation too: source organization, terminology, revision, reading, collaboration, and final export.
 
 ## Current Web Release
 
 - Import EPUB, TXT, JSON project, and backup files
-- Translate Japanese into English, Vietnamese, Russian, German, or Spanish
-- Translate English into Vietnamese, Russian, German, or Spanish
+- Translate Japanese into English, Vietnamese, Russian, German, Spanish, or Italian
+- Translate English into Vietnamese, Russian, German, Spanish, or Italian
 - Compare the source and editable translation side by side
 - Maintain a project glossary for names and preferred terminology
 - Save projects locally or sync them to a private signed-in library
