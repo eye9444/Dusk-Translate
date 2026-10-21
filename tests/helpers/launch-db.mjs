@@ -1,7 +1,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { readFile, readdir } from 'node:fs/promises';
 
-export async function launchDatabase() {
+export async function launchDatabase({communityAccess = false} = {}) {
   const db=new PGlite();
   await db.exec(`create role anon;create role authenticated;create role service_role;
     create schema auth;create schema storage;
@@ -19,6 +19,8 @@ export async function launchDatabase() {
   for(const file of (await readdir('supabase/migrations')).filter(f=>f.endsWith('.sql')).sort()) {
     await db.exec(await readFile('supabase/migrations/'+file,'utf8'));
   }
+  // Existing billing tests explicitly exercise the retained paid-plan mode.
+  await db.query('update launch_configuration set community_access=$1', [communityAccess]);
   return db;
 }
 export async function asUser(db,id){await db.exec('reset role;set role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);}

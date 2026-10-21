@@ -12,6 +12,7 @@ const run=new AsyncFunction('context',`
   let cached=[],projects=[],invitations=[];
   const status=()=>{},render=()=>{},scheduleWhatsNew=()=>{},errorMessage=String;
   const $=()=>({}), libraryView='projects';
+  const donations={update:()=>{}}, readerOpen=false, active=null;
   ${body}
 `);
 

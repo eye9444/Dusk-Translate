@@ -10,9 +10,10 @@ test('public pages expose canonical crawl and product metadata',()=>{
   assert.match(home,/rel="canonical" href="https:\/\/www\.dusktranslate\.com\/"/);
   assert.match(home,/"@type":"WebApplication"/);
   assert.match(home,/Japanese-to-English book translation/);
+  assert.match(home,/property="og:image" content="https:\/\/www\.dusktranslate\.com\/brand\/novel-suite-preview\.png"/);
   assert.match(features,/rel="canonical" href="https:\/\/www\.dusktranslate\.com\/features\.html"/);
   assert.match(features,/Japanese to English/);
-  assert.match(features,/Vietnamese, Russian, German, Spanish, and Italian/);
+  assert.match(features,/Vietnamese, Russian, German, Spanish, Italian, and Portuguese/);
 });
 
 test('sitemap and robots publish the same canonical feature routes',()=>{

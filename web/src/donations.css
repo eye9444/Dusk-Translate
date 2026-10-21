@@ -1,0 +1,14 @@
+.support-notice {
+  position: fixed; right: 20px; bottom: 20px; z-index: 25;
+  width: min(340px, calc(100vw - 40px)); box-sizing: border-box;
+  padding: 20px; border: 1px solid #806244; border-radius: 14px;
+  background: #251e17; color: #f4eee6; box-shadow: 0 12px 32px #0004;
+}
+.support-notice[hidden] { display: none; }
+.support-notice .support-message {
+  display: block; text-align: left; border: 0; background: none;
+  color: inherit; padding: 0 16px 14px 0; line-height: 1.6;
+}
+.support-notice .support-dismiss { position: absolute; right: 5px; top: 5px; padding: 4px 9px; }
+.support-dialog { max-width: min(480px, calc(100vw - 48px)); }
+.support-dialog p { line-height: 1.7; }

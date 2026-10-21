@@ -25,6 +25,17 @@ async function selectTestModel(editor) {
 }
 async function editorAction(page,id) {const editor=page.frameLocator('#editor'),navigationActions=new Set(['#host-library','#host-save','#host-backup']);await editor.locator(navigationActions.has(id) ? '#host-menu' : '#host-tools').click();await editor.locator(id).click();}
 async function leave(page) {await editorAction(page,'#host-library');await expect(page.locator('#library')).toBeVisible();await expect(page).toHaveURL(/\/home$/);}
+test('community guests can save a custom prompt without a paid account',async({page})=>{
+  await create(page,'Community prompts');
+  await page.frameLocator('#editor').locator('#host-prompt-button').click();
+  await expect(page.locator('#prompt-dialog')).toBeVisible();
+  await page.locator('[name="prompt-scope"][value="personal"]').check();
+  await page.locator('#prompt-text').fill('Translate precisely and preserve dialogue attribution.');
+  await page.locator('#prompt-form button[type="submit"]').click();
+  await expect(page.locator('#prompt-dialog')).toBeHidden();
+  await page.frameLocator('#editor').locator('#host-prompt-button').click();
+  await expect(page.locator('#prompt-text')).toHaveValue('Translate precisely and preserve dialogue attribution.');
+});
 test('saves manual edits, glossary, current chapter; keys never persist',async({page})=>{
   await create(page);
   const editor=page.frameLocator('#editor');
@@ -128,12 +139,12 @@ test('feedback asks guests to sign in and supports an optional screenshot',async
   await expect(page.locator('#feedback-dialog')).toHaveCount(1);
   await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
 });
-test('new projects expose only the eleven supported production language routes',async({page})=>{
+test('new projects expose only the thirteen supported production language routes',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();
   await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English']);
-  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
   await page.locator('#new-source-language').selectOption('en');
-  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
   await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
 });
 test('What’s New stays hidden for the local guest library',async({page})=>{
