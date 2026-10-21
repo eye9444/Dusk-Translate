@@ -47,6 +47,33 @@ test('account creation requires policy consent',async({page})=>{
   await page.locator('#email').fill('new-reader@example.test');await page.locator('#password').fill('TestPassword123!');await page.locator('#auth-submit').click();
   await expect(page.locator('#terms-accept')).not.toBeChecked();expect(signupRequests).toBe(0);
 });
+test('signed-in readers see the creator letter and older feature notes',async({page})=>{
+  const user={id:'11111111-1111-4111-8111-111111111111',email:'reader@example.test',aud:'authenticated',role:'authenticated'};
+  await page.route('**/api/account-preferences',route=>route.fulfill({json:{lastSeenRelease:'2026-10-20-community'}}));
+  await page.route('https://dusk-test.supabase.co/**',route=>{
+    const path=new URL(route.request().url()).pathname;
+    if(path.endsWith('/token')){
+      const b64=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
+      const token=`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:user.id,exp:Math.floor(Date.now()/1000)+3600})}.test`;
+      return route.fulfill({json:{access_token:token,refresh_token:'test-refresh',token_type:'bearer',expires_in:3600,user}});
+    }
+    if(path.endsWith('/user'))return route.fulfill({json:user});
+    return route.fulfill({json:[]});
+  });
+  await page.goto('/');await page.locator('#account').click();
+  await page.locator('#email').fill(user.email);await page.locator('#password').fill('TestPassword123!');
+  await page.locator('#auth-submit').click();
+  await expect(page.locator('#account')).toHaveText('Account');
+  await page.locator('#whats-new').click();
+  const dialog=page.locator('#whats-new-dialog');
+  await expect(dialog).toBeVisible();
+  await page.setViewportSize({width:390,height:844});
+  await expect(dialog.locator('.release-letter')).toHaveCount(6);
+  await expect(dialog.locator('.release-signature')).toHaveText('Eye, creator of DuskTranslate');
+  await expect(dialog).toContainText('Portuguese');
+  await expect(dialog).toContainText('Italian joins the translation room');
+  expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth+1)).toBe(true);
+});
 test('forgot password gives neutral confirmation and same-origin redirect',async({page})=>{
   let redirect;
   await page.route('https://dusk-test.supabase.co/**',async route=>{
