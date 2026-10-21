@@ -536,7 +536,16 @@ document.addEventListener('pointerdown',()=>{releaseNoticeLastInteraction=Date.n
 document.addEventListener('keydown',()=>{releaseNoticeLastInteraction=Date.now();},{passive:true});
 async function showWhatsNew(automatic=false){
   if(!user)return;
-  const list=$('release-list');list.replaceChildren();for(const release of RELEASES){const article=el('article','release-note');article.append(el('p','eyebrow',release.date),el('h3','',release.title));const ul=document.createElement('ul');for(const item of release.items)ul.append(el('li','',item));article.append(ul);list.append(article);}
+  const list=$('release-list');list.replaceChildren();
+  for(const release of RELEASES){
+    const article=el('article','release-note');
+    article.append(el('p','eyebrow',release.date),el('h3','',release.title));
+    for(const paragraph of release.paragraphs||[])article.append(el('p','release-letter',paragraph));
+    if(release.signature)article.append(el('p','release-signature',release.signature));
+    const ul=document.createElement('ul');
+    for(const item of release.items)ul.append(el('li','',item));
+    article.append(ul);list.append(article);
+  }
   $('whats-new-dialog').showModal();
   if(!automatic)return;
   try{await billingRequest('/api/account-preferences','PUT',{lastSeenRelease:LATEST_RELEASE_ID});}catch(error){$('whats-new-error').textContent=errorMessage(error);}
