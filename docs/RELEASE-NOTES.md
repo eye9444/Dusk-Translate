@@ -1,5 +1,15 @@
 # Release Notes
 
+## 0.5.0 - 2026-10-20
+
+- Opened all current product features through community access while retaining project permissions and cloud capacity limits.
+- Retained paid-plan testing in isolated environments and blocked production checkout.
+- Added an optional ten-second home-screen donation notice and a placeholder support dialog.
+- Added Japanese-to-Portuguese and English-to-Portuguese routes, prompt labels, and regression coverage.
+- Updated the README and signed-in feature announcement.
+- Refreshed novel-suite branding and root/home link preview imagery alongside this feature release.
+- Deployment prerequisite: apply `202610200001_community_access.sql`. Existing subscriptions are not automatically canceled.
+
 ## 0.4.6 - 2026-10-18
 
 - Added Japanese-to-Italian and English-to-Italian production translation routes.

@@ -26,8 +26,18 @@ import { startLocalDocument } from './local-document.js';
 import { listEpubImages, validateReplacement, applyImageReplacements } from './image-assets.js';
 import { setLoading } from './loading.js';
 import { createWelcomePlanet } from './welcome-planet.js';
+import { COMMUNITY_ACCESS } from './access-mode.js';
+import { createDonations } from './donations.js';
 
 const $ = id => document.getElementById(id);
+const donations = createDonations();
+new MutationObserver(() => {
+  if ($('library').hidden || readerOpen || active) donations.update(false);
+}).observe($('library'), {attributes:true, attributeFilter:['hidden']});
+if (COMMUNITY_ACCESS) {
+  $('pricing-nav-link').textContent = 'Support';
+  $('pricing-nav-link').onclick = event => { event.preventDefault(); donations.open(); };
+}
 createWelcomePlanet(document.querySelector('.welcome-art'),$('heaven-sequence'));
 const bytesToBase64=bytes=>{let value='';for(let index=0;index<bytes.length;index+=0x8000)value+=String.fromCharCode(...bytes.subarray(index,index+0x8000));return btoa(value);};
 const authReturn = new URL(location.href);
@@ -218,11 +228,11 @@ const showUpgrade = createUpgradeDialog({createCheckout:priceId=>billingRequest(
 async function currentEntitlements(project=active) {
   const data=project&&isCloud(project)
     ? await remote.entitlements(project.id)
-    : user ? await billingRequest('/api/paddle/status') : {tier:'free'};
+    : user ? await billingRequest('/api/paddle/status') : {tier:COMMUNITY_ACCESS?'advanced':'free'};
   const result={...data,...describeEntitlements(data.tier)};
-  if(project&&user&&result.capabilities.customPrompt){
-    const shared=isCloud(project)?result.customInstructions||'':localStorage.getItem(`dusk-prompt-shared:${user.id}:${project.id}`)||localStorage.getItem(`dusk-prompt:${user.id}:${project.id}`)||'';
-    const personal=localStorage.getItem(`dusk-prompt-personal:${user.id}:${project.id}`);
+  if(project&&result.capabilities.customPrompt){
+    const shared=isCloud(project)?result.customInstructions||'':localStorage.getItem(`dusk-prompt-shared:${owner()}:${project.id}`)||localStorage.getItem(`dusk-prompt:${owner()}:${project.id}`)||'';
+    const personal=localStorage.getItem(`dusk-prompt-personal:${owner()}:${project.id}`);
     result.sharedInstructions=shared;
     result.customInstructions=personal===null?shared:personal;
     result.promptScope=personal===null?(shared?'shared':'builtin'):'personal';
@@ -249,7 +259,7 @@ async function showCustomInstructions(){
   const dialog=$('prompt-dialog'),input=$('prompt-text'),notice=$('prompt-error');
   const rights=await currentEntitlements(project),source=project.snapshot?.sourceLanguage||'ja',target=project.snapshot?.targetLanguage||'en';
   const builtin=$('editor').contentWindow?.DuskDefaultMasterPrompt?.({sourceLanguage:source,targetLanguage:target})||`Translate the identified ${languageName(source)} target passage into ${languageName(target)}.`;
-  const personalKey=`dusk-prompt-personal:${user.id}:${project.id}`;
+  const personalKey=`dusk-prompt-personal:${owner()}:${project.id}`;
   const values={builtin,shared:rights.sharedInstructions||'',personal:localStorage.getItem(personalKey)??''};
   let scope=rights.promptScope||'builtin';dialog.querySelector(`[name="prompt-scope"][value="${scope}"]`).checked=true;
   const render=()=>{scope=dialog.querySelector('[name="prompt-scope"]:checked').value;input.value=values[scope]||builtin;input.readOnly=scope==='builtin';$('prompt-count').textContent=`${input.value.length.toLocaleString()} / 20,000 characters`;};
@@ -264,7 +274,7 @@ async function showCustomInstructions(){
       if(input.value.length>20000||bytes>80000)throw new Error('Prompts are limited to 20,000 characters and 80 KB.');
       if(scope==='personal')localStorage.setItem(personalKey,input.value);else localStorage.removeItem(personalKey);
       if(scope==='shared'){
-        if(!isCloud(project))localStorage.setItem(`dusk-prompt-shared:${user.id}:${project.id}`,input.value);
+        if(!isCloud(project))localStorage.setItem(`dusk-prompt-shared:${owner()}:${project.id}`,input.value);
         else await remote.setInstructions(project.id,input.value);
       }
       await currentEntitlements(project);dialog.close();
@@ -413,6 +423,15 @@ async function showBilling() {
     const tierLabel=TIER_LABELS[billing.tier]||billing.tier||'Starter';
     $('billing-access').textContent=billing.isSuperUser?`Owner access · ${tierLabel}`:billing.isBetaAccess?`Beta access · ${tierLabel}`:`${tierLabel} access`;
     const subscription = billing.subscription;
+    if (billing.communityAccess) {
+      $('billing-access').textContent = 'All current features · Free';
+      $('billing-plan').textContent = subscription ? `Existing subscription: ${subscription.status}` : 'Community-supported';
+      $('billing-detail').textContent = subscription
+        ? 'All features are now free. Existing subscriptions are not automatically canceled. Manage billing to review or cancel yours.'
+        : 'Optional donations support hosting and development. Your AI provider may still charge for API usage. Cloud capacity limits still apply.';
+      $('billing-manage').disabled = !billing.customer;
+      return;
+    }
     if (billing.isBetaAccess && !subscription) {
       $('billing-plan').textContent = 'Teams beta access';
       const until = billing.betaAccessUntil ? new Date(billing.betaAccessUntil).toLocaleDateString(undefined,{dateStyle:'medium'}) : 'the end of your beta month';
@@ -550,6 +569,10 @@ $('feedback-form').onsubmit=async event=>{
 };
 
 async function refresh() {
+  if (COMMUNITY_ACCESS && currentRoute() === '/pricing') {
+    navigate(user || guestMode ? '/home' : '/', true);
+    donations.open();
+  }
   if (currentRoute() === '/' && (user || guestMode)) navigate('/home', true);
   const route = currentRoute();
   const showingPricing = route === '/pricing';
@@ -568,6 +591,7 @@ async function refresh() {
   $('welcome').hidden=showingPricing||showingSubscriptionWelcome||Boolean(user)||guestMode;
   $('subscription-welcome').hidden=!showingSubscriptionWelcome;
   $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
+  donations.update(false);
   if(showingPricing){await pricingPage.show();return;}
   pricingPage.hide();
   if(showingSubscriptionWelcome){confirmProvisioning();return;}
@@ -609,6 +633,7 @@ async function refresh() {
   }finally{
     // The loader is reference-counted: superseded requests must release their slot too.
     setLoading(false);
+    if (request === libraryRequest) donations.update(!$('library').hidden && !readerOpen && !active);
   }
 }
 function render() {

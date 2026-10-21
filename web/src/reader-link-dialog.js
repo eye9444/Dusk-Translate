@@ -9,9 +9,9 @@ export async function showReaderLinkDialog({project,remote,upgrade}){
    setBusy(true);
    try{
      const next=await remote.readerLinkStatus(project.id);if(closed)return;state=next;
-     get('status').textContent=state.token?(state.active?'Anyone with this link can read the published book.':'This link is suspended. The publishing account needs Teams and active editor access.'):'No active reader link. Creating a link requires your own Teams plan.';
+     get('status').textContent=state.token?(state.active?'Anyone with this link can read the published book.':'This link is suspended. Check publishing and project access.'):'No active reader link. Publish only books you have permission to share.';
      get('url').hidden=!state.token;get('url').value=state.token?`${location.origin}/reader?share=${encodeURIComponent(state.token)}`:'';
-     get('enable').hidden=Boolean(state.token&&state.active);get('enable').textContent=state.requiresTeams?'Upgrade to Teams':state.token?'Activate with my Teams plan':'Create link';
+     get('enable').hidden=Boolean(state.token&&state.active);get('enable').textContent=state.requiresTeams?'Check access':state.token?'Activate link':'Create link';
      get('enable').disabled=!state.requiresTeams&&!state.canCreate;
      get('copy').hidden=!state.token;get('copy').disabled=false;
      get('revoke').hidden=!state.token||!state.canManage;get('revoke').disabled=false;

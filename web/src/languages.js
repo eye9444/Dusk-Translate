@@ -6,11 +6,12 @@ export const LANGUAGES = Object.freeze({
   de: Object.freeze({ name:'German', nativeName:'Deutsch' }),
   es: Object.freeze({ name:'Spanish', nativeName:'Español' }),
   it: Object.freeze({ name:'Italian', nativeName:'Italiano' }),
+  pt: Object.freeze({ name:'Portuguese', nativeName:'Português' }),
 });
 
 export const TRANSLATION_TARGETS = Object.freeze({
-  ja: Object.freeze(['en','vi','ru','de','es','it']),
-  en: Object.freeze(['vi','ru','de','es','it']),
+  ja: Object.freeze(['en','vi','ru','de','es','it','pt']),
+  en: Object.freeze(['vi','ru','de','es','it','pt']),
 });
 
 export function languageName(code) {

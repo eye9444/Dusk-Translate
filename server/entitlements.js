@@ -11,6 +11,10 @@ export function resolveTier(subscriptions, prices) {
 }
 
 export async function getAccountEntitlements(userId, admin = getSupabaseAdmin()) {
+  const { data: configuration, error: configurationError } = await admin.from('launch_configuration')
+    .select('community_access').eq('singleton', true).single();
+  if (configurationError) throw configurationError;
+  const communityAccess = configuration.community_access === true;
   const { data: superUser, error: superUserError } = await admin.from('super_users')
     .select('user_id').eq('user_id', userId).maybeSingle();
   if (superUserError) throw superUserError;
@@ -32,10 +36,11 @@ export async function getAccountEntitlements(userId, admin = getSupabaseAdmin())
     subscriptions = result.data;
   }
   const mapping = new Map(prices.map(price => [price.price_id, price.tier]));
-  const tier = superUser || betaAccess ? 'advanced' : resolveTier(subscriptions, mapping);
+  const paidTier = resolveTier(subscriptions, mapping);
+  const tier = communityAccess || superUser || betaAccess ? 'advanced' : paidTier;
   const subscription = subscriptions.find(item => mapping.get(item.price_id) === tier
     && ['active', 'trialing'].includes(item.status)) || subscriptions[0] || null;
-  return { ...describeEntitlements(tier), isSuperUser: Boolean(superUser), isBetaAccess: Boolean(betaAccess), betaAccessUntil,
+  return { ...describeEntitlements(tier), communityAccess, isSuperUser: Boolean(superUser), isBetaAccess: !communityAccess && Boolean(betaAccess), betaAccessUntil,
     customer: customers.length > 0, subscription,
-    hasPaidAccess: tier !== 'free', provisioning: tier === 'free' ? 'pending_or_free' : 'ready' };
+    hasPaidAccess: paidTier !== 'free', provisioning: tier === 'free' ? 'pending_or_free' : 'ready' };
 }

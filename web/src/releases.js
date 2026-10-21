@@ -1,5 +1,9 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-20-community',date:'2026-10-20',title:'A community-supported translation suite',items:Object.freeze([
+    'All current translation and team features are now free, with optional support for hosting and development. AI-provider charges and cloud capacity limits still apply.',
+    'Translate Japanese and English novels into Portuguese, alongside the existing language routes.',
+  ])}),
   Object.freeze({id:'2026-10-18-italian',date:'2026-10-18',title:'Italian joins the translation room',items:Object.freeze([
     'Translate Japanese or English books and web novels into Italian with the same chapter, glossary, review, and export workflow.',
   ])}),

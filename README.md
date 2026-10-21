@@ -2,17 +2,17 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com">
-    <img src="docs/screenshots/welcome-desktop.png" alt="DuskTranslate signed-out web app welcome screen" width="100%" />
+    <img src="web/public/brand/novel-suite-preview.png" alt="DuskTranslate novel translation suite in Eclipse mode" width="100%" />
   </a>
 </p>
 
 <p align="center">
-  <strong>A book and web novel translation workspace: Japanese at heart, with more languages in reach.</strong>
+  <strong>A novel translation suite: AI-powered MTL, editing, and team review in one place.</strong>
 </p>
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.4.6" src="https://img.shields.io/badge/web_release-v0.4.6-17120f?style=for-the-badge" />
+  <img alt="Web release 0.5.0" src="https://img.shields.io/badge/web_release-v0.5.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
@@ -22,13 +22,15 @@
 
 You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
 
-DuskTranslate is centered on Japanese-to-English book translation, with deliberate routes from Japanese and English into Vietnamese, Russian, German, Spanish, and Italian. It handles the work around a translation too: source organization, terminology, revision, reading, collaboration, and final export.
+DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese and English also translating into Vietnamese, Russian, German, Spanish, Italian, and Portuguese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
+
+All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 
 ## Current Web Release
 
 - Import EPUB, TXT, JSON project, and backup files
-- Translate Japanese into English, Vietnamese, Russian, German, Spanish, or Italian
-- Translate English into Vietnamese, Russian, German, Spanish, or Italian
+- Translate Japanese into English, Vietnamese, Russian, German, Spanish, Italian, or Portuguese
+- Translate English into Vietnamese, Russian, German, Spanish, Italian, or Portuguese
 - Compare the source and editable translation side by side
 - Maintain a project glossary for names and preferred terminology
 - Save projects locally or sync them to a private signed-in library
@@ -36,9 +38,9 @@ DuskTranslate is centered on Japanese-to-English book translation, with delibera
 - Read standalone EPUBs, source books, and completed translated books in the built-in reader
 - Export translated work as TXT or EPUB
 - Use Google AI Studio, OpenRouter, OpenAI, Claude, or a compatible HTTPS endpoint with your own API key
-- Assign Translator, Proof-reader, Quality Checker, and Lead roles in optional Teams review stages
+- Assign Translator, Proof-reader, Quality Checker, and Lead roles in optional team review stages
 - Compare source text, base MTL, and submitted revisions before approving a final chapter
-- Replace the translation master prompt with shared or personal Teams instructions
+- Replace the translation master prompt with shared or personal instructions
 - See release notes once per account and revisit them from the library
 - Scan selectable Japanese source text with Yomitan using the documented iframe setting
 - Work on desktop or mobile in light or Eclipse themes
@@ -90,6 +92,10 @@ npm run test:auth
 ```
 
 Account and cloud-project features require Supabase environment variables. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for the deployment configuration.
+
+Community access requires migration `202610200001_community_access.sql` before deploying this release. It changes product entitlements, not administrative roles or existing subscriptions. Existing subscribers retain access to their billing portal and must cancel explicitly if desired.
+
+Paid-plan testing is retained only for an isolated test database with `launch_configuration.community_access=false`, Paddle sandbox credentials, and a local Vite dev server with `VITE_PAID_TESTING=true`. Never disable community access in the production database for testing. Production checkout is blocked. See [community rollout notes](docs/COMMUNITY-ROLLOUT.md).
 
 To refresh the README screenshots in Eclipse mode, run the preview server and then:
 

@@ -14,6 +14,12 @@ export default async function handler(request, response) {
     const { priceId } = typeof request.body === 'string' ? JSON.parse(request.body) : request.body || {};
     const environment = getPaddleEnvironment();
     const admin = getSupabaseAdmin();
+    const { data: configuration, error: configurationError } = await admin.from('launch_configuration')
+      .select('community_access').eq('singleton', true).single();
+    if (configurationError) throw configurationError;
+    if (configuration.community_access || process.env.VERCEL_ENV === 'production') {
+      return response.status(403).json({ error: 'All current features are free. Paid checkout is available only in an isolated test environment.' });
+    }
     const { data: price, error } = await admin.from('billing_prices').select('price_id')
       .eq('environment', environment).eq('price_id', priceId).eq('checkout_enabled', true).maybeSingle();
     if (error) throw error;

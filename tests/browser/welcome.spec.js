@@ -37,7 +37,7 @@ test('public feature page is crawlable and usable on mobile',async({page})=>{
   await page.setViewportSize({width:320,height:760});
   await page.goto('/features.html');
   await expect(page).toHaveTitle(/Book and Web Novel Translation Features/);
-  await expect(page.getByRole('heading',{name:'A translation room built around the whole book.'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Your novel translation suite, from MTL to final review.'})).toBeVisible();
   await expect(page.getByRole('link',{name:'Start translating'})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
 });
