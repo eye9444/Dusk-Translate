@@ -25,7 +25,7 @@
 - Account cards show cloud project and storage usage instead of subscription status in community mode.
 - Local collaboration writes no longer wait for network uploads. Startup replays pending edits before showing shared text, and EPUB export saves a local draft before building.
 
-Deployment requires both `202610240001_feedback_tickets.sql` and `202610240002_reader_chapter_state.sql`. See [release notes](docs/RELEASE-NOTES.md). This branch's changes are not a claim that the production database has been migrated.
+Self-hosted deployments require the feedback ticket, reader chapter state, and feedback status message length migrations. See [release notes](docs/RELEASE-NOTES.md).
 
 **[Launch DuskTranslate](https://www.dusktranslate.com)** in a modern browser. No installation or downloaded HTML release is required.
 

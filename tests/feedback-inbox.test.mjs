@@ -19,12 +19,13 @@ test('ticket conversations and status changes enforce reporter and founder bound
     await asUser(db,founder);
     assert.equal((await db.query('select feedback_tickets() tickets')).rows[0].tickets[0].unread,true);
     await assert.rejects(db.query("select feedback_ticket_action($1,'rejected','short')",[id]),/rejection reason/);
+    await db.query("select feedback_ticket_action($1,'rejected',$2)",[id,'R'.repeat(5000)]);
     await db.query("select feedback_ticket_action($1,'rejected','This is caused by an unsupported file format.')",[id]);
     await asUser(db,reporter);
     const ticket=(await db.query('select feedback_tickets() tickets')).rows[0].tickets[0];
     assert.equal(ticket.status,'rejected');assert.equal(ticket.unread,true);assert.match(ticket.rejection_reason,/unsupported/);
     const messages=(await db.query("select feedback_ticket_action($1,'read','') messages",[id])).rows[0].messages;
-    assert.equal(messages.length,2);
+    assert.equal(messages.length,3);
     assert.equal((await db.query('select feedback_tickets() tickets')).rows[0].tickets[0].unread,false);
   }finally{await db.close();}
 });

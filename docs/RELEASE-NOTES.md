@@ -8,8 +8,8 @@
 - Replaced community-mode billing cards with cloud project/storage usage.
 - Fixed collaboration startup overwriting edits made during initialization, and separated local outbox persistence from network uploads.
 - EPUB export now checkpoints locally without waiting for cloud uploads, prevents duplicate concurrent builds, and reports a bounded timeout. Download blob URLs remain valid longer for large files.
-- Required before production deployment: apply `202610240001_feedback_tickets.sql` and `202610240002_reader_chapter_state.sql`.
-- Incident status: the reported user's cloud records have not been inspected. These are reproduced code defects, not a confirmed diagnosis of that particular report or a recovery claim.
+- Required migrations: `202610240001_feedback_tickets.sql`, `202610240002_reader_chapter_state.sql`, and `202610250001_feedback_status_message_length.sql`.
+- The saving fixes address reproduced code defects. They do not establish the cause of every lost-work report or guarantee recovery of previously unsaved work.
 
 ## 0.5.0 - 2026-10-20
 
