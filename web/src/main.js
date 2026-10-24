@@ -2,6 +2,8 @@ import './style.css';
 import './glass.css';
 import './welcome.css';
 import './launch.css';
+import { createFeedbackHub } from './feedback-hub.js';
+import { changeChapters } from './chapter-actions.js';
 import { commitQueue } from './quota-client.js';
 import { createSpendingNotice } from './spending-notice.js';
 import { createUpgradeDialog, showQuotaDialog } from './upgrade-dialog.js';
@@ -118,10 +120,24 @@ async function showImages(){
   $('images-status').textContent='Reading EPUB images…';$('images-list').replaceChildren();$('images-dialog').showModal();
   try{if(!isEpub(active))throw new Error('This project does not contain an EPUB.');imageDialogAssets=await listEpubImages(active.file);$('images-status').textContent=`${imageDialogAssets.length} image assets found.`;await renderImageAssets();}catch(error){$('images-status').textContent=errorMessage(error);}
 }
+let exportingEpub=false;
 async function exportTranslatedEpub(){
-  if(!active)return;
-  try{announceSave('Building translated EPUB…');await projectCollaboration?.flush();await draftQueue;await flush();const rights=await currentEntitlements(),source=await projectFileWithReplacements(active),workflowSnapshot=await workflowExportSnapshot(active),base=rights.capabilities.exportSelection?workflowSnapshot:{...workflowSnapshot,exportExcluded:[]},snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,projectCollaboration?.publishedRuby?.(chapter.id)||[]]))},file=isEpub(active)?await buildTranslatedEpub(source,snapshot):await buildWebNovelEpub(active.title,snapshot);download(`${safeFileName(active.title)}-translated.epub`,file);announceSave('Translated EPUB downloaded');}
-  catch(error){announceSave(`EPUB export failed: ${errorMessage(error)}`);}
+  if(!active||exportingEpub)return;
+  exportingEpub=true;const project=active;let timer;
+  try{
+    announceSave('Saving local draft before EPUB export...');await draftQueue;
+    await local.patch({...project,snapshot:cleanSnapshot(project.snapshot),dirty:project.dirty||persisted!==generation,updatedAt:new Date().toISOString()});
+    // A cloud upload must not block the local backup/export path.
+    void flush();announceSave('Building translated EPUB...');
+    const build=async()=>{
+      const rights=await currentEntitlements(),source=await projectFileWithReplacements(project),workflowSnapshot=await workflowExportSnapshot(project),base=rights.capabilities.exportSelection?workflowSnapshot:{...workflowSnapshot,exportExcluded:[]};
+      const snapshot={...base,publishedRuby:Object.fromEntries(base.novel.chapters.map(chapter=>[chapter.id,active===project?projectCollaboration?.publishedRuby?.(chapter.id)||[]:[]]))};
+      return isEpub(project)?buildTranslatedEpub(source,snapshot):buildWebNovelEpub(project.title,snapshot);
+    };
+    const file=await Promise.race([build(),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('Export timed out. Your draft was saved on this device. Retry or export a project backup.')),90000);})]);
+    download(`${safeFileName(project.title)}-translated.epub`,file);if(active===project)announceSave('Translated EPUB download requested');
+  }catch(error){if(active===project)announceSave(`EPUB export failed: ${errorMessage(error)}`);}
+  finally{clearTimeout(timer);exportingEpub=false;}
 }
 $('images-preview').defaultChecked=true;
 $('images-preview').checked=true;
@@ -170,7 +186,12 @@ function openActiveEditorProject() {
 }
 function el(tag, className, value) { const n = document.createElement(tag); n.className = className; if (value !== undefined) n.textContent = value; return n; }
 function button(label, action) { const n = el('button','',label); n.addEventListener('click', action); return n; }
-function download(name, data) { const url = URL.createObjectURL(data); const a = el('a',''); a.href=url; a.download=name; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); }
+function download(name, data) {
+  const url=URL.createObjectURL(data),a=el('a','');
+  a.href=url;a.download=name;a.hidden=true;document.body.append(a);a.click();a.remove();
+  // Give large EPUB downloads time to start before releasing their backing blob.
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
 function safeFileName(value) { return String(value || 'project').replace(/[^a-z0-9_-]/gi,'_'); }
 function textExport(snapshot) {
   const excluded = new Set(snapshot?.exportExcluded || []);
@@ -418,6 +439,14 @@ async function showBilling() {
   $('billing-detail').textContent = '';
   $('billing-manage').disabled = true;
   $('billing-dialog').showModal();
+  if(COMMUNITY_ACCESS){
+    const labels=document.querySelectorAll('.account-facts span');labels[0].textContent='CLOUD PROJECTS';labels[1].textContent='CLOUD STORAGE';
+    $('billing-access').textContent='Loading...';$('billing-plan').textContent='Loading...';$('billing-manage').hidden=true;
+    $('billing-detail').textContent='All current features are free. Download project backups to keep an independent copy of your work.';
+    try{const capacity=await remote.capacity();$('billing-access').textContent=`${capacity.projects.length} / ${capacity.limits.projects}`;$('billing-plan').textContent=`${formatStorage(capacity.storageBytes)} / ${formatStorage(capacity.limits.storageBytes)}`;}
+    catch(error){$('billing-access').textContent='Unavailable';$('billing-plan').textContent='Unavailable';$('billing-detail').textContent=errorMessage(error);}
+    return;
+  }
   try {
     const billing = await billingRequest('/api/paddle/status');
     const tierLabel=TIER_LABELS[billing.tier]||billing.tier||'Starter';
@@ -499,6 +528,37 @@ $('billing-signout').onclick = signOut;
 $('account-password').onclick = () => { $('billing-dialog').close(); showAuth('update'); };
 
 function updateFeedbackCount(){ $('feedback-count').textContent=`${$('feedback-description').value.length.toLocaleString()} / 5,000 characters`; }
+function showChapterActions(chapterId){
+  if(!active||streaming||active.accessRole==='viewer')return;
+  const project=active,dialog=document.createElement('dialog'),form=document.createElement('form');
+  form.append(el('h2','','Chapter actions'),el('p','','Select chapters below. Deletion changes this project and translated exports; your uploaded original is retained.'));
+  const choices=el('div',''),inputs=[];
+  choices.style.maxHeight='40vh';choices.style.overflowY='auto';
+  for(const chapter of project.snapshot.novel.chapters){const label=el('label',''),input=document.createElement('input');input.type='checkbox';input.value=chapter.id;input.checked=chapter.id===chapterId;inputs.push(input);label.append(input,document.createTextNode(chapter.title||chapter.id));choices.append(label);}
+  const all=button('Select all',()=>{const checked=!inputs.every(input=>input.checked);for(const input of inputs)input.checked=checked;});all.type='button';form.append(all,choices);
+  const select=document.createElement('select');select.setAttribute('aria-label','Chapter action');
+  for(const [value,text] of [['incomplete','Mark unfinished'],['complete','Mark complete (with translation text)'],['delete','Delete selected chapters']]){const option=el('option','',text);option.value=value;select.append(option);}
+  const images=document.createElement('input');images.type='checkbox';
+  const imageLabel=el('label','');imageLabel.append(images,document.createTextNode('Also remove unused images from deleted chapters in translated EPUB exports'));
+  const error=el('p',''),actions=el('div','dialog-actions'),cancel=button('Cancel',()=>dialog.close()),apply=el('button','','Apply');cancel.type='button';apply.type='submit';actions.append(cancel,apply);form.append(select,imageLabel,error,actions);dialog.append(form);document.body.append(dialog);
+  select.onchange=()=>{imageLabel.hidden=select.value!=='delete'||!isEpub(project);};select.onchange();
+  form.onsubmit=async event=>{
+    event.preventDefault();if(active!==project||streaming)return dialog.close();
+    const ids=inputs.filter(input=>input.checked).map(input=>input.value);if(!ids.length){error.textContent='Select at least one chapter.';return;}
+    if(select.value==='delete'&&!confirm(`Delete ${ids.length} selected chapter(s) and their translation text from this project? Download a project backup first if needed.`))return;
+    apply.disabled=true;
+    try{
+      const next=changeChapters(project.snapshot,ids,select.value,{removeImages:images.checked});
+      // Durably stage the destructive operation before changing the visible editor.
+      await draftQueue;await local.patch({...project,snapshot:next,dirty:isCloud(),updatedAt:new Date().toISOString()});
+      if(active!==project)return dialog.close();
+      project.snapshot=next;generation++;project.dirty=isCloud();
+      $('editor').contentWindow?.postMessage({type:'host:chapters',projectId:project.id,...next},location.origin);
+      dialog.close();void flush();
+    }catch(e){error.textContent=errorMessage(e);apply.disabled=false;}
+  };
+  dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+}
 function showFeedback(){
   if(!user){showAuth();return;}
   $('feedback-error').textContent='';$('feedback-description').value='';$('feedback-screenshot').value='';updateFeedbackCount();$('feedback-dialog').showModal();
@@ -562,7 +622,30 @@ function scheduleWhatsNew(){
   releaseNoticeScheduledFor=identity;
   setTimeout(()=>{if(user?.id===identity)maybeShowWhatsNew();},15000);
 }
-$('feedback-inbox').onclick=showFeedbackInbox;
+let ticketRefreshPending=false;
+async function refreshTicketBadge(){
+  if(!user||ticketRefreshPending)return;
+  ticketRefreshPending=true;const identity=user.id;
+  try{const tickets=await remote.feedbackTickets();if(user?.id!==identity)return;
+    const count=tickets.filter(ticket=>ticket.unread).length;
+    $('feedback-inbox').hidden=false;$('feedback-inbox').textContent=`Feedback Hub${count?` (${count} unread)`:''}`;
+  }catch{}finally{ticketRefreshPending=false;}
+}
+const feedbackHub=createFeedbackHub({remote,dialog:$('feedback-inbox-dialog'),isAdmin:()=>feedbackAdmin,onChange:refreshTicketBadge});
+async function openFeedbackHub(){
+  if(!user){showAuth();return;}
+  $('feedback-dialog').close();
+  try{await remote.feedbackTickets();await feedbackHub.open();}
+  catch(error){if(feedbackAdmin)await showFeedbackInbox();else status(`Tickets are not available yet: ${errorMessage(error)}`);}
+}
+const contact=document.createElement('p');contact.className='feedback-contacts';
+for(const [label,url] of [['Reddit: u/eye9444','https://www.reddit.com/user/eye9444/'],['Join the Discord server','https://discord.gg/48btenHty2']]){
+  const link=el('a','',label);link.href=url;link.target='_blank';link.rel='noopener noreferrer';contact.append(link,document.createTextNode(' '));
+}
+$('feedback-title').after(contact);
+const myTickets=button('My tickets',openFeedbackHub);myTickets.type='button';$('feedback-form').querySelector('.dialog-actions').prepend(myTickets);
+$('feedback-inbox').onclick=openFeedbackHub;
+setInterval(()=>{if(!document.hidden)void refreshTicketBadge();},30000);
 $('feedback-description').addEventListener('input',updateFeedbackCount);
 $('feedback-form').onsubmit=async event=>{
   event.preventDefault();if(!user||working)return;working=true;$('feedback-submit').disabled=true;$('feedback-error').textContent='';
@@ -596,7 +679,7 @@ async function refresh() {
   if(!user)$('whats-new-dialog').close();
   $('feedback-inbox').hidden=true;
   feedbackAdmin=false;
-  if(user){const feedbackUserId=user.id;remote.feedbackAdmin().then(isAdmin=>{if(user?.id!==feedbackUserId)return;feedbackAdmin=Boolean(isAdmin);$('feedback-inbox').hidden=!feedbackAdmin;}).catch(()=>{});}
+  if(user){const feedbackUserId=user.id;remote.feedbackAdmin().then(isAdmin=>{if(user?.id!==feedbackUserId)return;feedbackAdmin=Boolean(isAdmin);$('feedback-inbox').hidden=!feedbackAdmin;void refreshTicketBadge();}).catch(()=>{});}
   $('welcome').hidden=showingPricing||showingSubscriptionWelcome||Boolean(user)||guestMode;
   $('subscription-welcome').hidden=!showingSubscriptionWelcome;
   $('library').hidden=showingPricing||showingSubscriptionWelcome||Boolean(active)||(!user&&!guestMode);
@@ -1180,6 +1263,7 @@ window.addEventListener('message', async e => {
     if (e.data.action === 'consistencyReview') checkConsistency();
     if (e.data.action === 'customPrompt') showCustomInstructions();
     if (e.data.action === 'workflow') showWorkflow(e.data);
+    if (e.data.action === 'chapterActions') showChapterActions(e.data.chapterId);
     return;
   }
   if (e.data.type === 'editor:dictionary') {
@@ -1204,7 +1288,7 @@ window.addEventListener('message', async e => {
       if(active.accessRole!=='viewer'){
         projectCollaboration?.stop();projectCollaboration=null;
         const project=active;
-        startCollaboration({project,local,remote,onStatus:message=>{if(active===project)announceSave(message);},onRuby:(chapterId)=>{if(active===project)sendRuby(chapterId);},onText:(chapterId,value)=>{
+        startCollaboration({project,local,remote,pendingTranslations:()=>pendingCollaborativeEdits.filter(edit=>edit.projectId===project.id),onStatus:message=>{if(active===project)announceSave(message);},onRuby:(chapterId)=>{if(active===project)sendRuby(chapterId);},onText:(chapterId,value)=>{
           if(active!==project)return;
           const previous=active.snapshot.translations?.[chapterId]||'';
           if(previous===value)return;
@@ -1876,6 +1960,7 @@ if(cloud){
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('recoveryUpdate'),0);
     if(user?.id!==next?.id){
       $('whats-new-dialog').close();
+      $('feedback-inbox-dialog').close();$('feedback-inbox-list').replaceChildren();$('feedback-dialog').close();
       releaseNoticeCheckedFor='';releaseNoticeScheduledFor='';
       comments.stop();
       projectPresence?.stop();projectPresence=null;projectCollaboration?.stop();projectCollaboration=null;

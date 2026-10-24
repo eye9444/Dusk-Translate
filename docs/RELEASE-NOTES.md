@@ -1,5 +1,16 @@
 # Release Notes
 
+## 0.6.0 - 2026-10-24
+
+- Added private feedback ticket conversations, founder-only status transitions, rejection reasons, and polled unread indicators. Added Reddit and Discord contact links.
+- Added right-click sidebar chapter actions for bulk completion, unfinished status, and deletion with confirmation. Shift+F10 opens the same dialog; normal clicks still navigate. Completion requires translation text.
+- Deleted EPUB sections are removed from translated export packages and navigation; optional image cleanup preserves covers and images referenced by retained content. Uploaded originals remain unchanged.
+- Replaced community-mode billing cards with cloud project/storage usage.
+- Fixed collaboration startup overwriting edits made during initialization, and separated local outbox persistence from network uploads.
+- EPUB export now checkpoints locally without waiting for cloud uploads, prevents duplicate concurrent builds, and reports a bounded timeout. Download blob URLs remain valid longer for large files.
+- Required before production deployment: apply `202610240001_feedback_tickets.sql` and `202610240002_reader_chapter_state.sql`.
+- Incident status: the reported user's cloud records have not been inspected. These are reproduced code defects, not a confirmed diagnosis of that particular report or a recovery claim.
+
 ## 0.5.0 - 2026-10-20
 
 - Opened all current product features through community access while retaining project permissions and cloud capacity limits.

@@ -80,13 +80,14 @@ function setAccess(role = 'owner') {
   if (!canEdit) { status.textContent = 'Viewer access - read only'; status.className = 'key-status'; }
 }
 let needsReview = {};
+let unfinished = {}, deletedChapters = [];
 function snapshot() {
   const saved = { ...translations };
   if (busy && novel) {
     const text = Array.from(document.getElementById('tl-out').childNodes).filter(n => n.nodeType === Node.TEXT_NODE).map(n => n.textContent).join('');
     if (text) saved[novel.chapters[cur].id] = text + '…PARTIAL';
   }
-  return { novel, sourceLanguage, targetLanguage, translations: saved, partialResumes, exportExcluded, needsReview, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style:'natural', spellcheck: spellcheckEnabled };
+  return { novel, sourceLanguage, targetLanguage, translations: saved, partialResumes, exportExcluded, needsReview, unfinished, deletedChapters, cur, glossary: document.getElementById('glossary').value, model: getModelVal(), style:'natural', spellcheck: spellcheckEnabled };
 }
 function emit(force = false) {
   const libraryButton = document.getElementById('host-library');
@@ -355,7 +356,20 @@ renderList = function () {
     const title = document.createElement('div'); title.className = 'ch-title'; title.lang=sourceLanguage; title.setAttribute('translate','no'); title.textContent = (namedChapters ? ch.title || sourcePreview : sourcePreview).slice(0,45);
     const meta = document.createElement('div'); meta.className = 'ch-meta'; meta.textContent = `${ch.jp_char_count || 0} chars `;
     const mark = document.createElement('span'); mark.id = 'ck' + i; meta.append(mark); row.append(id,title,meta);
-    row.onclick = () => selectCh(i); row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectCh(i); } }; list.append(row);
+    const openActions=event=>{
+      if(!canEdit)return;
+      event.preventDefault();event.stopPropagation();
+      if(busy||preparingTranslation)return;
+      emit(true);send('editor:action',{action:'chapterActions',chapterId:ch.id});
+    };
+    if(canEdit){row.title='Right-click for chapter actions';row.setAttribute('aria-haspopup','dialog');row.setAttribute('aria-keyshortcuts','Shift+F10');row.oncontextmenu=openActions;}
+    row.onclick = () => selectCh(i);
+    row.onkeydown = e => {
+      if(e.target!==row)return;
+      if(e.key==='ContextMenu'||(e.shiftKey&&e.key==='F10')){openActions(e);return;}
+      if(e.key==='Enter'||e.key===' '){e.preventDefault();selectCh(i);}
+    };
+    list.append(row);
     if (translations[ch.id]) updateMark(i, translations[ch.id]);
   });
 };
@@ -452,8 +466,10 @@ abortTranslation = function() {
 const originalEndBusy = endBusy;
 endBusy = function() { originalEndBusy(); document.getElementById('tl-out').contentEditable = canEdit && !preparingTranslation ? 'true' : 'false'; emit(); };
 const originalUpdate = updateProg;
-updateProg = function() { originalUpdate(); emit(); };
-doEpubExport = function(){ if(busy)return;send('editor:action',{action:'exportEpub'}); };
+const originalCompletionMark=updateMark;
+updateMark=function(index,text){originalCompletionMark(index,text);const mark=document.getElementById('ck'+index);if(mark&&unfinished[novel?.chapters[index]?.id]){mark.textContent=' Unfinished';mark.className='partial-mark';}else if(mark&&!text?.trim()){mark.textContent='';}};
+updateProg = function() { originalUpdate();if(novel){const done=novel.chapters.filter(ch=>!unfinished[ch.id]&&translations[ch.id]?.trim()&&!translations[ch.id].endsWith('…PARTIAL')).length;document.getElementById('prog').textContent=`${done} / ${novel.chapters.length} translated`;}emit(); };
+doEpubExport = function(){ if(busy)return;emit(true);send('editor:action',{action:'exportEpub'}); };
 
 function checkNovel(value) {
   if (!Array.isArray(value?.chapters) || (!value.chapters.length && value.projectType !== 'web-novel')) throw new Error('This file has no readable chapters.');
@@ -550,6 +566,7 @@ window.addEventListener('message', async e => {
   if (e.data.type === 'host:chapters') {
     if(!canEdit||busy)return;
     novel=checkNovel(e.data.novel);translations=e.data.translations||{};partialResumes=e.data.partialResumes||{};exportExcluded=e.data.exportExcluded||[];needsReview=e.data.needsReview||{};
+    unfinished=e.data.unfinished||{};deletedChapters=e.data.deletedChapters||[];
     cur=Math.min(cur,Math.max(0,novel.chapters.length-1));
     initUI();if(novel.chapters.length)originalSelect(cur);emit(true);document.dispatchEvent(new Event('dusk:chapter'));return;
   }
@@ -609,6 +626,7 @@ window.addEventListener('message', async e => {
     projectTitle.textContent = p.title;
     projectTitle.title = p.title;
     keyInput.value = ''; translations = {}; partialResumes = {}; exportExcluded = []; needsReview={}; cur = 0; epubZip = null; devLog = []; window._plainTextRetryChapter = null;
+    unfinished=p.snapshot?.unfinished||{};deletedChapters=p.snapshot?.deletedChapters||[];
     restoreRememberedProviderSettings();
     sourceLanguage=p.snapshot?.sourceLanguage||'ja';targetLanguage=p.snapshot?.targetLanguage||'en';
     sourceText.lang=sourceLanguage;document.getElementById('tl-out').lang=targetLanguage;

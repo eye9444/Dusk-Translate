@@ -6,6 +6,26 @@ import { startCollaboration } from '../web/src/collaboration.js';
 const project=()=>({id:'project-one',snapshot:{novel:{chapters:[{id:'one',text:'Source'}]},translations:{one:'Hello'}}});
 const delay=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds));
 
+test('startup replays pending translations before publishing canonical text',async()=>{
+  const local=localStore(),seen=[],value='A full translated chapter. '.repeat(10000);
+  const remote={async initializeDocument(){return createDocumentSeed(project().snapshot);},async documentUpdates(){return [];},async appendDocumentUpdate(){throw new Error('offline');}};
+  const controller=await startCollaboration({project:project(),local,remote,pendingTranslations:()=>[{chapterId:'one',value}],onText:(_id,text)=>seen.push(text)});
+  try{assert.deepEqual(seen,[value]);assert.equal(controller.text('one'),value);assert.equal(local.pending.length,1);}
+  finally{controller.stop();}
+});
+
+test('stalled uploads do not block subsequent local edits',async()=>{
+  const local=localStore();let release;
+  const blocked=new Promise(resolve=>{release=resolve;});
+  const remote={async initializeDocument(){return createDocumentSeed(project().snapshot);},async documentUpdates(){return [];},async appendDocumentUpdate(){await blocked;}};
+  const controller=await startCollaboration({project:project(),local,remote,onText:()=>{}});
+  try{
+    controller.edit('one','First edit');await delay(10);
+    controller.edit('one','Second edit');await delay(10);
+    assert.equal(local.pending.length,2,'both edits must be durable while upload is blocked');
+  }finally{release();await controller.flush();controller.stop();}
+});
+
 function localStore(){
   const pending=[];
   return {

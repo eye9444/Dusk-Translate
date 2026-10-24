@@ -11,11 +11,11 @@ function commonEdit(previous, next) {
   return {start,end:oldEnd,replacement:next.slice(start,newEnd)};
 }
 
-export async function startCollaboration({project,local,remote,onText,onRuby=()=>{},onStatus=()=>{},pollInterval=POLL_INTERVAL}) {
+export async function startCollaboration({project,local,remote,onText,onRuby=()=>{},onStatus=()=>{},pendingTranslations=()=>[],pollInterval=POLL_INTERVAL}) {
   const localOrigin={},remoteOrigin='remote';
   const canonical=await remote.initializeDocument(project.id,createDocumentSeed(project.snapshot));
   const doc=openSharedDocument(canonical instanceof Uint8Array?canonical:new Uint8Array(canonical));
-  let stopped=false,pollTimer,lastCreatedAt=null,flushing=false,connectionStatus='',queueTask=Promise.resolve();
+  let stopped=false,pollTimer,lastCreatedAt=null,uploadTask=null,connectionStatus='',queueTask=Promise.resolve();
   const applied=new Set();
   const reportStatus=message=>{if(connectionStatus===message)return;connectionStatus=message;onStatus(message);};
 
@@ -35,27 +35,36 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
   };
   applyRows(await remote.documentUpdates(project.id));
   for(const pending of await local.documentUpdates(project.id))Y.applyUpdate(doc,new Uint8Array(pending.payload),remoteOrigin);
-  notify();
 
   async function flushOutbox(){
-    if(stopped||flushing)return;flushing=true;
-    try{
+    if(stopped)return;
+    if(uploadTask)return uploadTask;
+    uploadTask=(async()=>{try{
       for(const update of await local.documentUpdates(project.id)){
         await remote.appendDocumentUpdate(project.id,update.operationId,new Uint8Array(update.payload));
         applied.add(update.operationId);await local.removeDocumentUpdate(update.operationId);
       }
       reportStatus('Live collaboration connected');
     }catch{reportStatus('Working offline - collaboration will reconnect');}
-    finally{flushing=false;}
+    finally{uploadTask=null;}})();
+    return uploadTask;
   }
   const updateHandler=(update,origin)=>{
     if(origin!==localOrigin)return;
     const operationId=crypto.randomUUID();
-    queueTask=queueTask.catch(()=>{}).then(()=>local.queueDocumentUpdate(project.id,operationId,update)).then(flushOutbox).catch(()=>{
-      reportStatus('Working offline - collaboration will reconnect');
+    // Persist every edit independently of slow or stalled network uploads.
+    queueTask=queueTask.catch(()=>{}).then(()=>local.queueDocumentUpdate(project.id,operationId,update)).then(()=>{void flushOutbox();}).catch(()=>{
+      reportStatus('Could not save collaboration changes on this device. Download a project backup.');
     });
   };
   doc.on('update',updateHandler);
+  // Replay edits made during startup before canonical text can replace the editor.
+  for(const {chapterId,value} of pendingTranslations()){
+    const text=passage(doc,chapterId),edit=commonEdit(text.toString(),value);
+    replaceRange(text,edit.start,edit.end,edit.replacement,localOrigin);
+  }
+  await queueTask;
+  notify();
 
   async function poll(){
     if(stopped)return;
@@ -63,7 +72,7 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
     catch{reportStatus('Working offline - collaboration will reconnect');}
     finally{if(!stopped)pollTimer=setTimeout(poll,pollInterval);}
   }
-  pollTimer=setTimeout(poll,pollInterval);await flushOutbox();
+  pollTimer=setTimeout(poll,pollInterval);void flushOutbox();
 
   return {
     edit(chapterId,value){

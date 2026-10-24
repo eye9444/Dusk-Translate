@@ -139,6 +139,8 @@ export const remote = {
     return path;
   },
   async feedbackInbox(){return must(await cloud.rpc('list_feedback_inbox'));},
+  async feedbackTickets(){return must(await cloud.rpc('feedback_tickets'));},
+  async feedbackTicketAction(id,operation,body=''){return must(await cloud.rpc('feedback_ticket_action',{report_id:id,operation,body_text:body}));},
   async deleteFeedback(id,path){
     if(path)must(await cloud.storage.from('feedback-screenshots').remove([path]));
     return must(await cloud.rpc('delete_feedback_report',{report_id:id}));

@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { pruneDeletedEpub } from './epub-deletions.js';
 
 const MAX_EXPANDED_BYTES = 500 * 1024 * 1024;
 const MAX_PROCESSED_BYTES = 128 * 1024 * 1024;
@@ -259,7 +260,7 @@ export async function buildTranslatedEpub(file, snapshot) {
   const chapters = snapshot?.novel?.chapters || [];
   const translations = snapshot?.translations || {}, excluded = new Set(snapshot?.exportExcluded || []);
   const selected = chapters.filter(chapter => !excluded.has(chapter.id));
-  if (!selected.length || selected.some(chapter => !translations[chapter.id]?.trim() || translations[chapter.id].endsWith('…PARTIAL'))) {
+  if (!selected.length || selected.some(chapter => snapshot.unfinished?.[chapter.id] || !translations[chapter.id]?.trim() || translations[chapter.id].endsWith('…PARTIAL'))) {
     throw new Error('Finish every selected chapter before opening the translated EPUB.');
   }
   const zip = await JSZip.loadAsync(file);
@@ -283,6 +284,7 @@ export async function buildTranslatedEpub(file, snapshot) {
       .replace(/<itemref\b[^>]*\bidref=["']([^"']+)["'][^>]*\/?>(?:<\/itemref>)?/g, (itemref, id) => excluded.has(id) ? '' : itemref);
     zip.file(opfPath, opf);
   }
+  await pruneDeletedEpub(zip,snapshot);
   return zip.generateAsync({ type:'blob', mimeType:'application/epub+zip', compression:'DEFLATE', compressionOptions:{ level:6 } });
 }
 
@@ -294,7 +296,7 @@ export function snapshotReaderBook(title, snapshot, edition = 'original') {
   const translations=snapshot?.translations||{},excluded=new Set(snapshot?.exportExcluded||[]);
   const chapters=(snapshot?.novel?.chapters||[]).filter(chapter=>edition==='original'||!excluded.has(chapter.id)).map((chapter,index)=>{
     const text=edition==='translated'?translations[chapter.id]:chapter.text;
-    if(edition==='translated'&&(!text?.trim()||text.endsWith('…PARTIAL')))throw new Error('Finish every selected chapter before opening the translated edition.');
+    if(edition==='translated'&&(snapshot.unfinished?.[chapter.id]||!text?.trim()||text.endsWith('…PARTIAL')))throw new Error('Finish every selected chapter before opening the translated edition.');
     const paragraphs=String(text||'').split(/\n\s*\n/u).map(value=>value.trim()).filter(Boolean);
     return {id:chapter.id,title:chapter.title||`Chapter ${index+1}`,paragraphs,blocks:paragraphs.map(text=>({type:'text',text}))};
   });

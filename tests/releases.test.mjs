@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import {RELEASES,LATEST_RELEASE_ID, hasSeenLatestRelease} from '../web/src/releases.js';
 
 test('creator announcement updates copy without repeating the release notification',()=>{
-  const latest=RELEASES[0];
+  const latest=RELEASES.find(release=>release.id==='2026-10-20-community');
   assert.equal(latest.id,'2026-10-20-community');
-  assert.equal(hasSeenLatestRelease('2026-10-20-community'),true);
+  assert.equal(hasSeenLatestRelease('2026-10-20-community'),false);
   assert.match(latest.title,/I'm making DuskTranslate free/);
   assert.ok(latest.paragraphs.length>0);
   assert.match(latest.paragraphs.join(' '),/payment link isn't ready/);

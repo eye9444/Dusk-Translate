@@ -26,6 +26,8 @@ export function cleanSnapshot(s) {
   const chapterIds = new Set(chapters.map(ch => ch.id));
   const exportExcluded = [...new Set(Array.isArray(s.exportExcluded) ? s.exportExcluded : [])].filter(id => typeof id === 'string' && chapterIds.has(id));
   const needsReview = Object.fromEntries(chapters.filter(ch => s.needsReview?.[ch.id] === true).map(ch => [ch.id, true]));
+  const unfinished=Object.fromEntries(chapters.filter(ch=>s.unfinished?.[ch.id]===true).map(ch=>[ch.id,true]));
+  const deletedChapters=(Array.isArray(s.deletedChapters)?s.deletedChapters:[]).filter(ch=>typeof ch?.id==='string'&&typeof ch.xhtmlPath==='string'&&!chapterIds.has(ch.id)).map(ch=>({id:ch.id,xhtmlPath:ch.xhtmlPath,removeImages:ch.removeImages===true}));
   // A partial only needs its source chunk number to resume after a reload.
   const partialResumes = Object.fromEntries(chapters.flatMap(ch => {
     const resume = s.partialResumes?.[ch.id];
@@ -41,7 +43,7 @@ export function cleanSnapshot(s) {
   return {
     novel: { chapters, ...(s.novel.projectType === 'web-novel' ? { projectType:'web-novel' } : {}), _epubOpfPath: s.novel._epubOpfPath, _epubOpfDir: s.novel._epubOpfDir },
     ...languages,
-    translations, partialResumes, exportExcluded, needsReview, cur: chapters.length ? Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))) : 0,
+    translations, partialResumes, exportExcluded, needsReview, unfinished, deletedChapters, cur: chapters.length ? Math.min(chapters.length - 1, Math.max(0, Math.trunc(Number(s.cur) || 0))) : 0,
     glossary: String(s.glossary || ''), model: String(s.model || ''),
     style: ['natural','faithful','liberal'].includes(s.style) ? s.style : 'natural',
     spellcheck: s.spellcheck !== false
@@ -50,6 +52,6 @@ export function cleanSnapshot(s) {
 /** Calculate completed chapters without counting interrupted partial output. */
 export function progress(snapshot) {
   const chapters = snapshot?.novel?.chapters || [];
-  const done = chapters.filter(ch => snapshot.translations[ch.id]?.trim() && !snapshot.translations[ch.id].endsWith('…PARTIAL')).length;
+  const done = chapters.filter(ch => !snapshot.unfinished?.[ch.id] && snapshot.translations[ch.id]?.trim() && !snapshot.translations[ch.id].endsWith('…PARTIAL')).length;
   return { total: chapters.length, done, percent: chapters.length ? Math.round(done * 100 / chapters.length) : 0 };
 }

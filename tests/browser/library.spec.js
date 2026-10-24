@@ -60,6 +60,25 @@ test('EPUB-style projects retain portion IDs and source previews instead of gene
   await expect(editor.locator('.ch-id')).toHaveText(['p-001','p-002']);
   await expect(editor.locator('.ch-title')).toHaveText(['テストの文章です。Chapter one.','次の章の文章です。Chapter two.']);
 });
+test('sidebar bulk state and deletion persist across reload',async({page})=>{
+  await create(page,'Chapter actions');const editor=page.frameLocator('#editor');
+  await editor.locator('#tl-out').fill('Keep this translated text');
+  await expect(editor.locator('.ch-item button')).toHaveCount(0);
+  await editor.locator('#ci0').click({button:'right'});
+  await page.getByRole('button',{name:'Apply',exact:true}).click();
+  await expect(editor.locator('#ck0')).toHaveText(' Unfinished');
+  await expect(editor.locator('#tl-out')).toHaveText('Keep this translated text');
+  await editor.locator('#ci0').focus();await editor.locator('#ci0').press('Shift+F10');
+  await page.getByRole('button',{name:'Select all',exact:true}).click();
+  await page.getByRole('combobox',{name:'Chapter action'}).selectOption('complete');await page.getByRole('button',{name:'Apply',exact:true}).click();
+  await expect(editor.locator('#prog')).toHaveText('1 / 2 translated');
+  await editor.locator('#ci1').click({button:'right'});
+  await page.getByRole('combobox',{name:'Chapter action'}).selectOption('delete');page.once('dialog',dialog=>dialog.accept());
+  await page.getByRole('button',{name:'Apply',exact:true}).click();await expect(editor.locator('.ch-item')).toHaveCount(1);
+  await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();
+  await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(editor.locator('.ch-item')).toHaveCount(1);await expect(editor.locator('#tl-out')).toHaveText('Keep this translated text');
+});
 test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await create(page,'First');await leave(page);await create(page,'Second');await leave(page);
   const first=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'First',exact:true})});

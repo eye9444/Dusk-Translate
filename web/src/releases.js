@@ -1,5 +1,10 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-24-feedback-chapters',date:'2026-10-24',title:'A better way to report problems and organise chapters',items:Object.freeze([
+    'Your reports now have their own conversation in Feedback Hub. You can reply there, see whether I have accepted a report or put it on standby, and read my reason if I reject it. Unread replies show up in the sidebar.',
+    'Right-click a chapter to mark it unfinished, mark translated chapters complete, or delete selected chapters together. You can also focus a chapter and press Shift+F10. For EPUBs, you can remove unused images from deleted chapters when exporting. Your uploaded original stays untouched.',
+    'Account now shows your cloud project count and storage usage. You can also find my Reddit profile and the Discord server in the feedback form.',
+  ])}),
   Object.freeze({id:'2026-10-20-community',date:'2026-10-20',title:"I'm making DuskTranslate free",paragraphs:Object.freeze([
     "Hey everyone. I've decided to make all the current features on DuskTranslate free for everyone, including everything that was behind the Pro and Teams plans.",
     "After talking this through with someone who works in software and fan translation, I realised the paid plans weren't a good fit for the people using the site right now. A lot of you buy the Japanese books yourselves, spend your own time translating them, and share that work with readers for free. I don't want the tools here to be another expense on top of that.",
