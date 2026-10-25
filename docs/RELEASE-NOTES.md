@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.7.0 - 2026-10-25
+
+- Added a cover gallery alongside grid and list layouts, with a remembered layout preference, lazy EPUB cover loading, and title fallbacks.
+- Replaced the chapter actions dialog with a cursor-positioned context menu, keyboard navigation, sidebar multi-selection, and retained destructive-action confirmation.
+- Feedback contact links now use accessible Reddit and Discord icons.
+- No new database migration is required for this release.
+
 ## 0.6.0 - 2026-10-24
 
 - Added private feedback ticket conversations, founder-only status transitions, rejection reasons, and polled unread indicators. Added Reddit and Discord contact links.

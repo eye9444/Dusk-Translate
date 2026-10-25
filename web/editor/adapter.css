@@ -73,3 +73,10 @@ body.view-only #btn-tl,body.view-only #btn-abort,body.view-only #btn-import,body
 .inline-ruby-editor{position:fixed;z-index:35;display:flex;align-items:center;flex-wrap:wrap;gap:5px;width:min(270px,calc(100vw - 16px));padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--ink);box-shadow:0 6px 24px #0005}
 .inline-ruby-editor[hidden]{display:none}.inline-ruby-editor input{width:100%;min-width:0;box-sizing:border-box;background:var(--paper);color:var(--ink);border:1px solid var(--border);border-radius:4px;padding:5px;font:11px 'DM Mono',monospace}.inline-ruby-editor button{background:var(--panel);color:var(--ink);border:1px solid var(--border);border-radius:4px;padding:4px 7px;font:10px 'DM Mono',monospace}
 .src-txt::selection,.src-txt *::selection,.tl-out::selection,.tl-out *::selection{background:#ef8a4966;color:inherit}
+.chapter-context-menu{position:fixed;z-index:1000;width:240px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:6px;background:var(--panel,#201c18);color:var(--ink);border:1px solid var(--border);border-radius:8px;box-shadow:0 12px 36px #0006}
+.chapter-context-menu[hidden]{display:none}
+.chapter-context-menu button{display:block;width:100%;text-align:left;padding:10px 12px;background:transparent;color:inherit;border:0;border-radius:4px;font:inherit;cursor:pointer}
+.chapter-context-menu button:hover,.chapter-context-menu button:focus-visible{background:var(--border);outline:none}
+.chapter-context-menu button:disabled{opacity:.4;cursor:default}
+.chapter-context-menu hr{border:0;border-top:1px solid var(--border);margin:5px}
+.ch-item>input[type=checkbox]{float:right;width:18px;height:18px;margin:4px;accent-color:var(--accent)}

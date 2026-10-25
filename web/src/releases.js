@@ -1,5 +1,9 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-25-cover-gallery',date:'2026-10-25',title:'Browse your books by their covers',items:Object.freeze([
+    'There is now a Gallery view in your library. It shows the cover from your EPUB, or the book title when there is no cover. You can still switch back to grid or list.',
+    'Right-clicking a chapter now opens a small menu beside your cursor. Select chapters in the sidebar for bulk actions, without opening a separate dialog. Deleting chapters still asks for confirmation.',
+  ])}),
   Object.freeze({id:'2026-10-24-feedback-chapters',date:'2026-10-24',title:'A better way to report problems and organise chapters',items:Object.freeze([
     'Your reports now have their own conversation in Feedback Hub. You can reply there, see whether I have accepted a report or put it on standby, and read my reason if I reject it. Unread replies show up in the sidebar.',
     'Right-click a chapter to mark it unfinished, mark translated chapters complete, or delete selected chapters together. You can also focus a chapter and press Shift+F10. For EPUBs, you can remove unused images from deleted chapters when exporting. Your uploaded original stays untouched.',

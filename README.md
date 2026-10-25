@@ -12,13 +12,16 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.6.0" src="https://img.shields.io/badge/web_release-v0.6.0-17120f?style=for-the-badge" />
+  <img alt="Web release 0.7.0" src="https://img.shields.io/badge/web_release-v0.7.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-### Version 0.6.0
+### Version 0.7.0
+
+- Choose Gallery in your library to browse by EPUB cover. Covers load as you scroll; books without a supported embedded cover show a title placeholder. Grid and list views remain available.
+- Chapter actions now open in a compact right-click menu beside the cursor, not a modal. Use Select chapters or Select all chapters for bulk operations; deletion still asks for confirmation. Keyboard users can open the menu with Shift+F10 and navigate with arrow keys.
 
 - Right-click a chapter (or focus it and press Shift+F10) for bulk completion, unfinished status, and confirmed deletion. Normal clicks still open chapters. Empty translations cannot be marked complete. The uploaded original is retained; deleted EPUB sections and optionally their unused images are removed from translated exports.
 - Feedback Hub supports private reporter/founder conversations, accepted/standby/rejected queues, detailed rejection reasons, and unread notifications while the site is open. Contact Eye on [Reddit](https://www.reddit.com/user/eye9444/) or [Discord](https://discord.gg/48btenHty2).

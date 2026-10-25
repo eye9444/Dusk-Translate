@@ -2,6 +2,8 @@ import './style.css';
 import './glass.css';
 import './welcome.css';
 import './launch.css';
+import './gallery.css';
+import { createCoverGallery } from './project-covers.js';
 import { createFeedbackHub } from './feedback-hub.js';
 import { changeChapters } from './chapter-actions.js';
 import { commitQueue } from './quota-client.js';
@@ -528,36 +530,20 @@ $('billing-signout').onclick = signOut;
 $('account-password').onclick = () => { $('billing-dialog').close(); showAuth('update'); };
 
 function updateFeedbackCount(){ $('feedback-count').textContent=`${$('feedback-description').value.length.toLocaleString()} / 5,000 characters`; }
-function showChapterActions(chapterId){
+async function applyChapterAction(data){
   if(!active||streaming||active.accessRole==='viewer')return;
-  const project=active,dialog=document.createElement('dialog'),form=document.createElement('form');
-  form.append(el('h2','','Chapter actions'),el('p','','Select chapters below. Deletion changes this project and translated exports; your uploaded original is retained.'));
-  const choices=el('div',''),inputs=[];
-  choices.style.maxHeight='40vh';choices.style.overflowY='auto';
-  for(const chapter of project.snapshot.novel.chapters){const label=el('label',''),input=document.createElement('input');input.type='checkbox';input.value=chapter.id;input.checked=chapter.id===chapterId;inputs.push(input);label.append(input,document.createTextNode(chapter.title||chapter.id));choices.append(label);}
-  const all=button('Select all',()=>{const checked=!inputs.every(input=>input.checked);for(const input of inputs)input.checked=checked;});all.type='button';form.append(all,choices);
-  const select=document.createElement('select');select.setAttribute('aria-label','Chapter action');
-  for(const [value,text] of [['incomplete','Mark unfinished'],['complete','Mark complete (with translation text)'],['delete','Delete selected chapters']]){const option=el('option','',text);option.value=value;select.append(option);}
-  const images=document.createElement('input');images.type='checkbox';
-  const imageLabel=el('label','');imageLabel.append(images,document.createTextNode('Also remove unused images from deleted chapters in translated EPUB exports'));
-  const error=el('p',''),actions=el('div','dialog-actions'),cancel=button('Cancel',()=>dialog.close()),apply=el('button','','Apply');cancel.type='button';apply.type='submit';actions.append(cancel,apply);form.append(select,imageLabel,error,actions);dialog.append(form);document.body.append(dialog);
-  select.onchange=()=>{imageLabel.hidden=select.value!=='delete'||!isEpub(project);};select.onchange();
-  form.onsubmit=async event=>{
-    event.preventDefault();if(active!==project||streaming)return dialog.close();
-    const ids=inputs.filter(input=>input.checked).map(input=>input.value);if(!ids.length){error.textContent='Select at least one chapter.';return;}
-    if(select.value==='delete'&&!confirm(`Delete ${ids.length} selected chapter(s) and their translation text from this project? Download a project backup first if needed.`))return;
-    apply.disabled=true;
+  const project=active,ids=Array.isArray(data.chapterIds)?data.chapterIds.filter(id=>project.snapshot.novel.chapters.some(ch=>ch.id===id)):[];
+  if(!ids.length)return;
+  if(data.operation==='delete'&&!confirm(`Delete ${ids.length} selected chapter(s) and their translations? ${data.removeImages?'Unused images will also be removed from translated exports. ':''}Your uploaded original is retained. Download a backup first if needed.`))return;
     try{
-      const next=changeChapters(project.snapshot,ids,select.value,{removeImages:images.checked});
+      const next=changeChapters(project.snapshot,ids,data.operation,{removeImages:data.removeImages===true});
       // Durably stage the destructive operation before changing the visible editor.
       await draftQueue;await local.patch({...project,snapshot:next,dirty:isCloud(),updatedAt:new Date().toISOString()});
-      if(active!==project)return dialog.close();
+      if(active!==project)return;
       project.snapshot=next;generation++;project.dirty=isCloud();
       $('editor').contentWindow?.postMessage({type:'host:chapters',projectId:project.id,...next},location.origin);
-      dialog.close();void flush();
-    }catch(e){error.textContent=errorMessage(e);apply.disabled=false;}
-  };
-  dialog.addEventListener('close',()=>dialog.remove(),{once:true});dialog.showModal();
+      void flush();
+    }catch(e){announceSave(errorMessage(e));}
 }
 function showFeedback(){
   if(!user){showAuth();return;}
@@ -639,8 +625,13 @@ async function openFeedbackHub(){
   catch(error){if(feedbackAdmin)await showFeedbackInbox();else status(`Tickets are not available yet: ${errorMessage(error)}`);}
 }
 const contact=document.createElement('p');contact.className='feedback-contacts';
-for(const [label,url] of [['Reddit: u/eye9444','https://www.reddit.com/user/eye9444/'],['Join the Discord server','https://discord.gg/48btenHty2']]){
-  const link=el('a','',label);link.href=url;link.target='_blank';link.rel='noopener noreferrer';contact.append(link,document.createTextNode(' '));
+for(const [label,url,path] of [
+  ['Reddit: u/eye9444','https://www.reddit.com/user/eye9444/','M24 12.2a2.8 2.8 0 0 0-4.7-2.1 13.7 13.7 0 0 0-6.5-2l1.1-5.2 3.6.8a2 2 0 1 0 .2-1.1l-4.2-.9a.6.6 0 0 0-.7.4l-1.3 6a14 14 0 0 0-6.8 2 2.8 2.8 0 1 0-3.1 4.5 5 5 0 0 0-.1.9c0 4 4.7 7.2 10.5 7.2s10.5-3.2 10.5-7.2l-.1-.9a2.8 2.8 0 0 0 1.6-2.4ZM6.4 14a1.7 1.7 0 1 1 3.4 0 1.7 1.7 0 0 1-3.4 0Zm10 5a7 7 0 0 1-8.8 0 .6.6 0 1 1 .8-.9 5.8 5.8 0 0 0 7.2 0 .6.6 0 1 1 .8.9Zm-.5-3.3a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4Z'],
+  ['Join the Discord server','https://discord.gg/48btenHty2','M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.2a18.4 18.4 0 0 0-5.6 0L8.6 3a20 20 0 0 0-4.9 1.4C.6 9 0 13.5.3 17.9a20 20 0 0 0 6 3l1.2-2a13 13 0 0 1-1.9-.9l.5-.4a14.2 14.2 0 0 0 11.8 0l.5.4-1.9.9 1.2 2a20 20 0 0 0 6-3c.4-5.1-.8-9.6-3.4-13.5ZM8 15.3c-1.1 0-2-1-2-2.3s.9-2.3 2-2.3 2 1 2 2.3-.9 2.3-2 2.3Zm8 0c-1.1 0-2-1-2-2.3s.9-2.3 2-2.3 2 1 2 2.3-.9 2.3-2 2.3Z']
+]){
+  const link=el('a','');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.title=label;link.setAttribute('aria-label',label);
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),shape=document.createElementNS('http://www.w3.org/2000/svg','path');
+  svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');shape.setAttribute('d',path);svg.append(shape);link.append(svg);contact.append(link);
 }
 $('feedback-title').after(contact);
 const myTickets=button('My tickets',openFeedbackHub);myTickets.type='button';$('feedback-form').querySelector('.dialog-actions').prepend(myTickets);
@@ -729,6 +720,7 @@ async function refresh() {
   }
 }
 function render() {
+  coverGallery.reset();
   const inboxView = libraryView === 'inbox';
   const archived=$('filter').value==='archived',query=$('search').value.trim().toLowerCase();
   const sorted=[...projects].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
@@ -785,6 +777,7 @@ function render() {
       actions.append(button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     }
     card.append(actions); $('projects').append(card);
+    if($('projects').classList.contains('gallery-view'))coverGallery.attach(card,p);
   });
 }
 function renderInvitationInbox() {
@@ -816,13 +809,17 @@ function setCollection(value){libraryView='projects';$('filter').value=value;$('
 $('nav-active').onclick=()=>setCollection('active');
 $('nav-archived').onclick=()=>setCollection('archived');
 $('nav-inbox').onclick=()=>{libraryView='inbox';$('search').value='';render();};
-function setLayout(value){
+function setLayout(value,refreshView=true){
   $('projects').classList.toggle('list-view',value==='list');
-  ['grid','list'].forEach(mode=>$('view-'+mode).setAttribute('aria-pressed',String(value===mode)));
+  $('projects').classList.toggle('gallery-view',value==='gallery');
+  ['grid','list','gallery'].forEach(mode=>$('view-'+mode).setAttribute('aria-pressed',String(value===mode)));
   localStorage.setItem('dusk-library-layout',value);
+  if(refreshView)render();
 }
 $('view-grid').onclick=()=>setLayout('grid');$('view-list').onclick=()=>setLayout('list');
-setLayout(localStorage.getItem('dusk-library-layout')==='list'?'list':'grid');
+const galleryButton=document.createElement('button');galleryButton.id='view-gallery';galleryButton.textContent='Gallery';galleryButton.setAttribute('aria-label','Gallery view');galleryButton.onclick=()=>setLayout('gallery');document.querySelector('.view-switch').append(galleryButton);
+const coverGallery=createCoverGallery(async p=>(await local.get(owner(),p.id))?.file||(p.owner!=='guest'?(await remote.open(p.id)).file:null));
+setLayout(['list','gallery'].includes(localStorage.getItem('dusk-library-layout'))?localStorage.getItem('dusk-library-layout'):'grid',false);
 document.addEventListener('keydown',event=>{
   if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!$('library').hidden&&!document.querySelector('dialog[open]')&&!event.target.closest('input,textarea,select,[contenteditable]')){
     event.preventDefault();$('search').focus();
@@ -1263,7 +1260,7 @@ window.addEventListener('message', async e => {
     if (e.data.action === 'consistencyReview') checkConsistency();
     if (e.data.action === 'customPrompt') showCustomInstructions();
     if (e.data.action === 'workflow') showWorkflow(e.data);
-    if (e.data.action === 'chapterActions') showChapterActions(e.data.chapterId);
+    if (e.data.action === 'chapterActions') await applyChapterAction(e.data);
     return;
   }
   if (e.data.type === 'editor:dictionary') {

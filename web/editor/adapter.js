@@ -345,8 +345,44 @@ menuButton.onclick = e => { e.stopPropagation(); navigationMenu.hidden=!navigati
 document.addEventListener('click',e=>{if(!editorMenu.contains(e.target)){navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');}if(!toolsWrap.contains(e.target))closeToolMenu();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){navigationMenu.hidden=true;menuButton.setAttribute('aria-expanded','false');closeToolMenu();}});
 
+const selectedChapters = new Set();
+let chapterSelection = false;
+const chapterMenu = document.createElement('div');
+chapterMenu.className='chapter-context-menu';chapterMenu.hidden=true;chapterMenu.setAttribute('role','menu');document.body.append(chapterMenu);
+let chapterMenuAnchor;
+function closeChapterMenu(restore=false){chapterMenu.hidden=true;if(restore)chapterMenuAnchor?.focus();}
+function openChapterMenu(event,row,id){
+  chapterMenuAnchor=row;chapterMenu.replaceChildren();
+  const ids=selectedChapters.has(id)?[...selectedChapters]:[id];
+  const add=(label,run,disabled=false)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('role','menuitem');b.disabled=disabled;b.onclick=()=>{closeChapterMenu(true);run();};chapterMenu.append(b);};
+  const act=(operation,removeImages=false)=>{if(!canEdit||busy||preparingTranslation)return;emit(true);send('editor:action',{action:'chapterActions',chapterIds:ids,operation,removeImages});};
+  add('Mark unfinished',()=>act('incomplete'));
+  add('Mark complete',()=>act('complete'),!ids.some(key=>translations[key]?.trim()));
+  add(`Delete ${ids.length>1?'chapters':'chapter'}`,()=>act('delete'));
+  if(epubZip)add('Delete with unused images',()=>act('delete',true));
+  chapterMenu.append(document.createElement('hr'));
+  add('Select chapters',()=>{chapterSelection=true;selectedChapters.add(id);renderList();});
+  add('Select all chapters',()=>{chapterSelection=true;novel.chapters.forEach(ch=>selectedChapters.add(ch.id));renderList();});
+  if(chapterSelection)add('Clear selection',()=>{chapterSelection=false;selectedChapters.clear();renderList();});
+  chapterMenu.hidden=false;
+  const bounds=row.getBoundingClientRect(),keyboard=event.type==='keydown';
+  chapterMenu.style.left=Math.max(8,Math.min(keyboard?bounds.right:event.clientX,innerWidth-chapterMenu.offsetWidth-8))+'px';
+  chapterMenu.style.top=Math.max(8,Math.min(keyboard?bounds.top:event.clientY,innerHeight-chapterMenu.offsetHeight-8))+'px';
+  chapterMenu.querySelector('button:not(:disabled)')?.focus();
+}
+document.addEventListener('pointerdown',e=>{if(!chapterMenu.contains(e.target))closeChapterMenu();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeChapterMenu(true);});
+window.addEventListener('resize',()=>closeChapterMenu());
+document.addEventListener('scroll',e=>{if(!chapterMenu.contains(e.target))closeChapterMenu();},true);
+chapterMenu.onkeydown=e=>{
+  const buttons=[...chapterMenu.querySelectorAll('button:not(:disabled)')],i=buttons.indexOf(document.activeElement);
+  if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)){e.preventDefault();buttons[e.key==='Home'?0:e.key==='End'?buttons.length-1:(i+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length]?.focus();}
+  if(e.key==='Tab')closeChapterMenu();
+};
 // Imported chapter titles are text, never markup in the hosted application.
 renderList = function () {
+  closeChapterMenu();
+  for(const id of selectedChapters)if(!novel.chapters.some(ch=>ch.id===id))selectedChapters.delete(id);
   const list = document.getElementById('ch-list'); list.replaceChildren();
   const namedChapters = novel.projectType === 'web-novel';
   novel.chapters.forEach((ch, i) => {
@@ -360,9 +396,10 @@ renderList = function () {
       if(!canEdit)return;
       event.preventDefault();event.stopPropagation();
       if(busy||preparingTranslation)return;
-      emit(true);send('editor:action',{action:'chapterActions',chapterId:ch.id});
+      openChapterMenu(event,row,ch.id);
     };
-    if(canEdit){row.title='Right-click for chapter actions';row.setAttribute('aria-haspopup','dialog');row.setAttribute('aria-keyshortcuts','Shift+F10');row.oncontextmenu=openActions;}
+    if(canEdit){row.title='Right-click for chapter actions';row.setAttribute('aria-haspopup','menu');row.setAttribute('aria-keyshortcuts','Shift+F10');row.oncontextmenu=openActions;}
+    if(canEdit&&chapterSelection){const check=document.createElement('input');check.type='checkbox';check.checked=selectedChapters.has(ch.id);check.setAttribute('aria-label',`Select ${ch.id}`);check.onclick=e=>e.stopPropagation();check.onchange=()=>{if(check.checked)selectedChapters.add(ch.id);else selectedChapters.delete(ch.id);};row.prepend(check);}
     row.onclick = () => selectCh(i);
     row.onkeydown = e => {
       if(e.target!==row)return;
