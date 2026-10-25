@@ -1,5 +1,15 @@
 import {test,expect} from '@playwright/test';
 test.use({launchOptions:{ignoreDefaultArgs:['--hide-scrollbars']}});
+test('popup motion respects reduced motion and closes immediately',async({page})=>{
+  await page.goto('/');
+  await page.emulateMedia({reducedMotion:'no-preference'});
+  const dialog=page.locator('#whats-new-dialog');await dialog.evaluate(el=>el.showModal());
+  expect(await dialog.evaluate(el=>getComputedStyle(el).animationName)).toBe('popup-rise');
+  await page.getByRole('button',{name:"Close What's New"}).click();await expect(dialog).toBeHidden();
+  await page.emulateMedia({reducedMotion:'reduce'});await dialog.evaluate(el=>el.showModal());
+  expect(await dialog.evaluate(el=>getComputedStyle(el).animationName)).toBe('none');
+  await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
+});
 for(const theme of ['dusk','eclipse'])test(`release notes keep close controls and scrollbar inside the frame in ${theme}`,async({page},testInfo)=>{
   await page.addInitScript(theme=>{localStorage.setItem('theme',theme);sessionStorage.setItem('dusk-guest','true');},theme);
   await page.goto('/');

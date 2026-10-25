@@ -3,6 +3,7 @@ import './glass.css';
 import './welcome.css';
 import './launch.css';
 import './gallery.css';
+import './motion.css';
 import { createCoverGallery } from './project-covers.js';
 import { createFeedbackHub } from './feedback-hub.js';
 import { changeChapters } from './chapter-actions.js';
@@ -783,7 +784,7 @@ function render() {
       const toggle=button('•••',()=>{const expanded=card.classList.toggle('gallery-expanded');toggle.setAttribute('aria-expanded',String(expanded));});
       toggle.type='button';toggle.className='gallery-toggle';toggle.setAttribute('aria-label',`Options for ${p.title}`);toggle.setAttribute('aria-expanded','false');
       extra.id=`gallery-options-${p.id}`;toggle.setAttribute('aria-controls',extra.id);heading.append(toggle);
-      extra.append(...card.childNodes);caption.append(heading,extra);card.append(caption);
+      const extraInner=el('div','gallery-extra-inner');extraInner.append(...card.childNodes);extra.append(extraInner);caption.append(heading,extra);card.append(caption);
       card.addEventListener('keydown',event=>{if(event.key==='Escape'){card.classList.remove('gallery-expanded');toggle.setAttribute('aria-expanded','false');toggle.focus();}});
       coverGallery.attach(card,p);
     }
