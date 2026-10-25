@@ -1,12 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import JSZip from 'jszip';
-import {epubPreviewCover,readerPreviewHtml} from '../server/reader-preview.js';
+import sharp from 'sharp';
+import {epubPreviewCover,readerPreviewHtml,composeReaderCover} from '../server/reader-preview.js';
 import {createReaderHandler} from '../api/reader.js';
 
 const token='12345678-1234-1234-1234-123456789abc';
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9kAAAAASUVORK5CYII=','base64');
 const template='<html><head><title>Old</title><meta property="og:image" content="hero.png"><meta name="twitter:card" content="summary_large_image"><script type="application/ld+json">{}</script></head><body><script type="module" src="/assets/app.js"></script></body></html>';
+test('wide preview preserves the full portrait over a dark backdrop',async()=>{
+  const bytes=await sharp({create:{width:400,height:600,channels:3,background:'#ffffff'}}).png().toBuffer();
+  const result=await composeReaderCover({bytes});
+  const metadata=await sharp(result.bytes).metadata();
+  assert.equal(metadata.width,1200);assert.equal(metadata.height,630);assert.equal(metadata.format,'jpeg');
+  const {data}=await sharp(result.bytes).removeAlpha().raw().toBuffer({resolveWithObject:true});
+  assert.ok(data[(315*1200+600)*3]>240);
+  assert.ok(data[(315*1200+10)*3]<150);
+  assert.equal(await composeReaderCover(null),null);
+  const html=readerPreviewHtml(template,{token,project:{title:'Book'},cover:result});
+  assert.ok(html.includes('og:image:width'));assert.ok(html.includes('layout=wide'));
+});
 async function book(mode='3',image=png){
   const zip=new JSZip();
   zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="OPS/book.opf"/></rootfiles></container>');
