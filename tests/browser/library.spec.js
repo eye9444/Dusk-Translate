@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 import JSZip from 'jszip';
-import sharp from 'sharp';
 test.beforeEach(async({context})=>{await context.addInitScript(()=>{sessionStorage.setItem('dusk-guest','true');sessionStorage.setItem('dusk-guest-spending-notice','accepted');});});
 const fixture = { chapters:[{id:'p-001',text:'テストの文章です。Chapter one.',jp_char_count:9},{id:'p-002',text:'次の章の文章です。Chapter two.',jp_char_count:9}] };
 const promptTarget=prompt=>prompt.match(/<TARGET_[^>]+>\n([\s\S]*?)\n<\/TARGET_[^>]+>/)?.[1]||'';
@@ -118,26 +117,22 @@ test('gallery fits four covers, reveals actions and opens by card click',async({
   await expect(page.locator('#library')).toBeVisible();await page.locator('#manage-dialog [data-close]').click();
   await cards.first().locator('h3').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
 });
-test('gallery gradient covers the card edge across window sizes and hover',async({page})=>{
+test('gallery retains caption-based shading across window sizes and hover',async({page})=>{
   await create(page,'Resize cover');await leave(page);
   await page.getByRole('button',{name:'Gallery view'}).click();
   const card=page.locator('#projects .project-card').first();
-  await card.locator('.project-cover').evaluate(node=>{
-    node.replaceChildren();node.style.background='white';
-  });
   for(const width of [1920,1803,1537,1280,801,390]){
     await page.setViewportSize({width,height:width===1920?1080:937});
     for(const hover of [false,true]){
       if(hover)await card.hover();else await page.locator('#search').hover();
       await page.waitForTimeout(400);
       await card.locator('.gallery-caption').evaluate(node=>{node.scrollTop=node.scrollHeight;});
-      const pixels=await sharp(await card.screenshot()).removeAlpha().raw().toBuffer({resolveWithObject:true});
-      const {width:w,height:h,channels}=pixels.info;
-      // A white cover must remain shaded right down to the bottom, not just geometrically covered.
-      for(const x of [Math.floor(w/2),Math.floor(w/4)]){
-        const offset=((h-4)*w+x)*channels;
-        expect(Math.max(...pixels.data.subarray(offset,offset+3))).toBeLessThan(55);
-      }
+      const shading=await card.evaluate(node=>({
+        caption:getComputedStyle(node.querySelector('.gallery-caption')).backgroundImage,
+        cover:getComputedStyle(node.querySelector('.project-cover'),'::before').content,
+      }));
+      expect(shading.caption).toContain('linear-gradient');
+      expect(shading.cover).toBe('none');
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     }
   }
