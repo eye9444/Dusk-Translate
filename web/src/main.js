@@ -777,7 +777,16 @@ function render() {
       actions.append(button('Rename',() => showManage('rename',p)),button(p.archived?'Restore':'Archive',() => showManage('archive',p)),button('Delete',() => showManage('delete',p)));
     }
     card.append(actions); $('projects').append(card);
-    if($('projects').classList.contains('gallery-view'))coverGallery.attach(card,p);
+    if($('projects').classList.contains('gallery-view')){
+      const caption=el('div','gallery-caption'),heading=el('div','gallery-heading'),extra=el('div','gallery-extra');
+      const title=card.querySelector('h3');heading.append(title);
+      const toggle=button('•••',()=>{const expanded=card.classList.toggle('gallery-expanded');toggle.setAttribute('aria-expanded',String(expanded));});
+      toggle.type='button';toggle.className='gallery-toggle';toggle.setAttribute('aria-label',`Options for ${p.title}`);toggle.setAttribute('aria-expanded','false');
+      extra.id=`gallery-options-${p.id}`;toggle.setAttribute('aria-controls',extra.id);heading.append(toggle);
+      extra.append(...card.childNodes);caption.append(heading,extra);card.append(caption);
+      card.addEventListener('keydown',event=>{if(event.key==='Escape'){card.classList.remove('gallery-expanded');toggle.setAttribute('aria-expanded','false');toggle.focus();}});
+      coverGallery.attach(card,p);
+    }
   });
 }
 function renderInvitationInbox() {

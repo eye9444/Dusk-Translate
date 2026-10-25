@@ -96,6 +96,24 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
+test('gallery fits four covers and reveals actions on hover or tap',async({page},testInfo)=>{
+  await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
+  for(let i=1;i<=4;i++){await create(page,`Gallery book ${i}`);await leave(page);}
+  await page.getByRole('button',{name:'Gallery view'}).click();
+  const cards=page.locator('#projects .project-card');
+  const boxes=await cards.evaluateAll(nodes=>nodes.map(node=>{const r=node.getBoundingClientRect();return {top:r.top,width:r.width,height:r.height};}));
+  expect(new Set(boxes.map(box=>Math.round(box.top))).size).toBe(1);
+  expect(boxes[0].height/boxes[0].width).toBeCloseTo(4/3,1);
+  await page.locator('#search').hover();await expect(cards.first().getByRole('button',{name:'Open project',exact:true})).toBeHidden();
+  await cards.first().scrollIntoViewIfNeeded();await page.waitForTimeout(500);
+  await page.screenshot({path:testInfo.outputPath('gallery-four.png')});
+  await cards.first().hover();await expect(cards.first().getByRole('button',{name:'Open project',exact:true})).toBeVisible();
+  await page.screenshot({path:testInfo.outputPath('gallery-hover.png')});
+  await page.setViewportSize({width:390,height:844});
+  const toggle=cards.first().getByRole('button',{name:/Options for/});await toggle.click();await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(cards.first().getByRole('button',{name:'Delete',exact:true})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
 test('chapter context menu dismisses without a modal and gallery has a fallback',async({page},testInfo)=>{
   await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
   await create(page);const editor=page.frameLocator('#editor');
