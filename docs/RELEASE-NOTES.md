@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.8.0 - 2026-10-26
+
+- Public reader links now serve book-specific social preview metadata and the original EPUB cover, with text-only fallbacks for books without a supported cover.
+- Cover requests revalidate the public link before serving an image, including cache hits. Revoked links no longer serve covers; previously cached copies on external services cannot be recalled.
+- Added bounded server-side cover extraction and regression tests. No database migration is required. Self-hosted deployments must route `/reader` through the reader API and package the built `dist/index.html` with it.
+
 ## 0.7.0 - 2026-10-25
 
 - Added a cover gallery alongside grid and list layouts, with a remembered layout preference, lazy EPUB cover loading, and title fallbacks.

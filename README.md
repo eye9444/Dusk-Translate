@@ -12,13 +12,15 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.7.0" src="https://img.shields.io/badge/web_release-v0.7.0-17120f?style=for-the-badge" />
+  <img alt="Web release 0.8.0" src="https://img.shields.io/badge/web_release-v0.8.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-### Version 0.7.0
+### Version 0.8.0
+
+- Public reader links now include the book title and embedded EPUB cover in social link previews. Books without a supported cover use text-only previews. Existing links work unchanged; external services may cache older previews.
 
 - Choose Gallery in your library to browse by EPUB cover. Covers load as you scroll; books without a supported embedded cover show a title placeholder. Grid and list views remain available.
 - Chapter actions now open in a compact right-click menu beside the cursor, not a modal. Use Select chapters or Select all chapters for bulk operations; deletion still asks for confirmation. Keyboard users can open the menu with Shift+F10 and navigate with arrow keys.

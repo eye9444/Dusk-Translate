@@ -1,6 +1,6 @@
 {
   "name": "dusk-translate",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "@paddle/paddle-js": "^1.6.5",
     "@paddle/paddle-node-sdk": "^3.10.0",
     "@supabase/supabase-js": "^2.57.0",
+    "@xmldom/xmldom": "^0.9.12",
     "jszip": "3.10.1",
     "yjs": "^13.6.33"
   },

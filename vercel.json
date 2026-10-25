@@ -2,13 +2,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "functions": { "api/reader.js": { "includeFiles": "dist/index.html", "maxDuration": 30 } },
   "redirects": [
     { "source": "/editor", "destination": "/home", "permanent": false },
     { "source": "/editor/", "destination": "/home", "permanent": false }
   ],
   "rewrites": [
     { "source": "/home", "destination": "/index.html" },
-    { "source": "/reader", "destination": "/index.html" },
+    { "source": "/reader", "destination": "/api/reader" },
     { "source": "/pricing", "destination": "/index.html" },
     { "source": "/welcome", "destination": "/index.html" }
   ],

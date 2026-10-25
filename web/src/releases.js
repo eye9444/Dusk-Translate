@@ -1,5 +1,8 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-26-reader-covers',date:'2026-10-26',title:'Your book cover comes with the link',items:Object.freeze([
+    'Public reader links now include the EPUB cover and book title in link previews. Books without a cover keep a text-only preview. Your existing links still work, though chat apps may take a while to refresh previews they have already saved.',
+  ])}),
   Object.freeze({id:'2026-10-25-cover-gallery',date:'2026-10-25',title:'Browse your books by their covers',items:Object.freeze([
     'There is now a Gallery view in your library. It shows the cover from your EPUB, or the book title when there is no cover. You can still switch back to grid or list.',
     'Right-clicking a chapter now opens a small menu beside your cursor. Select chapters in the sidebar for bulk actions, without opening a separate dialog. Deleting chapters still asks for confirmation.',
