@@ -117,6 +117,27 @@ test('gallery fits four covers, reveals actions and opens by card click',async({
   await expect(page.locator('#library')).toBeVisible();await page.locator('#manage-dialog [data-close]').click();
   await cards.first().locator('h3').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
 });
+test('gallery gradient covers the card edge across window sizes and hover',async({page})=>{
+  await create(page,'Resize cover');await leave(page);
+  await page.getByRole('button',{name:'Gallery view'}).click();
+  const card=page.locator('#projects .project-card').first();
+  for(const width of [1920,1803,1537,1280,801,390]){
+    await page.setViewportSize({width,height:width===1920?1080:937});
+    for(const hover of [false,true]){
+      if(hover)await card.hover();else await page.locator('#search').hover();
+      await page.waitForTimeout(400);
+      const edges=await card.evaluate(node=>{
+        const cover=node.querySelector('.project-cover').getBoundingClientRect();
+        const caption=node.querySelector('.gallery-caption').getBoundingClientRect();
+        return {bottom:caption.bottom-cover.bottom,left:cover.left-caption.left,right:caption.right-cover.right};
+      });
+      expect(edges.bottom).toBeGreaterThanOrEqual(1);
+      expect(edges.left).toBeGreaterThanOrEqual(1);
+      expect(edges.right).toBeGreaterThanOrEqual(1);
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    }
+  }
+});
 test('chapter context menu dismisses without a modal and gallery has a fallback',async({page},testInfo)=>{
   await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
   await create(page);const editor=page.frameLocator('#editor');
