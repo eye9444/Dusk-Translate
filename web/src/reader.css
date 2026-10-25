@@ -23,7 +23,7 @@ body.eclipse #reader{background:linear-gradient(135deg,#090a09,#17100c 62%,#2110
 #reader :is(.reader-page,.reader-sidebar,.reader-chapters){scrollbar-width:thin;scrollbar-color:var(--reader-scroll-thumb) transparent}
 #reader :is(.reader-page,.reader-sidebar,.reader-chapters):hover{scrollbar-color:var(--reader-scroll-hover) transparent}
 @supports selector(::-webkit-scrollbar){
-  #reader :is(.reader-page,.reader-sidebar,.reader-chapters){scrollbar-width:auto;scrollbar-color:auto}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters),#reader :is(.reader-page,.reader-sidebar,.reader-chapters):hover{scrollbar-width:auto;scrollbar-color:auto}
   #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar{width:9px;height:9px}
   #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-track{background:transparent;border-radius:99px;margin:12px}
   #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-thumb{background:var(--reader-scroll-thumb);background-clip:padding-box;border:2px solid transparent;border-radius:99px;min-height:36px;min-width:36px}
