@@ -17,3 +17,20 @@ body.eclipse #reader{background:linear-gradient(135deg,#090a09,#17100c 62%,#2110
 .reader-chapters button{overflow:hidden;text-overflow:ellipsis}
 @media(max-width:760px){.reader-chapters button{flex:0 0 auto;min-width:0;max-width:min(220px,65vw);font-size:11px;white-space:nowrap}}
 .reader-page,.reader-sidebar{scrollbar-gutter:stable}.reader-page::-webkit-scrollbar-track,.reader-sidebar::-webkit-scrollbar-track{margin:18px 0}#reader-editor{white-space:nowrap;background:transparent}@media(max-width:760px){#reader-editor{grid-column:3;grid-row:1;padding:8px;font-size:0}#reader-editor::before{content:'Edit';font-size:11px}#reader-editor:not([hidden]) + #reader-open-file{display:none}}
+
+/* Native scrolling stays intact, with matching vertical and mobile chapter rails. */
+#reader{--reader-scroll-thumb:color-mix(in srgb,var(--muted) 70%,var(--accent));--reader-scroll-hover:var(--accent)}
+#reader :is(.reader-page,.reader-sidebar,.reader-chapters){scrollbar-width:thin;scrollbar-color:var(--reader-scroll-thumb) transparent}
+#reader :is(.reader-page,.reader-sidebar,.reader-chapters):hover{scrollbar-color:var(--reader-scroll-hover) transparent}
+@supports selector(::-webkit-scrollbar){
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters){scrollbar-width:auto;scrollbar-color:auto}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar{width:9px;height:9px}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-track{background:transparent;border-radius:99px;margin:12px}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-thumb{background:var(--reader-scroll-thumb);background-clip:padding-box;border:2px solid transparent;border-radius:99px;min-height:36px;min-width:36px}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-thumb:hover{background-color:var(--reader-scroll-hover)}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters)::-webkit-scrollbar-corner{background:transparent}
+}
+@media(forced-colors:active){
+  #reader{--reader-scroll-thumb:ButtonText;--reader-scroll-hover:Highlight}
+  #reader :is(.reader-page,.reader-sidebar,.reader-chapters){scrollbar-color:auto}
+}
