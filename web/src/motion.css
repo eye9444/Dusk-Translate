@@ -1,6 +1,8 @@
 /* Keep native dialog dismissal immediate and honour the device motion preference. */
 @media(prefers-reduced-motion:no-preference){
-  .gallery-extra{transition:grid-template-rows .24s cubic-bezier(.2,.7,.2,1),padding-top .24s ease,opacity .18s ease,transform .24s ease,visibility .24s}
+  .gallery-extra{transition:grid-template-rows .34s cubic-bezier(.22,1,.36,1),padding-top .34s cubic-bezier(.22,1,.36,1),opacity .25s ease,transform .34s cubic-bezier(.22,1,.36,1),visibility .34s}
+  .gallery-view .project-card{transition:scale .34s cubic-bezier(.22,1,.36,1),box-shadow .34s ease}
+  @media(hover:hover) and (pointer:fine){.gallery-view .project-card:hover{scale:1.025;z-index:1;box-shadow:0 16px 36px #0005}}
   dialog[open]{animation:popup-rise .2s cubic-bezier(.2,.7,.2,1)}
   dialog[open]::backdrop{animation:popup-backdrop .18s ease}
 }

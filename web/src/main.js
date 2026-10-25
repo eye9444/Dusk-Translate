@@ -781,11 +781,10 @@ function render() {
     if($('projects').classList.contains('gallery-view')){
       const caption=el('div','gallery-caption'),heading=el('div','gallery-heading'),extra=el('div','gallery-extra');
       const title=card.querySelector('h3');heading.append(title);
-      const toggle=button('•••',()=>{const expanded=card.classList.toggle('gallery-expanded');toggle.setAttribute('aria-expanded',String(expanded));});
-      toggle.type='button';toggle.className='gallery-toggle';toggle.setAttribute('aria-label',`Options for ${p.title}`);toggle.setAttribute('aria-expanded','false');
-      extra.id=`gallery-options-${p.id}`;toggle.setAttribute('aria-controls',extra.id);heading.append(toggle);
       const extraInner=el('div','gallery-extra-inner');extraInner.append(...card.childNodes);extra.append(extraInner);caption.append(heading,extra);card.append(caption);
-      card.addEventListener('keydown',event=>{if(event.key==='Escape'){card.classList.remove('gallery-expanded');toggle.setAttribute('aria-expanded','false');toggle.focus();}});
+      card.tabIndex=0;card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
+      card.addEventListener('click',event=>{if(!event.target.closest('button,a,input,select,textarea'))openProject(p.id);});
+      card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openProject(p.id);}});
       coverGallery.attach(card,p);
     }
   });

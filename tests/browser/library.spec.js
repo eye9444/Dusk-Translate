@@ -96,7 +96,7 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
-test('gallery fits four covers and reveals actions on hover or tap',async({page},testInfo)=>{
+test('gallery fits four covers, reveals actions and opens by card click',async({page},testInfo)=>{
   await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
   for(let i=1;i<=4;i++){await create(page,`Gallery book ${i}`);await leave(page);}
   await page.getByRole('button',{name:'Gallery view'}).click();
@@ -110,9 +110,12 @@ test('gallery fits four covers and reveals actions on hover or tap',async({page}
   await cards.first().hover();await expect(cards.first().getByRole('button',{name:'Open project',exact:true})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath('gallery-hover.png')});
   await page.setViewportSize({width:390,height:844});
-  const toggle=cards.first().getByRole('button',{name:/Options for/});await toggle.click();await expect(toggle).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.gallery-toggle')).toHaveCount(0);
   await expect(cards.first().getByRole('button',{name:'Delete',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await cards.first().getByRole('button',{name:'Rename',exact:true}).click();await expect(page.locator('#manage-dialog')).toBeVisible();
+  await expect(page.locator('#library')).toBeVisible();await page.locator('#manage-dialog [data-close]').click();
+  await cards.first().locator('h3').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
 });
 test('chapter context menu dismisses without a modal and gallery has a fallback',async({page},testInfo)=>{
   await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
