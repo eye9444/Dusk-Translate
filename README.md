@@ -20,7 +20,7 @@
 
 ### Version 0.9.0
 
-- Account now offers Editor preferences for spellcheck and linked source/translation scrolling. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
+- Account now offers Editor preferences for spellcheck and optional device storage of API keys and URLs. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
 
 - Public reader links now include the book title and embedded EPUB cover in social link previews. Books without a supported cover use text-only previews. Existing links work unchanged; external services may cache older previews.
 

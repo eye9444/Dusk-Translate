@@ -343,7 +343,7 @@ function persistRememberedProviderSettings(){
 }
 function restoreRememberedProviderSettings(){
   const value=readRememberedProviderSettings(),toggle=document.getElementById('remember-provider-settings');
-  toggle.checked=Boolean(value);if(!value)return;
+  toggle.checked=Boolean(value);try{if(localStorage.getItem('dusk-remember-provider')==='true')toggle.checked=true;}catch{}if(!value)return;
   document.getElementById('api-key').value=typeof value.key==='string'?value.key:'';
   document.getElementById('provider-base-url').value=typeof value.url==='string'?value.url:'';
   const provider=['auto','ai','or','openai','claude','custom'].includes(value.provider)?value.provider:'auto';
@@ -351,9 +351,16 @@ function restoreRememberedProviderSettings(){
   document.getElementById('custom-endpoint-fields').hidden=provider!=='custom';
 }
 function toggleRememberProviderSettings(){
+  localStorage.setItem('dusk-remember-provider',String(document.getElementById('remember-provider-settings').checked));
   if(document.getElementById('remember-provider-settings').checked)persistRememberedProviderSettings();
   else localStorage.removeItem(PROVIDER_STORAGE_KEY);
 }
+window.addEventListener('storage',event=>{
+  if(event.key!=='dusk-remember-provider'&&event.key!==null)return;
+  const toggle=document.getElementById('remember-provider-settings');
+  toggle.checked=event.newValue==='true';
+  try{if(toggle.checked)persistRememberedProviderSettings();else localStorage.removeItem(PROVIDER_STORAGE_KEY);}catch{toggle.checked=false;}
+});
 
 function getKey()      { return document.getElementById('api-key').value.trim(); }
 function getModelVal() { return document.getElementById('model-select').value; }

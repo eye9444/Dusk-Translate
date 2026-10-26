@@ -2,7 +2,7 @@
 
 ## 0.9.0 - 2026-10-26
 
-- Replaced the Account editable-project management button with browser-local editor preferences for spellcheck and linked scrolling. Changes apply to the open editor and persist across project openings; editor controls update the same preferences.
+- Replaced the Account editable-project management button with browser-local editor preferences for spellcheck and optional device storage of API keys and URLs. Changes apply to the open editor and persist across project openings; editor controls update the same preferences.
 - Simplified public reader previews to use just the book title, without a generic description.
 - No database migration is required.
 
