@@ -614,6 +614,8 @@ test('capture library and editor layouts',async({page})=>{
 test('collection navigation, search shortcut and layout preferences work',async({page})=>{
   await create(page,'A quiet afternoon');await leave(page);
   await expect(page.locator('#active-count')).toHaveText('1');
+  await expect(page.locator('#view-gallery')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#projects')).toHaveClass(/gallery-view/);
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
   await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();

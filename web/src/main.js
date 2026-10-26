@@ -834,7 +834,7 @@ function setLayout(value,refreshView=true){
 $('view-grid').onclick=()=>setLayout('grid');$('view-list').onclick=()=>setLayout('list');
 const galleryButton=document.createElement('button');galleryButton.id='view-gallery';galleryButton.textContent='Gallery';galleryButton.setAttribute('aria-label','Gallery view');galleryButton.onclick=()=>setLayout('gallery');document.querySelector('.view-switch').append(galleryButton);
 const coverGallery=createCoverGallery(async p=>(await local.get(owner(),p.id))?.file||(p.owner!=='guest'?(await remote.open(p.id)).file:null));
-setLayout(['list','gallery'].includes(localStorage.getItem('dusk-library-layout'))?localStorage.getItem('dusk-library-layout'):'grid',false);
+setLayout(['list','gallery','grid'].includes(localStorage.getItem('dusk-library-layout'))?localStorage.getItem('dusk-library-layout'):'gallery',false);
 document.addEventListener('keydown',event=>{
   if(event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!$('library').hidden&&!document.querySelector('dialog[open]')&&!event.target.closest('input,textarea,select,[contenteditable]')){
     event.preventDefault();$('search').focus();
