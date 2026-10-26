@@ -12,6 +12,12 @@ export const LANGUAGES = Object.freeze({
 export const TRANSLATION_TARGETS = Object.freeze({
   ja: Object.freeze(['en','vi','ru','de','es','it','pt']),
   en: Object.freeze(['vi','ru','de','es','it','pt']),
+  vi: Object.freeze(['en']),
+  ru: Object.freeze(['en']),
+  de: Object.freeze(['en']),
+  es: Object.freeze(['en']),
+  it: Object.freeze(['en']),
+  pt: Object.freeze(['en']),
 });
 
 export function languageName(code) {

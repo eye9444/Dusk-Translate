@@ -35,9 +35,8 @@ test('ruby for other chapters does not clear readings or open the remove panel',
   await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
   await expect(editor.locator('#ruby-notes')).toBeHidden();
   await editor.getByRole('button',{name:'Edit ruby: greeting'}).click();
-  await expect(page.locator('.upgrade-dialog')).toBeVisible();
-  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Editing ruby requires Pro');
-  await expect(editor.locator('.inline-ruby-editor')).toBeHidden();
+  await expect(editor.locator('.inline-ruby-editor')).toBeVisible();
+  await expect(editor.getByRole('textbox',{name:'Edit ruby reading'})).toHaveValue('greeting');
   await expect(editor.locator('.inline-ruby-reading')).toHaveText('greeting');
 });
 

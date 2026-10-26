@@ -12,13 +12,15 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.9.0" src="https://img.shields.io/badge/web_release-v0.9.0-17120f?style=for-the-badge" />
+  <img alt="Web release 0.9.1" src="https://img.shields.io/badge/web_release-v0.9.1-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-### Version 0.9.0
+### Version 0.9.1
+
+- Translate Vietnamese, Russian, German, Spanish, Italian, or Portuguese novels into English. The built-in EPUB reader now includes its own accessible light/dark switch, synced with the rest of the app.
 
 - Account now offers Editor preferences for spellcheck and optional device storage of API keys and URLs. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
 
@@ -38,7 +40,7 @@ Self-hosted deployments require the feedback ticket, reader chapter state, and f
 
 You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
 
-DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese and English also translating into Vietnamese, Russian, German, Spanish, Italian, and Portuguese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
+DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, and Portuguese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
 
 All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 
@@ -47,6 +49,7 @@ All current features are free, including custom prompts, advanced editing tools,
 - Import EPUB, TXT, JSON project, and backup files
 - Translate Japanese into English, Vietnamese, Russian, German, Spanish, Italian, or Portuguese
 - Translate English into Vietnamese, Russian, German, Spanish, Italian, or Portuguese
+- Translate Vietnamese, Russian, German, Spanish, Italian, or Portuguese into English
 - Compare the source and editable translation side by side
 - Maintain a project glossary for names and preferred terminology
 - Save projects locally or sync them to a private signed-in library

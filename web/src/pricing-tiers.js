@@ -19,6 +19,7 @@ export const PRICING_TIERS = Object.freeze([
       'Unlimited local projects with EPUB, TXT, JSON, and pasted chapters',
       'Japanese to English, Vietnamese, Russian, German, Spanish, Italian, or Portuguese',
       'English to Vietnamese, Russian, German, Spanish, Italian, or Portuguese',
+      'Vietnamese, Russian, German, Spanish, Italian, or Portuguese to English',
       'Google AI Studio, OpenRouter, OpenAI, Claude, and compatible HTTPS endpoints',
       '3 cloud projects and 100 MB of cloud storage',
       '30,000 cloud translation characters per day',

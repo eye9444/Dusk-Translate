@@ -229,9 +229,14 @@ $('export-settings-form').onsubmit = event => {
   $('editor').contentWindow.postMessage({ type:'host:exportSettings', exportExcluded }, location.origin);
   $('export-settings-dialog').close();
 };
-function theme(value) { document.body.classList.toggle('eclipse', value === 'eclipse'); localStorage.setItem('theme',value); $('editor').contentWindow?.postMessage({type:'host:theme',theme:value}, location.origin); }
+function theme(value) {
+  const dark=value==='eclipse';document.body.classList.toggle('eclipse',dark);localStorage.setItem('theme',value);
+  $('editor').contentWindow?.postMessage({type:'host:theme',theme:value}, location.origin);
+  for(const id of ['theme','reader-theme']){const control=$(id);if(!control)continue;control.setAttribute('aria-pressed',String(dark));control.setAttribute('aria-label',dark?'Use light theme':'Use dark theme');}
+}
 theme(localStorage.getItem('theme') || 'dusk');
 $('theme').onclick = () => theme(document.body.classList.contains('eclipse') ? 'dusk' : 'eclipse');
+$('reader-theme').onclick=$('theme').onclick;
 document.querySelectorAll('[data-close]').forEach(n => n.onclick = () => n.closest('dialog').close());
 
 async function billingRequest(path, method = 'GET', body) {
@@ -837,6 +842,9 @@ document.addEventListener('keydown',event=>{
 });
 let importingProject = false;
 let languageSelectionTouched=false;
+function renderSourceLanguages(){
+  $('new-source-language').replaceChildren(...Object.keys(TRANSLATION_TARGETS).map(code=>{const option=document.createElement('option');option.value=code;option.textContent=languageName(code);return option;}));
+}
 function renderTargetLanguages(preferred){
   const source=$('new-source-language').value,targets=TRANSLATION_TARGETS[source]||TRANSLATION_TARGETS.ja;
   const selected=targets.includes(preferred)?preferred:targets[0];
@@ -845,6 +853,7 @@ function renderTargetLanguages(preferred){
 }
 $('new-source-language').onchange=()=>{languageSelectionTouched=true;renderTargetLanguages();};
 $('new-target-language').onchange=()=>{languageSelectionTouched=true;};
+renderSourceLanguages();
 function showProjectDialog(importing = false) {
   importingProject = importing;
   $('project-form').reset(); $('new-error').textContent='';

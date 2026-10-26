@@ -1,5 +1,9 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-26-reverse-routes',date:'2026-10-26',title:'More books can make their way into English',items:Object.freeze([
+    'You can now translate Vietnamese, Russian, German, Spanish, Italian, and Portuguese novels into English. The existing Japanese and English routes are still there.',
+    'The EPUB reader now has its own light and dark mode button. It follows the same theme as the rest of DuskTranslate and remembers your choice after a reload.',
+  ])}),
   Object.freeze({id:'2026-10-26-editor-preferences',date:'2026-10-26',title:'Set up the editor your way',items:Object.freeze([
     'Account now has Editor preferences for spellcheck and optional device storage of API keys and URLs. They are saved on this browser and stay in sync with the editor buttons, so you do not have to set them again for each book. These choices do not affect your collaborators.',
   ])}),

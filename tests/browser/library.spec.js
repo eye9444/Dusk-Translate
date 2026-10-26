@@ -259,13 +259,15 @@ test('feedback asks guests to sign in and supports an optional screenshot',async
   await expect(page.locator('#feedback-dialog')).toHaveCount(1);
   await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
 });
-test('new projects expose only the thirteen supported production language routes',async({page})=>{
+test('new projects expose only the nineteen supported production language routes',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();
-  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English']);
+  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
   await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
   await page.locator('#new-source-language').selectOption('en');
   await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
   await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
+  await page.locator('#new-source-language').selectOption('de');
+  await expect(page.locator('#new-target-language option')).toHaveText(['English']);
 });
 test('What’s New stays hidden for the local guest library',async({page})=>{
   await page.clock.install();
@@ -309,11 +311,15 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   await page.getByRole('button',{name:'Read original',exact:true}).click();
   await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
   await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-content img')).toHaveAttribute('alt','Chapter illustration');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
+  await expect(page.locator('#reader-theme')).toHaveAttribute('aria-label','Use dark theme');
+  await page.locator('#reader-theme').click();await expect(page.locator('body')).toHaveClass(/eclipse/);await expect(page.locator('#reader-theme')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#theme')).toHaveAttribute('aria-pressed','true');
   const initial=await page.locator('#reader-page').evaluate(el=>({font:getComputedStyle(el).getPropertyValue('--reader-font-size'),image:getComputedStyle(el).getPropertyValue('--reader-image-max')}));
   await page.locator('#reader-font-up').click();const increased=await page.locator('#reader-page').evaluate(el=>({font:getComputedStyle(el).getPropertyValue('--reader-font-size'),image:getComputedStyle(el).getPropertyValue('--reader-image-max')}));expect(increased.font).not.toBe(initial.font);expect(increased.image).not.toBe(initial.image);
   await page.locator('#reader-chapters button').nth(1).click();await expect(page.locator('#reader-content')).toContainText('Another paragraph.');
   await page.locator('#reader-page').focus();await page.keyboard.press('0');await expect(page.locator('#reader-font-value')).toHaveText('20 px');
-  await page.locator('#reader-back').click();await expect(page.locator('#library')).toBeVisible();
+  await page.locator('#reader-back').click();await expect(page.locator('#library')).toBeVisible();await expect(page.locator('body')).toHaveClass(/eclipse/);
+  await page.reload();await expect(page.locator('body')).toHaveClass(/eclipse/);await expect(page.locator('#reader-theme')).toHaveAttribute('aria-pressed','true');
 });
 test('reader keeps translated written-number sections separate and numbers from zero',async({page})=>{
   const zip=new JSZip();zip.file('mimetype','application/epub+zip');
@@ -477,8 +483,8 @@ test('selected text exposes the contextual ruby action',async({page})=>{
   await expect(editor.getByRole('button',{name:'Add ruby text to selection'})).toBeVisible();
   expect(await editor.locator('#src-txt').evaluate(()=>{const selectionBox=getSelection().getRangeAt(0).getBoundingClientRect(),buttonBox=document.querySelector('.selection-tools').getBoundingClientRect();return buttonBox.bottom<=selectionBox.top+1;})).toBe(true);
   await editor.getByRole('button',{name:'Add ruby text to selection'}).click();
-  await expect(page.locator('.upgrade-dialog')).toBeVisible();
-  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Editing ruby requires Pro');
+  await expect(page.locator('#ruby-dialog')).toBeVisible();
+  await expect(page.locator('#ruby-error')).toContainText('cloud collaboration connects');
 });
 test('backup ZIP restores a project with its edited translation',async({page})=>{
   await create(page,'Backup source');const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('Keep this translation.');
@@ -526,15 +532,15 @@ test('find and replace honors exact case matching',async({page})=>{
   await page.locator('#find-text').fill('Fiancée');await page.locator('#preview-btn').click();
   await expect(page.locator('.match-item')).toHaveCount(1);
 });
-test('Free consistency action opens the Pro upgrade dialog',async({page})=>{
+test('community consistency action analyzes repeated passages',async({page})=>{
   const repeated={chapters:[
     {id:'p-001',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17},
     {id:'p-002',text:'これは十分に長い繰り返しの文章です。',jp_char_count:17}
   ]};
   await create(page,'Consistency navigation',{name:'repeated.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(repeated))});
   const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('This is the first long translation wording.');await editor.locator('#btn-next').click();await editor.locator('#tl-out').fill('This is a different long translation wording.');
-  await editorAction(page,'#host-consistency');await expect(page.locator('.upgrade-dialog')).toBeVisible();
-  await expect(page.locator('.upgrade-dialog [data-reason]')).toContainText('Consistency checking requires Pro');
+  await editorAction(page,'#host-consistency');await expect(page.locator('#consistency-dialog')).toBeVisible();
+  await expect(page.locator('#consistency-status')).toContainText(/potential inconsistenc/);
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();

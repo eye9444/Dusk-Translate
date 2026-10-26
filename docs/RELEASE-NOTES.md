@@ -1,5 +1,12 @@
 # Release Notes
 
+## 0.9.1 - 2026-10-26
+
+- Added Vietnamese, Russian, German, Spanish, Italian, and Portuguese to English translation routes, bringing the supported production route count to 19.
+- Generated the project source-language selector from the production route map and extended prompts, project persistence, backups, and English export metadata to the new routes.
+- Added an accessible theme switch to the EPUB reader. It uses the existing site-wide preference and persists across reader, library, editor, public-reader, and reload transitions.
+- No database migration is required.
+
 ## 0.9.0 - 2026-10-26
 
 - Replaced the Account editable-project management button with browser-local editor preferences for spellcheck and optional device storage of API keys and URLs. Changes apply to the open editor and persist across project openings; editor controls update the same preferences.

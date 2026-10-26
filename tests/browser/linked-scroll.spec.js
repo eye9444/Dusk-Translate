@@ -62,21 +62,17 @@ test('guest API spending notice can be canceled and has no account preference ch
   await expect(editor.locator('#api-key')).toHaveValue('');
 });
 
-test('Free premium actions show a crown and open the shared two-card upgrade dialog',async({page})=>{
+test('community tools open without legacy upgrade gates',async({page})=>{
   const editor=await editorWithLongText(page);
   await editor.locator('#host-tools').click();
-  await expect(editor.locator('#host-consistency')).toContainText('Pro');
-  await expect(editor.locator('#host-consistency svg')).toBeVisible();
+  await expect(editor.locator('#host-consistency')).toHaveText('Check consistency');
   await editor.locator('#host-consistency').click();
-  const dialog=page.locator('.upgrade-dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator('[data-reason]')).toContainText('Consistency checking requires Pro');
-  await expect(dialog.locator('.pricing-card')).toHaveCount(2);
-  await dialog.getByRole('button',{name:'Close upgrade plans'}).click();
+  await expect(page.locator('#consistency-dialog')).toBeVisible();
+  await page.locator('#consistency-dialog').getByRole('button',{name:'Close'}).click();
   await expect(editor.locator('#src-txt')).toContainText('Japanese source paragraph.');
   await editor.locator('#host-tools').click();
   await editor.locator('#host-custom-prompt').click();
-  await expect(dialog.locator('[data-reason]')).toContainText('Teams');
+  await expect(page.locator('#prompt-dialog')).toBeVisible();
 });
 
 test('local translation waits for spending consent and keeps the provider key out of host requests',async({page})=>{

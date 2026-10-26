@@ -24,6 +24,8 @@ for(const [sourceLanguage,targetLanguage,sourceName,targetName] of [
   ['en','vi','English','Vietnamese'],['en','ru','English','Russian'],['en','de','English','German'],
   ['en','es','English','Spanish'],['en','it','English','Italian'],
   ['ja','pt','Japanese','Portuguese'],['en','pt','English','Portuguese'],
+  ['vi','en','Vietnamese','English'],['ru','en','Russian','English'],['de','en','German','English'],
+  ['es','en','Spanish','English'],['it','en','Italian','English'],['pt','en','Portuguese','English'],
 ]) test(`prompt contract: ${sourceLanguage} to ${targetLanguage}`,()=>{
   const prompt=globalThis.DuskTranslationPrompt({source:'SOURCE',sourceLanguage,targetLanguage});
   assert.match(prompt,new RegExp(`Translate the identified ${sourceName} target passage into ${targetName}`));
