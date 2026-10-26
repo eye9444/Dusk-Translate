@@ -12,13 +12,15 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.8.0" src="https://img.shields.io/badge/web_release-v0.8.0-17120f?style=for-the-badge" />
+  <img alt="Web release 0.9.0" src="https://img.shields.io/badge/web_release-v0.9.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-### Version 0.8.0
+### Version 0.9.0
+
+- Account now offers Editor preferences for spellcheck and linked source/translation scrolling. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
 
 - Public reader links now include the book title and embedded EPUB cover in social link previews. Books without a supported cover use text-only previews. Existing links work unchanged; external services may cache older previews.
 

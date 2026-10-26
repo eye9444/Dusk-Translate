@@ -1,5 +1,8 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-26-editor-preferences',date:'2026-10-26',title:'Set up the editor your way',items:Object.freeze([
+    'Account now has Editor preferences for spellcheck and linked scrolling. They are saved on this browser and stay in sync with the editor buttons, so you do not have to set them again for each book. These choices do not affect your collaborators.',
+  ])}),
   Object.freeze({id:'2026-10-26-reader-covers',date:'2026-10-26',title:'Your book cover comes with the link',items:Object.freeze([
     'Public reader links now include the EPUB cover and book title in link previews. Books without a cover keep a text-only preview. Your existing links still work, though chat apps may take a while to refresh previews they have already saved.',
   ])}),

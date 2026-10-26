@@ -80,12 +80,11 @@ export async function loadReaderCover(project){
 }
 const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function readerPreviewHtml(template,{token,project,cover}){
-  const title=project?`${project.title} | DuskTranslate`:'DuskTranslate Reader';
-  const description=project?'Read this shared novel on DuskTranslate.':'Open a shared novel or an EPUB in DuskTranslate.';
+  const title=project?project.title:'DuskTranslate Reader';
   const url='https://www.dusktranslate.com/reader'+(token?'?share='+encodeURIComponent(token):'');
   const image='https://www.dusktranslate.com/api/reader?share='+encodeURIComponent(token)+'&cover=1&layout=wide';
   const cleaned=template.replace(/<title>[\s\S]*?<\/title>/i,'').replace(/<meta\b[^>]*(?:name|property)=["'](?:og:[^"']*|twitter:[^"']*|description|robots)["'][^>]*>/gi,'').replace(/<link\b[^>]*rel=["']canonical["'][^>]*>/gi,'').replace(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi,'');
-  const tags=`<title>${escape(title)}</title><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${escape(url)}"><meta name="description" content="${description}"><meta property="og:type" content="book"><meta property="og:site_name" content="DuskTranslate"><meta property="og:title" content="${escape(title)}"><meta property="og:description" content="${description}"><meta property="og:url" content="${escape(url)}"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:card" content="${cover?'summary_large_image':'summary'}">`;
+  const tags=`<title>${escape(title)}</title><meta name="robots" content="noindex,nofollow"><link rel="canonical" href="${escape(url)}"><meta property="og:type" content="book"><meta property="og:site_name" content="DuskTranslate"><meta property="og:title" content="${escape(title)}"><meta property="og:url" content="${escape(url)}"><meta name="twitter:title" content="${escape(title)}"><meta name="twitter:card" content="${cover?'summary_large_image':'summary'}">`;
   const images=cover?`<meta property="og:image" content="${escape(image)}"><meta property="og:image:type" content="${cover.type}"><meta property="og:image:alt" content="${escape('Cover of '+project.title)}"><meta name="twitter:image" content="${escape(image)}">`:'';
   const dimensions=cover?.width&&cover?.height?`<meta property="og:image:width" content="${cover.width}"><meta property="og:image:height" content="${cover.height}">`:'';
   return cleaned.replace('</head>',tags+images+dimensions+'</head>');

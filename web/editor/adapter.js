@@ -226,6 +226,7 @@ const menuAction = (id,label,action) => { const button=document.createElement('b
 const localMenuAction = (id,label,action) => { const button=document.createElement('button'); button.id=id; button.type='button'; button.textContent=label; button.onclick=()=>{closeToolMenu();action();}; return button; };
 const spellcheckAction=localMenuAction('host-spellcheck','',()=>{
   spellcheckEnabled = !spellcheckEnabled; document.getElementById('tl-out').spellcheck = spellcheckEnabled; updateSpellcheckAction(); emit();
+  try { localStorage.setItem('dusk-editor-spellcheck',String(spellcheckEnabled)); } catch {}
 });
 const updateSpellcheckAction=()=>{spellcheckAction.textContent=`Spell check: ${spellcheckEnabled ? 'on' : 'off'}`;};
 const undoFindReplace=localMenuAction('host-undo-find-replace','Undo last replace',()=>{
@@ -297,6 +298,16 @@ linkedScrollButton.onclick = () => {
   updateLinkedScrollButton();
 };
 updateLinkedScrollButton();
+window.addEventListener('storage',event=>{
+  if(event.key==='dusk-linked-scrolling'||event.key===null){
+    try { linkedScrolling=localStorage.getItem('dusk-linked-scrolling')==='true'; } catch { return; }
+    linkedScroll.setEnabled(linkedScrolling);updateLinkedScrollButton();
+  }
+  if(event.key==='dusk-editor-spellcheck'||event.key===null){
+    try { spellcheckEnabled=localStorage.getItem('dusk-editor-spellcheck')!=='false'; } catch { return; }
+    document.getElementById('tl-out').spellcheck=spellcheckEnabled;updateSpellcheckAction();emit();
+  }
+});
 document.querySelector('.panes').append(linkedScrollButton);
 document.addEventListener('dusk:chapter', () => linkedScroll.reset());
 const findNavigator = document.createElement('div'); findNavigator.id='host-find-navigator'; findNavigator.className='find-navigator'; findNavigator.hidden=true;
@@ -687,6 +698,8 @@ window.addEventListener('message', async e => {
       spellcheckEnabled = true;
       document.getElementById('tl-out').spellcheck = true;
     }
+    try { const saved=localStorage.getItem('dusk-editor-spellcheck');if(saved!==null)spellcheckEnabled=saved!=='false';else localStorage.setItem('dusk-editor-spellcheck',String(spellcheckEnabled)); } catch {}
+    document.getElementById('tl-out').spellcheck=spellcheckEnabled;
     updateSpellcheckAction();
     initUI(); if(novel.chapters.length)originalSelect(Math.max(0, Math.min(novel.chapters.length-1,p.snapshot?.cur || 0)));
     onKeyInput(); setAccess(p.accessRole); readyForSave = true; emit(true); document.dispatchEvent(new Event('dusk:chapter')); send('editor:loaded');

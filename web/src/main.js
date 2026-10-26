@@ -4,6 +4,7 @@ import './welcome.css';
 import './launch.css';
 import './gallery.css';
 import './motion.css';
+import { showEditorPreferences } from './editor-preferences.js';
 import { createCoverGallery } from './project-covers.js';
 import { createFeedbackHub } from './feedback-hub.js';
 import { changeChapters } from './chapter-actions.js';
@@ -1434,19 +1435,8 @@ function formatStorage(bytes) {
   const rounded=unit===0||value>=100?Math.round(value):Number(value.toFixed(1));
   return `${rounded} ${units[unit]}`;
 }
-const capacityButton=button('Manage editable projects',async()=>{
-  try{
-    const data=await remote.capacity();
-    const allowance=data.limits.projects;
-    const projectCount=data.projects.length;
-    const projectSummary=projectCount<=allowance
-      ? `All ${projectCount} of your projects currently fit within your ${allowance} editable project slots.`
-      : `You have ${allowance} editable project slots for ${projectCount} projects.`;
-    showCapacitySelection({title:'Manage editable projects',description:`${projectSummary} When you reach the limit, checked projects are prioritized first and older projects fill any remaining slots. Projects without a slot remain available for reading and export, but edits cannot be saved. Archived projects count toward the project limit. Cloud storage: ${formatStorage(data.storageBytes)} used of ${formatStorage(data.limits.storageBytes)}.`,entries:data.projects,allowance,
-      save:async ids=>{await remote.selectProjects(ids);await refresh();}});
-  }catch(error){$('billing-detail').textContent=errorMessage(error);}
-});
-capacityButton.type='button';document.querySelector('.account-actions').prepend(capacityButton);
+const preferencesButton=button('Editor preferences',showEditorPreferences);
+preferencesButton.type='button';document.querySelector('.account-actions').prepend(preferencesButton);
 const seatButton=button('Choose active collaborators',async()=>{
   if(!sharingProject)return;const project=sharingProject;
   try{

@@ -1,5 +1,11 @@
 # Release Notes
 
+## 0.9.0 - 2026-10-26
+
+- Replaced the Account editable-project management button with browser-local editor preferences for spellcheck and linked scrolling. Changes apply to the open editor and persist across project openings; editor controls update the same preferences.
+- Simplified public reader previews to use just the book title, without a generic description.
+- No database migration is required.
+
 ## 0.8.0 - 2026-10-26
 
 - Public reader links now serve book-specific social preview metadata and the original EPUB cover, with text-only fallbacks for books without a supported cover.

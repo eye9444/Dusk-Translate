@@ -49,6 +49,7 @@ test('replaces generic metadata, escapes titles and preserves application',()=>{
   assert.ok(html.includes('&lt;img onerror=&quot;bad&quot;&gt;'));
   assert.ok(html.includes('&amp;cover=1'));assert.ok(html.includes('/assets/app.js'));
   assert.ok(!html.includes('hero.png'));assert.ok(!html.includes('application/ld+json'));
+  assert.ok(!html.includes(' | DuskTranslate'));assert.ok(!html.includes('og:description'));assert.ok(!html.includes('Read this shared novel'));
   assert.ok(!readerPreviewHtml(template,{token,project:{title:'Book'},cover:null}).includes('og:image'));
 });
 async function request(handler,query,method='GET'){
