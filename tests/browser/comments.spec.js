@@ -37,7 +37,7 @@ test(`selected-text comments persist, navigate, reply and resolve safely at ${wi
   await page.getByRole('button',{name:'Close comments'}).click();
   await expect(editor.getByRole('button',{name:'2 comments on this line'})).toHaveCSS('opacity','0.35');
   await expect.poll(() => editor.locator('#src-txt').evaluate(() => CSS.highlights.has('dusk-comment'))).toBe(false);
-  await page.reload(); await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.reload(); await page.locator('.project-card').first().click();
   await editor.locator('#host-tools').click(); await editor.locator('#host-comments').click();
   await expect(page.locator('.comment-message')).toHaveCount(2);
   await page.getByRole('button',{name:'Edit comment',exact:true}).first().click();

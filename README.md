@@ -80,7 +80,7 @@ DuskTranslate is a client-side JavaScript application built with **Vite** and de
 
 Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
 
-Version changes in `package.json` are verified by GitHub Actions and automatically receive a matching `v*` tag and GitHub Release after the checks pass.
+Changes move through feature previews and the permanent staging environment before a protected release PR reaches `master`. Production is first deployed without its public domains, smoke-tested, and only then promoted. A new package version receives its matching tag and GitHub Release after the promoted site passes its public smoke test. See the [staging and release workflow](docs/RELEASE-WORKFLOW.md).
 
 Only product features and bug fixes warrant version changes. Visual and aesthetic updates ship silently within the existing version, without a new tag, release, or What's New popup. The in-app What's New history contains feature updates only; bug-fix details belong in the GitHub release notes. When correcting announcement history, preserve account acknowledgements so users are not notified again about older features.
 

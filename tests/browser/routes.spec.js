@@ -23,7 +23,7 @@ test('guest landing redirects to home and project opens on an editor URL', async
   await expect(page).toHaveURL(/\/home$/);
   await expect(page.locator('#library')).toBeVisible();
 
-  await page.locator('article.project-card').getByRole('button', { name:'Open project', exact:true }).click();
+  await page.locator('article.project-card').click();
   await expect(page.frameLocator('#editor').locator('#src-txt')).toContainText('ルートのテストです。');
 
   const editor = page.frameLocator('#editor');

@@ -44,7 +44,7 @@ test('cloud saves original, translation, glossary and position across a fresh br
   const other=await browser.newContext({baseURL:'http://127.0.0.1:4174'});await backend(other,state);
   try{
     const second=await other.newPage();await second.goto('http://127.0.0.1:4174/');await signin(second);
-    await second.getByRole('button',{name:'Open project',exact:true}).click();
+    await second.locator('.project-card').first().click();
     await expect(second.frameLocator('#editor').locator('#tl-out')).toHaveText('A saved cloud translation.');
     await expect(second.frameLocator('#editor').locator('#api-key')).toHaveValue('');
   }finally{await other.close();}
@@ -57,7 +57,7 @@ test('failed cloud sync retains a resumable local draft and can retry',async({pa
   await page.frameLocator('#editor').locator('#tl-out').fill('Keep this offline draft.');await expect(page.locator('#save-status')).toContainText('retry');
   page.on('dialog',dialog=>dialog.accept());await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await expect(page.locator('#library')).toBeVisible();
   state.failList=true;await page.locator('#refresh').click();await expect(page.locator('#library-status')).toContainText('cached',{timeout:15000});
-  await page.getByRole('button',{name:'Open project',exact:true}).click();await expect(page.frameLocator('#editor').locator('#tl-out')).toHaveText('Keep this offline draft.');
+  await page.locator('.project-card').first().click();await expect(page.frameLocator('#editor').locator('#tl-out')).toHaveText('Keep this offline draft.');
   state.failSave=false;state.failList=false;await editor.locator('#host-menu').click();await editor.locator('#host-save').click();await expect(page.locator('#save-status')).toHaveText('Saved to your account');expect(Object.values(state.row.snapshot.translations)).toContain('Keep this offline draft.');
 });
 test('unchecked remember me keeps login tokens out of persistent storage',async({page,context})=>{

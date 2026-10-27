@@ -11,7 +11,8 @@
     "test:e2e": "playwright test --config=config/playwright.config.js",
     "test:auth": "playwright test --config=config/playwright.auth.config.js",
     "test:modules": "playwright test --config=config/playwright.modules.config.js",
-    "screenshots:readme": "node scripts/capture-readme-screenshots.mjs"
+    "screenshots:readme": "node scripts/capture-readme-screenshots.mjs",
+    "smoke:hosted": "node scripts/smoke-hosted.mjs"
   },
   "dependencies": {
     "@paddle/paddle-js": "^1.6.5",

@@ -34,8 +34,10 @@ import { setLoading } from './loading.js';
 import { createWelcomePlanet } from './welcome-planet.js';
 import { COMMUNITY_ACCESS } from './access-mode.js';
 import { createDonations } from './donations.js';
+import { markDeploymentEnvironment } from './environment.js';
 
 const $ = id => document.getElementById(id);
+markDeploymentEnvironment($('environment-badge'));
 const donations = createDonations();
 new MutationObserver(() => {
   if ($('library').hidden || readerOpen || active) donations.update(false);
