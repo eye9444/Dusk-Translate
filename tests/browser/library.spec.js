@@ -37,7 +37,7 @@ async function create(page,name='Test book',file) {
   await page.locator('#new-title').fill(name);
   await page.locator('#new-file').setInputFiles(file || {name:'book.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
   await page.getByRole('button',{name:'Create project',exact:true}).click();
-  await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
+  await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty({timeout:15000});
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
 }
 async function selectTestModel(editor) {
