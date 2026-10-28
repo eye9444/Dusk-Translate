@@ -53,6 +53,7 @@ test('failed cloud sync retains a resumable local draft and can retry',async({pa
   const state={source:'Original test chapter'};await backend(context,state);await signin(page);
   const editor=page.frameLocator('#editor');
   await page.locator('#new-project').click();await page.locator('#new-title').fill('Retry book');await page.locator('#new-file').setInputFiles({name:'retry.txt',mimeType:'text/plain',buffer:Buffer.from(state.source)});await page.locator('#create-submit').click();
+  await expect(editor.locator('#src-txt')).toContainText('Original test chapter');
   await expect(page.locator('#save-status')).toHaveText('Saved to your account');state.failSave=true;
   await page.frameLocator('#editor').locator('#tl-out').fill('Keep this offline draft.');await expect(page.locator('#save-status')).toContainText('retry');
   page.on('dialog',dialog=>dialog.accept());await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await expect(page.locator('#library')).toBeVisible();
