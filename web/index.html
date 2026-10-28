@@ -117,7 +117,6 @@
           <button type="button" id="feedback-inbox" hidden><svg class="icon"><use href="#i-inbox"/></svg>Feedback inbox</button>
         </nav>
         <div class="sidebar-edition"><p class="eyebrow">READING ROOM</p><div class="book-art" aria-hidden="true"><div class="book b3">ORIGINAL</div><div class="book b2">DRAFT</div><div class="book b1">CONTINUE<span>日 / EN</span></div></div><p>Open a book or<br>continue your work.</p></div>
-        <div class="storage-badge"><span class="status-dot" aria-hidden="true"></span><span id="storage-label">THIS BROWSER</span><small id="storage-caption">A library on this device</small></div>
       </aside>
       <div class="reading-room">
         <div class="room-breadcrumb"><strong id="collection-name" class="sr-only">My library</strong><span class="language-pair">日本語 <svg class="icon"><use href="#i-arrow"/></svg> English</span></div>
@@ -126,7 +125,7 @@
         <div class="collection-heading"><h2><span id="collection-title">On your desk</span> <span id="count">0</span></h2><span>Recently edited first</span></div>
         <div class="filters"><label class="search-label"><span class="sr-only">Find a project</span><svg class="icon" aria-hidden="true"><use href="#i-search"/></svg><input type="search" id="search" placeholder="Find a book or project…"><kbd aria-hidden="true">/</kbd></label><label class="filter-label"><span class="sr-only">Show</span><select id="filter" aria-label="Show projects"><option value="active">Active projects</option><option value="archived">Archived projects</option></select></label><div class="view-switch" role="group" aria-label="Project layout"><button id="view-grid" aria-label="Grid view" aria-pressed="true"><svg class="icon"><use href="#i-grid"/></svg></button><button id="view-list" aria-label="List view" aria-pressed="false"><svg class="icon"><use href="#i-list"/></svg></button></div><button id="refresh">Refresh</button></div>
         <p id="library-status" role="status"></p><section id="projects" class="project-grid" aria-label="Projects"></section>
-        <div class="privacy-note"><span class="note-symbol" aria-hidden="true">*</span><p id="storage-info">Projects are saved on this device. Sign in for your cloud library.</p></div>
+        <div class="storage-tip"><details><summary aria-label="Library storage information">i</summary></details><p id="storage-info" role="tooltip">Projects are saved on this device. Sign in for your cloud library.</p><span id="storage-label" class="sr-only">THIS BROWSER</span><span id="storage-caption" class="sr-only">A library on this device</span></div>
         <footer class="library-footer"><nav class="legal-links" aria-label="Legal"><a href="/privacy.html" target="_blank" rel="noopener">Privacy</a><a href="/terms.html" target="_blank" rel="noopener">Terms</a><a href="/cookies.html" target="_blank" rel="noopener">Cookies</a><a href="/guides/api-keys.html" target="_blank" rel="noopener">API key guide</a></nav></footer>
       </div>
     </main>

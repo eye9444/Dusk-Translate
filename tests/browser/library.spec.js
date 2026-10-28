@@ -349,6 +349,17 @@ test('mobile library fits the viewport',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile book');await leave(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+test('storage details use one compact lower-right tooltip',async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('.storage-badge,.privacy-note')).toHaveCount(0);
+  const tip=page.locator('.storage-tip');
+  await expect(tip.locator('summary')).toBeVisible();
+  await expect(page.locator('#storage-info')).toBeHidden();
+  await tip.locator('summary').focus();
+  await expect(page.locator('#storage-info')).toBeVisible();
+  await tip.locator('summary').click();
+  await expect(tip.locator('details')).toHaveAttribute('open','');
+});
 test('mobile editor collapses controls and gives source and translation equal scroll areas',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile editor');const editor=page.frameLocator('#editor');
   await expect(editor.locator('.provider-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.tool-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.chapter-disclosure')).not.toHaveAttribute('open','');
