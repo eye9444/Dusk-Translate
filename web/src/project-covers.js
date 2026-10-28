@@ -30,8 +30,8 @@ export function createCoverGallery(loadFile){
   const pump=()=>{while(running<2&&queue.length){const task=queue.shift();running++;task().finally(()=>{running--;pump();});}};
   return {
     reset(){epoch++;observer?.disconnect();queue=[];for(const url of urls)URL.revokeObjectURL(url);urls.clear();},
-    attach(card,project){
-      const cover=document.createElement('div');cover.className='project-cover';
+    attach(card,project,{className='project-cover',decorative=false}={}){
+      const cover=document.createElement('div');cover.className=className;
       const title=document.createElement('span');title.textContent=project.title;cover.append(title);
       const hint=document.createElement('small');hint.textContent='No cover';cover.append(hint);card.prepend(cover);
       if(!/\.epub$/i.test(project.fileName))return;
@@ -39,7 +39,8 @@ export function createCoverGallery(loadFile){
       cover.loadCover=()=>{queue.push(async()=>{try{
         if(version!==epoch||!cover.isConnected)return;
         const blob=await readEpubCover(await loadFile(project));if(!blob||version!==epoch||!cover.isConnected)return;
-        const url=URL.createObjectURL(blob);urls.add(url);const image=new Image();image.alt=`Cover of ${project.title}`;image.decoding='async';
+        const url=URL.createObjectURL(blob);urls.add(url);const image=new Image();image.alt=decorative?'':`Cover of ${project.title}`;image.decoding='async';
+        if(decorative)image.setAttribute('aria-hidden','true');
         image.onload=()=>{if(version===epoch&&cover.isConnected)cover.replaceChildren(image);};image.src=url;
       }catch{/* Keep the title fallback when a cover is missing or unreadable. */}});pump();};
       observer??=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting){observer.unobserve(entry.target);entry.target.loadCover();}},{rootMargin:'100px'});

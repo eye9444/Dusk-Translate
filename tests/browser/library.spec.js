@@ -119,6 +119,7 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await create(page,'Cover book',{name:'book.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});await leave(page);
   await page.getByRole('button',{name:'Gallery view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await expect(page.locator('#resume-strip .resume-cover img')).toBeVisible();
   await page.getByRole('button',{name:'Grid view'}).click();
   await expect(page.locator('.project-card')).toHaveCSS('border-radius','10px');
   await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');

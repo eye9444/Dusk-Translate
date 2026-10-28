@@ -747,12 +747,14 @@ function render() {
   if (inboxView) { renderInvitationInbox(); return; }
   const recent=sorted.find(p=>!p.archived);
   $('resume-strip').hidden=!recent||archived||!!query;
+  $('resume-strip').querySelector('.resume-cover')?.remove();
   if(recent){
     const languages=normalizeLanguagePair(recent.snapshot?.sourceLanguage,recent.snapshot?.targetLanguage);
     $('resume-title').textContent=recent.title;
     $('resume-languages').textContent=`${LANGUAGES[languages.sourceLanguage].nativeName} → ${LANGUAGES[languages.targetLanguage].nativeName}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
+    coverGallery.attach($('resume-strip'),recent,{className:'resume-cover',decorative:true});
   }
   $('count').textContent = String(view.length); $('projects').replaceChildren();
   if (!view.length) {
