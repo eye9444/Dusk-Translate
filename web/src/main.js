@@ -18,7 +18,7 @@ import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { detectEpubLanguage, emptyWebNovel, parseSourceFile } from './source-import.js';
-import { TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
+import { LANGUAGES, TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
 import { LATEST_RELEASE_ID, RELEASES, hasSeenLatestRelease } from './releases.js';
 import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
@@ -737,7 +737,7 @@ function render() {
   $('active-count').textContent=String(projects.filter(p=>!p.archived).length);
   $('archive-count').textContent=String(projects.filter(p=>p.archived).length);
   $('invite-count').textContent=String(invitations.length);
-  $('collection-title').textContent=inboxView?'Project invitations':archived?'Archived projects':'Active translation projects';
+  $('collection-title').textContent=inboxView?'Project invitations':archived?'Archived projects':'Active projects';
   $('collection-name').textContent=inboxView?'Invites':archived?'Archive':'My library';
   ['active','archived','inbox'].forEach(value=>{
     const nav=$('nav-'+value);
@@ -747,10 +747,14 @@ function render() {
   if (inboxView) { renderInvitationInbox(); return; }
   const recent=sorted.find(p=>!p.archived);
   $('resume-strip').hidden=!recent||archived||!!query;
+  $('resume-strip').querySelector('.resume-cover')?.remove();
   if(recent){
+    const languages=normalizeLanguagePair(recent.snapshot?.sourceLanguage,recent.snapshot?.targetLanguage);
     $('resume-title').textContent=recent.title;
+    $('resume-languages').textContent=`${LANGUAGES[languages.sourceLanguage].nativeName} → ${LANGUAGES[languages.targetLanguage].nativeName}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
+    coverGallery.attach($('resume-strip'),recent,{className:'resume-cover',decorative:true});
   }
   $('count').textContent = String(view.length); $('projects').replaceChildren();
   if (!view.length) {
@@ -793,8 +797,8 @@ function render() {
       card.tabIndex=0;card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
       card.addEventListener('click',event=>{if(!event.target.closest('button,a,input,select,textarea'))openProject(p.id);});
       card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openProject(p.id);}});
-      coverGallery.attach(card,p);
     }
+    coverGallery.attach(card,p);
   });
 }
 function renderInvitationInbox() {

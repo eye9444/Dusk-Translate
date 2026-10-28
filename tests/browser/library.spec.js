@@ -119,6 +119,19 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await create(page,'Cover book',{name:'book.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});await leave(page);
   await page.getByRole('button',{name:'Gallery view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await expect(page.locator('#resume-strip .resume-cover img')).toBeVisible();
+  await page.getByRole('button',{name:'Grid view'}).click();
+  await expect(page.locator('.project-card')).toHaveCSS('border-radius','10px');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.26');
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'List view'}).click();
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'Gallery view'}).click();
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','none');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','1');
+  await expect(page.locator('.gallery-caption')).toHaveCSS('position','absolute');
   await page.reload();await expect(page.getByRole('button',{name:'Gallery view'})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
@@ -349,6 +362,17 @@ test('mobile library fits the viewport',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile book');await leave(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+test('storage details use one compact lower-right tooltip',async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('.storage-badge,.privacy-note')).toHaveCount(0);
+  const tip=page.locator('.storage-tip');
+  await expect(tip.locator('summary')).toBeVisible();
+  await expect(page.locator('#storage-info')).toBeHidden();
+  await tip.locator('summary').focus();
+  await expect(page.locator('#storage-info')).toBeVisible();
+  await tip.locator('summary').click();
+  await expect(tip.locator('details')).toHaveAttribute('open','');
+});
 test('mobile editor collapses controls and gives source and translation equal scroll areas',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile editor');const editor=page.frameLocator('#editor');
   await expect(editor.locator('.provider-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.tool-disclosure')).not.toHaveAttribute('open','');await expect(editor.locator('.chapter-disclosure')).not.toHaveAttribute('open','');
@@ -550,15 +574,17 @@ test('spellcheck setting and its menu label survive a reload',async({page})=>{
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';
   let requestStarted;const started=new Promise(resolve=>requestStarted=resolve);
+  let releaseResponse;const responseReleased=new Promise(resolve=>releaseResponse=resolve);
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
     requestKey=route.request().headers()['x-goog-api-key'] || '';
     requestStarted();
-    await new Promise(resolve=>setTimeout(resolve,700));
+    await responseReleased;
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
   await create(page);const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await started;await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
+  releaseResponse();
   expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   await page.reload();await page.locator('.project-card').first().click();
@@ -616,6 +642,8 @@ test('collection navigation, search shortcut and layout preferences work',async(
   await expect(page.locator('#active-count')).toHaveText('1');
   await expect(page.locator('#view-gallery')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#projects')).toHaveClass(/gallery-view/);
+  await expect(page.locator('#resume-languages')).toHaveText('日本語 → English');
+  await expect(page.locator('#resume-languages')).toHaveCSS('border-top-style','none');
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
   await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();

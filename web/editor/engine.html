@@ -780,7 +780,7 @@ function renderList() {
 }
 
 function selectCh(i) {
-  if (!novel) return;
+  if (!novel || busy) return;
   cur = i;
   document.querySelectorAll('.ch-item').forEach((el, j) => el.classList.toggle('active', j === i));
   document.getElementById('ci' + i)?.scrollIntoView({ block: 'nearest' });
