@@ -2,8 +2,9 @@ import { createClient } from '@supabase/supabase-js';
 import { cleanSnapshot } from './model.js';
 import { createAuthStorage } from './auth-storage.js';
 
-const url = import.meta.env.VITE_SUPABASE_URL;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const localOnly = import.meta.env.VITE_LOCAL_ONLY === 'true';
+const url = localOnly ? '' : import.meta.env.VITE_SUPABASE_URL;
+const key = localOnly ? '' : import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 export const authStorage=createAuthStorage(localStorage,sessionStorage);
 if(url)authStorage.setPrefix(`sb-${new URL(url).hostname.split('.')[0]}-auth-token`);
 export const cloud = url && key ? createClient(url, key, {
