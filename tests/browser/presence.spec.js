@@ -62,6 +62,7 @@ test('desktop provider feedback stops before collaborator and action controls',a
     ],
   },location.origin));
   await expect(editor.locator('.collaborator-avatar')).toHaveCount(2);
+  await expect.poll(()=>editor.locator('.key-bar').evaluate(element=>getComputedStyle(element).flexWrap)).toBe('nowrap');
   const feedback=await editor.locator('.provider-feedback').boundingBox();
   const presence=await editor.locator('#collaborator-presence').boundingBox();
   const actions=await editor.locator('.host-header-actions').boundingBox();
