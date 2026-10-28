@@ -30,7 +30,7 @@ jobs:
           npm run test:e2e
           npm run test:auth
           npm run test:modules
-        env: { VITE_APP_ENV: staging, VITE_LOCAL_ONLY: "true" }
+        env: { VITE_APP_ENV: staging }
       - name: Pull Vercel staging configuration
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
