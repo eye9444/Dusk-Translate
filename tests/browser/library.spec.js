@@ -639,7 +639,8 @@ test('collection navigation, search shortcut and layout preferences work',async(
   await expect(page.locator('#active-count')).toHaveText('1');
   await expect(page.locator('#view-gallery')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#projects')).toHaveClass(/gallery-view/);
-  await expect(page.locator('#resume-languages')).toHaveText('Japanese → English');
+  await expect(page.locator('#resume-languages')).toHaveText('日本語 → English');
+  await expect(page.locator('#resume-languages')).toHaveCSS('border-top-style','none');
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
   await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();

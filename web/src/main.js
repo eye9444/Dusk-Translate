@@ -18,7 +18,7 @@ import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
 import { validateFile, cleanSnapshot, progress } from './model.js';
 import { detectEpubLanguage, emptyWebNovel, parseSourceFile } from './source-import.js';
-import { TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
+import { LANGUAGES, TRANSLATION_TARGETS, languageName, normalizeLanguagePair } from './languages.js';
 import { LATEST_RELEASE_ID, RELEASES, hasSeenLatestRelease } from './releases.js';
 import { buildTranslatedEpub, buildWebNovelEpub, readEpub, snapshotReaderBook } from './epub-reader.js';
 import { startProjectPresence } from './presence.js';
@@ -750,7 +750,7 @@ function render() {
   if(recent){
     const languages=normalizeLanguagePair(recent.snapshot?.sourceLanguage,recent.snapshot?.targetLanguage);
     $('resume-title').textContent=recent.title;
-    $('resume-languages').textContent=`${languageName(languages.sourceLanguage)} → ${languageName(languages.targetLanguage)}`;
+    $('resume-languages').textContent=`${LANGUAGES[languages.sourceLanguage].nativeName} → ${LANGUAGES[languages.targetLanguage].nativeName}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
   }
