@@ -1,9 +1,10 @@
 #projects.gallery-view{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:22px}
 #projects.gallery-view .project-card{position:relative;overflow:hidden;min-width:0;min-height:0;padding:0;aspect-ratio:3/4;display:block}
-.project-cover{aspect-ratio:2/3;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:24px;background:linear-gradient(145deg,#423226,#17130f);color:#eee3d5;border:1px solid #80664b55;border-radius:5px;margin-bottom:20px;overflow:hidden}
+.project-cover{height:110px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:8px;background:linear-gradient(145deg,#423226,#17130f);color:#eee3d5;border-bottom:1px solid #80664b55;margin:-22px -22px 4px;overflow:hidden}
 .project-cover>span{font:28px/1.3 Georgia,serif;padding:24px;overflow-wrap:anywhere}
 .project-cover>small{text-transform:uppercase;letter-spacing:.16em;opacity:.6}
-.project-cover img{width:100%;height:100%;object-fit:cover}
+.project-cover img{width:100%;height:100%;object-fit:cover;object-position:center 28%}
+.list-view .project-cover{height:76px;margin:-20px -20px 4px}
 .gallery-view .project-cover{position:absolute;inset:0;aspect-ratio:auto;border:0;border-radius:0;margin:0}
 .gallery-view .project-cover>span{display:none}
 .gallery-caption{position:absolute;bottom:0;left:0;right:0;max-height:100%;overflow:auto;padding:56px 18px 18px;background:linear-gradient(transparent,rgba(0,0,0,.72) 48px,rgba(0,0,0,.94));color:#fff;scrollbar-width:thin;scrollbar-color:#ad8c70 transparent}

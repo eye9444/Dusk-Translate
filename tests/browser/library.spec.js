@@ -119,6 +119,15 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await create(page,'Cover book',{name:'book.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});await leave(page);
   await page.getByRole('button',{name:'Gallery view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'Grid view'}).click();
+  let banner=await page.locator('.project-cover').boundingBox();
+  expect(banner.width/banner.height).toBeGreaterThan(2);
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'List view'}).click();
+  banner=await page.locator('.project-cover').boundingBox();
+  expect(banner.width/banner.height).toBeGreaterThan(3);
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'Gallery view'}).click();
   await page.reload();await expect(page.getByRole('button',{name:'Gallery view'})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
@@ -627,6 +636,7 @@ test('collection navigation, search shortcut and layout preferences work',async(
   await expect(page.locator('#active-count')).toHaveText('1');
   await expect(page.locator('#view-gallery')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#projects')).toHaveClass(/gallery-view/);
+  await expect(page.locator('#resume-languages')).toHaveText('Japanese → English');
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
   await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();

@@ -748,7 +748,9 @@ function render() {
   const recent=sorted.find(p=>!p.archived);
   $('resume-strip').hidden=!recent||archived||!!query;
   if(recent){
+    const languages=normalizeLanguagePair(recent.snapshot?.sourceLanguage,recent.snapshot?.targetLanguage);
     $('resume-title').textContent=recent.title;
+    $('resume-languages').textContent=`${languageName(languages.sourceLanguage)} → ${languageName(languages.targetLanguage)}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
   }
@@ -793,8 +795,8 @@ function render() {
       card.tabIndex=0;card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
       card.addEventListener('click',event=>{if(!event.target.closest('button,a,input,select,textarea'))openProject(p.id);});
       card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openProject(p.id);}});
-      coverGallery.attach(card,p);
     }
+    coverGallery.attach(card,p);
   });
 }
 function renderInvitationInbox() {
