@@ -5,22 +5,21 @@
 | Environment | Branch | Data | Purpose |
 | --- | --- | --- | --- |
 | Feature preview | `feature/*`, `fix/*`, `ops/*` | Staging Supabase | Review one change before integration |
-| Staging | `staging` | Separate staging Supabase project | Test one coherent release candidate |
+| Staging | `staging` | Browser-local only | Test one coherent release candidate without production data |
 | Production | `master` | Production Supabase | Public, accepted releases only |
 
 Preview and staging builds carry a visible environment, version, and commit badge. Never put production Supabase credentials in Preview or staging Vercel variables.
 
 ## One-time setup
 
-1. Create a separate Supabase project for staging. Apply the repository migrations to it, and never copy production user data into it.
-2. In Vercel, create `staging.dusktranslate.com` and assign it to the `staging` branch. Add Preview variables for the staging Supabase URL and publishable key. Scope the `VITE_APP_ENV=staging` override specifically to the `staging` branch.
+1. In Vercel, create `staging.dusktranslate.com` and assign it to the `staging` branch. Staging builds set `VITE_LOCAL_ONLY=true`, so inherited Preview Supabase variables are ignored.
+2. Use staging for local project, editor, reader, import, export, and browser-persistence acceptance. Authentication, cloud sync, collaboration, hosted feedback, and public reader links remain covered by mocked CI suites rather than the hosted staging site.
 3. Create the GitHub `staging` environment and retain the existing `Production` environment. Add required reviewers to both environments.
-4. Add environment secrets `VERCEL_TOKEN`, `SUPABASE_DB_URL`, and optional `VERCEL_AUTOMATION_BYPASS_SECRET` to each environment. Each `SUPABASE_DB_URL` must point to that environment's own database.
-5. Add staging-only secrets `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_SERVICE_ROLE_KEY`, `STAGING_FIXTURE_EMAIL`, and `STAGING_FIXTURE_PASSWORD`. Add `PRODUCTION_SUPABASE_URL` so the seed script can reject an accidental match.
-6. Add environment variables `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and `STAGING_DOMAIN=staging.dusktranslate.com`.
-7. Protect `staging` and `master`. Require pull requests, `Unit, security, and build`, and `Browser suites`; dismiss stale approvals; require conversations to be resolved; block force pushes and deletion. Require creator approval for `staging -> master` release PRs.
+4. Add staging environment secret `VERCEL_TOKEN` and optional `VERCEL_AUTOMATION_BYPASS_SECRET`. Production additionally requires `SUPABASE_DB_URL` for release migrations.
+5. Add environment variables `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, and `STAGING_DOMAIN=staging.dusktranslate.com`.
+6. Protect `staging` and `master`. Require pull requests, `Unit, security, and build`, and `Browser suites`; dismiss stale approvals; require conversations to be resolved; block force pushes and deletion. Require creator approval for `staging -> master` release PRs.
 
-The fixture script requires `ALLOW_STAGING_SEED=DUSK_STAGING_ONLY`, checks that staging and production URLs differ, and uses synthetic content only.
+Staging never connects to Supabase or seeds cloud fixtures. Production remains migration-gated and must keep its database credentials only in the protected `Production` environment.
 
 ## Daily development
 
@@ -31,7 +30,7 @@ The fixture script requires `ALLOW_STAGING_SEED=DUSK_STAGING_ONLY`, checks that 
 
 ## Releasing
 
-1. Test the stable staging URL and complete the release checklist. Record approval on the release PR.
+1. Test the stable local-only staging URL and complete the release checklist. Record approval on the release PR. Use CI results for cloud-specific acceptance.
 2. Choose the version manually. Features and bug fixes increment `package.json`; visual-only changes keep the current version and do not add a What's New entry.
 3. Open `staging -> master`. The merge commit must contain the exact approved staging tree.
 4. Merging runs production migrations, builds an unaliased production candidate, smoke-tests it, promotes it to the public domains, and smoke-tests the public site.
