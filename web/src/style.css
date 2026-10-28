@@ -63,4 +63,5 @@ dialog{width:min(500px,calc(100% - 24px));max-height:90dvh;overflow:auto;color:v
 .whats-new-dialog{width:min(650px,calc(100% - 24px))}.release-note{padding:18px 0;border-bottom:1px solid var(--border)}.release-note h3{margin:4px 0 10px}.release-note ul{padding-left:20px;line-height:1.65}
 .release-letter{line-height:1.75;margin:16px 0}.release-signature{font-weight:600;margin:22px 0}
 .environment-badge{padding:5px 8px;border:1px solid #d9772f;border-radius:999px;background:#3b1d0c;color:#ffd4ad;font:8px 'DM Mono',monospace;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.library-footer{justify-content:center}.library-footer .legal-links{justify-content:center}
 @media(max-width:900px){.environment-badge{position:fixed;z-index:90;right:12px;bottom:12px;box-shadow:0 6px 24px #0008}.environment-badge[data-environment="preview"]{max-width:120px;overflow:hidden;text-overflow:ellipsis}}

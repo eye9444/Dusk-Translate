@@ -737,7 +737,7 @@ function render() {
   $('active-count').textContent=String(projects.filter(p=>!p.archived).length);
   $('archive-count').textContent=String(projects.filter(p=>p.archived).length);
   $('invite-count').textContent=String(invitations.length);
-  $('collection-title').textContent=inboxView?'Project invitations':archived?'Archived projects':'Active translation projects';
+  $('collection-title').textContent=inboxView?'Project invitations':archived?'Archived projects':'Active projects';
   $('collection-name').textContent=inboxView?'Invites':archived?'Archive':'My library';
   ['active','archived','inbox'].forEach(value=>{
     const nav=$('nav-'+value);
