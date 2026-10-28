@@ -574,15 +574,17 @@ test('spellcheck setting and its menu label survive a reload',async({page})=>{
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';
   let requestStarted;const started=new Promise(resolve=>requestStarted=resolve);
+  let releaseResponse;const responseReleased=new Promise(resolve=>releaseResponse=resolve);
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
     requestKey=route.request().headers()['x-goog-api-key'] || '';
     requestStarted();
-    await new Promise(resolve=>setTimeout(resolve,700));
+    await responseReleased;
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
   await create(page);const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await started;await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
+  releaseResponse();
   expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   await page.reload();await page.locator('.project-card').first().click();
