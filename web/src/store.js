@@ -105,7 +105,8 @@ function must(result) {
   if (result.error) {
     if (result.error.code === 'PGRST205') throw new Error('Your account is connected, but cloud project storage still needs setup by the project owner. Sign out to use your browser library for now.');
     if (result.error.code === 'PGRST202') throw new Error('Project sharing still needs its Supabase migration. Ask the project owner to run the latest migration before inviting collaborators.');
-    throw new Error(result.error.message);
+    const detail=[result.error.message,result.error.details,result.error.hint,result.error.statusCode||result.error.code].filter(Boolean).join(' · ');
+    throw new Error(detail||'Cloud request failed.');
   }
   return result.data;
 }
