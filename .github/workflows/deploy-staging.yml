@@ -1,0 +1,59 @@
+name: Deploy staging
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+concurrency:
+  group: staging
+  cancel-in-progress: true
+permissions:
+  contents: read
+  deployments: write
+jobs:
+  deploy:
+    name: Verify, deploy, and smoke local-only staging
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Verify accepted commit
+        run: |
+          npm audit --audit-level=high
+          npm test
+          npm run build
+          npm run test:e2e
+          npm run test:auth
+          npm run test:modules
+        env: { VITE_APP_ENV: staging }
+      - name: Pull Vercel staging configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+        run: npx vercel@65.4.0 pull --yes --environment=preview --git-branch=staging --token="$VERCEL_TOKEN"
+      - name: Build staging candidate
+        env: { VERCEL_TOKEN: "${{ secrets.VERCEL_TOKEN }}", VITE_APP_ENV: staging, VITE_LOCAL_ONLY: "true" }
+        run: npx vercel@65.4.0 build --token="$VERCEL_TOKEN"
+      - name: Deploy staging candidate
+        id: deploy
+        env: { VERCEL_TOKEN: "${{ secrets.VERCEL_TOKEN }}" }
+        run: |
+          URL=$(npx vercel@65.4.0 deploy --prebuilt --token="$VERCEL_TOKEN")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Assign stable staging domain
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          DEPLOYMENT_URL: ${{ steps.deploy.outputs.url }}
+          STAGING_DOMAIN: ${{ vars.STAGING_DOMAIN }}
+        run: npx vercel@65.4.0 alias set "$DEPLOYMENT_URL" "$STAGING_DOMAIN" --token="$VERCEL_TOKEN"
+      - name: Smoke staging deployment
+        env:
+          SMOKE_URL: ${{ steps.deploy.outputs.url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: npm run smoke:hosted

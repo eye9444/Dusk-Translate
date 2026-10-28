@@ -110,7 +110,7 @@ test('paid users can keep ruby and replacement images in a device-only project',
   await editor.locator('#host-tools').click();await editor.locator('#host-images').click();const replacement=page.locator('.image-asset input[type=file]');await replacement.setInputFiles({name:'replacement.png',mimeType:'image/png',buffer:png});await expect(page.locator('#images-status')).toContainText('Replacement saved');
   const stored=await page.evaluate(async()=>{const request=indexedDB.open('dusktranslate-library');const db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));const tx=db.transaction(['projects','localImages']);const projects=tx.objectStore('projects').getAll(),images=tx.objectStore('localImages').getAll();return Promise.all([new Promise(resolve=>projects.onsuccess=()=>resolve(projects.result)),new Promise(resolve=>images.onsuccess=()=>resolve(images.result))]);});
   expect(stored[0][0].storage).toBe('local');expect(stored[0][0].localDocument).toBeTruthy();expect(stored[1]).toHaveLength(1);
-  await page.getByRole('button',{name:'Close book images'}).click();await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.getByRole('button',{name:'Close book images'}).click();await editor.locator('#host-menu').click();await editor.locator('#host-library').click();await page.locator('.project-card').first().click();
   await expect(editor.getByRole('button',{name:'Edit ruby: とうきょう'})).toBeVisible();
 });
 

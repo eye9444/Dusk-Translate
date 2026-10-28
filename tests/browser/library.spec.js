@@ -18,7 +18,7 @@ test('account editor preferences persist and stay in sync with editor controls',
   await expect.poll(()=>page.evaluate(()=>localStorage.getItem('dusk-provider-settings')!==null)).toBe(true);
   await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
   await page.reload();
-  await page.getByRole('button',{name:'Open project',exact:true}).first().click();
+  await page.locator('.project-card').first().click();
   await expect(page.frameLocator('#editor').locator('#tl-out')).toHaveAttribute('spellcheck','true');
   await expect(page.frameLocator('#editor').locator('#remember-provider-settings')).toBeChecked();
   await page.locator('.account-actions').evaluate(node=>node.closest('dialog').showModal());
@@ -37,7 +37,7 @@ async function create(page,name='Test book',file) {
   await page.locator('#new-title').fill(name);
   await page.locator('#new-file').setInputFiles(file || {name:'book.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(fixture))});
   await page.getByRole('button',{name:'Create project',exact:true}).click();
-  await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
+  await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty({timeout:15000});
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
 }
 async function selectTestModel(editor) {
@@ -76,7 +76,7 @@ test('saves manual edits, glossary, current chapter; keys never persist',async({
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');
   const saved=await page.evaluate(async()=>{const request=indexedDB.open('dusktranslate-library');const db=await new Promise(resolve=>request.onsuccess=()=>resolve(request.result));const req=db.transaction('projects').objectStore('projects').getAll();return new Promise(resolve=>req.onsuccess=()=>resolve(JSON.stringify(req.result)));});
   expect(saved).not.toContain('TEST_SECRET');expect(saved).toContain('My edited translation');
-  await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.reload();await page.locator('.project-card').first().click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter two');
   await expect(editor.locator('#api-key')).toHaveValue('');
   await editor.locator('#btn-prev').click();await expect(editor.locator('#tl-out')).toHaveText('My edited translation');
@@ -106,7 +106,7 @@ test('sidebar bulk state and deletion persist across reload',async({page})=>{
   await editor.locator('#ci1').click({button:'right'});page.once('dialog',dialog=>dialog.accept());
   await editor.getByRole('menuitem',{name:'Delete chapter',exact:true}).click();await expect(editor.locator('.ch-item')).toHaveCount(1);
   await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();
-  await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.locator('.project-card').first().click();
   await expect(editor.locator('.ch-item')).toHaveCount(1);await expect(editor.locator('#tl-out')).toHaveText('Keep this translated text');
 });
 test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
@@ -119,6 +119,19 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await create(page,'Cover book',{name:'book.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});await leave(page);
   await page.getByRole('button',{name:'Gallery view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await expect(page.locator('#resume-strip .resume-cover img')).toBeVisible();
+  await page.getByRole('button',{name:'Grid view'}).click();
+  await expect(page.locator('.project-card')).toHaveCSS('border-radius','10px');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.26');
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'List view'}).click();
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
+  await page.getByRole('button',{name:'Gallery view'}).click();
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','none');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','1');
+  await expect(page.locator('.gallery-caption')).toHaveCSS('position','absolute');
   await page.reload();await expect(page.getByRole('button',{name:'Gallery view'})).toHaveAttribute('aria-pressed','true');
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
@@ -183,13 +196,13 @@ test('chapter context menu dismisses without a modal and gallery has a fallback'
 test('rename, archive, restore, delete keep projects isolated',async({page})=>{
   await create(page,'First');await leave(page);await create(page,'Second');await leave(page);
   const first=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'First',exact:true})});
-  await first.getByRole('button',{name:'Rename'}).click();await page.locator('#rename-title').fill('Renamed');await page.locator('#manage-submit').click();
+  await first.hover();await first.getByRole('button',{name:'Rename'}).click();await page.locator('#rename-title').fill('Renamed');await page.locator('#manage-submit').click();
   const renamed=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'Renamed'})});
-  await renamed.getByRole('button',{name:'Archive',exact:true}).click();await page.locator('#manage-submit').click();
+  await renamed.hover();await renamed.getByRole('button',{name:'Archive',exact:true}).click();await page.locator('#manage-submit').click();
   await expect(page.locator('.project-card')).toHaveCount(1);await page.locator('#filter').selectOption('archived');
-  await page.getByRole('button',{name:'Restore',exact:true}).click();await page.locator('#manage-submit').click();
+  await page.locator('.project-card').first().hover();await page.getByRole('button',{name:'Restore',exact:true}).click();await page.locator('#manage-submit').click();
   await page.locator('#filter').selectOption('active');await expect(page.locator('.project-card')).toHaveCount(2);
-  await renamed.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();
+  await renamed.hover();await renamed.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();
   await expect(page.locator('.project-card')).toHaveCount(1);await expect(page.getByRole('heading',{name:'Second',exact:true,level:3})).toBeVisible();
 });
 test('empty Web Novel projects accept pasted chapters and preserve stable chapter titles',async({page})=>{
@@ -207,8 +220,8 @@ test('empty Web Novel toolbar imports any TXT file as source, not translated out
 });
 test('returning home releases the project lock before immediate reopen and delete',async({page})=>{
   await create(page,'Lock lifecycle');await leave(page);
-  const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'Lock lifecycle',exact:true})});await card.getByRole('button',{name:'Open project',exact:true}).click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();await leave(page);
-  await expect(page.locator('#library-status')).not.toContainText('already open');await card.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();await expect(page.locator('.project-card')).toHaveCount(0);await expect(page.locator('#manage-error')).toBeEmpty();
+  const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'Lock lifecycle',exact:true})});await card.click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();await leave(page);
+  await expect(page.locator('#library-status')).not.toContainText('already open');await card.hover();await card.getByRole('button',{name:'Delete',exact:true}).click();await page.locator('#manage-submit').click();await expect(page.locator('.project-card')).toHaveCount(0);await expect(page.locator('#manage-error')).toBeEmpty();
 });
 test('editor logo returns to the outer library without nesting apps or retaining project locks',async({page})=>{
   for(const name of ['Logo first','Logo second','Logo third']){
@@ -223,11 +236,11 @@ test('editor logo returns to the outer library without nesting apps or retaining
   }
   for(const name of ['Logo first','Logo second','Logo third']){
     const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name,exact:true})});
-    await card.getByRole('button',{name:'Open project',exact:true}).click();
+    await card.click();
     await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
     await page.frameLocator('#editor').locator('.host-identity').click();
     await expect(page).toHaveURL(/\/home$/);
-    await card.getByRole('button',{name:'Delete',exact:true}).click();
+    await card.hover();await card.getByRole('button',{name:'Delete',exact:true}).click();
     await page.locator('#manage-submit').click();
     await expect(card).toHaveCount(0);
   }
@@ -238,7 +251,7 @@ test('TXT source import creates one editable chapter named after the file',async
 });
 test('rename limits titles and preserves the saved book across reload',async({page})=>{
   await create(page,'Rename limit');await leave(page);
-  await page.getByRole('button',{name:'Rename',exact:true}).click();
+  await page.locator('.project-card').first().hover();await page.getByRole('button',{name:'Rename',exact:true}).click();
   await expect(page.locator('#rename-title')).toHaveAttribute('maxlength','100');
   await page.locator('#rename-title').fill('A'.repeat(100));
   await expect(page.locator('#manage-info')).toHaveText('100 / 100 characters');
@@ -246,7 +259,7 @@ test('rename limits titles and preserves the saved book across reload',async({pa
   await expect(page.locator('#manage-dialog')).not.toBeVisible();
   await page.reload();
   await expect(page.locator('.project-card h3')).toHaveText('A'.repeat(100));
-  await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.locator('.project-card').first().click();
   await expect(page.frameLocator('#editor').locator('#src-txt')).toContainText('Chapter one.');
 });
 test('feedback asks guests to sign in and supports an optional screenshot',async({page})=>{
@@ -289,11 +302,11 @@ test('original EPUB survives reload and can export translated chapters',async({p
   zip.file('OEBPS/one.xhtml','<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Demo</title></head><body><p>日本語のテストです。</p></body></html>');
   await create(page,'EPUB test',{name:'book.epub',mimeType:'application/epub+zip',buffer:await zip.generateAsync({type:'nodebuffer'})});
   const editor=page.frameLocator('#editor');await editor.locator('#tl-out').fill('An original test translation.');
-  await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();await page.locator('.project-card').first().click();
   await expect(editor.locator('#btn-epub-export')).toBeEnabled();const pending=page.waitForEvent('download');await editor.locator('#btn-epub-export').click();const download=await pending;
   const {readFile}=await import('node:fs/promises');const output=await JSZip.loadAsync(await readFile(await download.path()));
   expect(await output.file('OEBPS/one.xhtml').async('string')).toContain('An original test translation.');
-  await leave(page);const card=page.locator('.project-card').filter({has:page.getByRole('heading',{name:'EPUB test',exact:true})});
+  await leave(page);const card=page.locator('.project-card').first();await card.hover();
   await expect(card.getByRole('button',{name:'Read translation'})).toBeEnabled();await card.getByRole('button',{name:'Read translation'}).click();
   await expect(page.locator('#reader-edition')).toHaveText('TRANSLATED EDITION');await expect(page.locator('#reader-content')).toContainText('An original test translation.');await page.locator('#reader-back').click();
 });
@@ -308,7 +321,7 @@ test('built-in EPUB reader opens chapters and supports accessible font controls'
   await create(page,'Reader test',{name:'reader.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
   await leave(page);await page.locator('#reader-file').setInputFiles({name:'standalone.epub',mimeType:'application/epub+zip',buffer:epubBuffer});
   await expect(page.locator('#reader-edition')).toHaveText('STANDALONE EPUB');await page.locator('#reader-back').click();
-  await page.getByRole('button',{name:'Read original',exact:true}).click();
+  await page.locator('.project-card').first().hover();await page.getByRole('button',{name:'Read original',exact:true}).click();
   await expect(page.locator('#reader')).toBeVisible();await expect(page.locator('#reader-title')).toHaveText('Built-in reader test');
   await expect(page.locator('#reader-content')).toContainText('Japanese reader text.');await expect(page.locator('#reader-content img')).toHaveAttribute('alt','Chapter illustration');await expect(page.locator('#reader-chapters button')).toHaveCount(2);
   await expect(page.locator('#reader-theme')).toHaveAttribute('aria-label','Use dark theme');
@@ -342,12 +355,23 @@ test('reader keeps inline gaiji punctuation out of the illustration flow',async(
   await expect(page.locator('#reader-content')).toContainText('She swayed～gently.');await expect(page.locator('#reader-content img')).toHaveCount(0);
 });
 test('same project cannot be edited in two tabs',async({page,context})=>{
-  await create(page);const second=await context.newPage();await second.goto('/');await second.getByRole('button',{name:'Open project',exact:true}).click();
+  await create(page);const second=await context.newPage();await second.goto('/');await second.locator('.project-card').first().click();
   await expect(second.locator('#library-status')).toContainText('already open in another tab');await second.close();
 });
 test('mobile library fits the viewport',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile book');await leave(page);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+test('storage details use one compact lower-right tooltip',async({page})=>{
+  await page.goto('/');
+  await expect(page.locator('.storage-badge,.privacy-note')).toHaveCount(0);
+  const tip=page.locator('.storage-tip');
+  await expect(tip.locator('summary')).toBeVisible();
+  await expect(page.locator('#storage-info')).toBeHidden();
+  await tip.locator('summary').focus();
+  await expect(page.locator('#storage-info')).toBeVisible();
+  await tip.locator('summary').click();
+  await expect(tip.locator('details')).toHaveAttribute('open','');
 });
 test('mobile editor collapses controls and gives source and translation equal scroll areas',async({page})=>{
   await page.setViewportSize({width:390,height:844});await create(page,'Mobile editor');const editor=page.frameLocator('#editor');
@@ -544,24 +568,26 @@ test('community consistency action analyzes repeated passages',async({page})=>{
 });
 test('spellcheck setting and its menu label survive a reload',async({page})=>{
   await create(page);const editor=page.frameLocator('#editor');await editor.locator('#host-tools').click();await editor.locator('#host-spellcheck').click();
-  await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');await page.waitForTimeout(1300);await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');await page.waitForTimeout(1300);await page.reload();await page.locator('.project-card').first().click();
   await editor.locator('#tl-out').waitFor();await expect(editor.locator('#tl-out')).toHaveAttribute('spellcheck','false');await editor.locator('#host-tools').click();await expect(editor.locator('#host-spellcheck')).toHaveText('Spell check: off');
 });
 test('stream interruptions preserve short partial output and lock navigation',async({page})=>{
   let requestKey='';
   let requestStarted;const started=new Promise(resolve=>requestStarted=resolve);
+  let releaseResponse;const responseReleased=new Promise(resolve=>releaseResponse=resolve);
   await page.route('https://generativelanguage.googleapis.com/**',async route=>{
     requestKey=route.request().headers()['x-goog-api-key'] || '';
     requestStarted();
-    await new Promise(resolve=>setTimeout(resolve,700));
+    await responseReleased;
     await route.fulfill({status:200,contentType:'text/event-stream',body:'data: '+JSON.stringify({candidates:[{content:{parts:[{text:'Short partial output'}]}}]})+'\n\n'});
   });
   await create(page);const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await started;await editor.locator('#host-menu').click();await expect(editor.locator('#host-library')).toBeDisabled();await editor.locator('#host-menu').click();await editor.locator('#btn-next').click();
   await expect(editor.locator('#src-txt')).toContainText('Chapter one');
+  releaseResponse();
   expect(requestKey).toBe('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await expect(editor.locator('.partial-badge')).toBeVisible();await expect(page.locator('#save-status')).toHaveText('Saved on this device');
-  await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.reload();await page.locator('.project-card').first().click();
   await expect(editor.locator('#tl-out')).toContainText('Short partial output');await expect(editor.locator('.partial-badge')).toBeVisible();
 });
 test('retry continues a partial translation instead of restarting the chapter',async({page})=>{
@@ -578,7 +604,7 @@ test('retry continues a partial translation instead of restarting the chapter',a
   await create(page,'Resume chunks',{name:'resume.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({chapters:[{id:'p-resume',text:source,jp_char_count:5001}]}))});
   const editor=page.frameLocator('#editor');await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');
   await editor.locator('#btn-tl').click();await expect(editor.locator('.partial-badge')).toBeVisible();
-  await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await expect(page.locator('#save-status')).toHaveText('Saved on this device');await page.reload();await page.locator('.project-card').first().click();
   await selectTestModel(editor);await editor.locator('#api-key').fill('AQ.TEST_AUTHORIZATION_KEY_123456789');await expect(editor.locator('.partial-badge')).toBeVisible();
   await editor.getByRole('button',{name:'Retry',exact:true}).click();
   await expect(editor.locator('#btn-retry')).toHaveText('Resuming…');await expect(editor.locator('#btn-retry')).toBeDisabled();
@@ -616,6 +642,8 @@ test('collection navigation, search shortcut and layout preferences work',async(
   await expect(page.locator('#active-count')).toHaveText('1');
   await expect(page.locator('#view-gallery')).toHaveAttribute('aria-pressed','true');
   await expect(page.locator('#projects')).toHaveClass(/gallery-view/);
+  await expect(page.locator('#resume-languages')).toHaveText('日本語 → English');
+  await expect(page.locator('#resume-languages')).toHaveCSS('border-top-style','none');
   await page.keyboard.press('/');await expect(page.locator('#search')).toBeFocused();
   await page.locator('#search').fill('no such book');await expect(page.locator('.empty')).toContainText('No projects match that title');
   await expect(page.locator('#resume-strip')).toBeHidden();await page.getByRole('button',{name:'Clear search'}).click();

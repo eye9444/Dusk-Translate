@@ -28,6 +28,7 @@ test('custom provider manual model, URL validation and mobile title bounds',asyn
   await page.setViewportSize({width:390,height:844});const editor=await openEditor(page);
   await editor.locator('.provider-disclosure > summary').click();
   await editor.locator('#model-import').click();await editor.locator('#provider-select').selectOption('custom');
+  await editor.locator('#model-import-dialog').evaluate(dialog=>Promise.all(dialog.getAnimations().map(animation=>animation.finished)));
   const dialogBounds=await editor.locator('#model-import-dialog').evaluate(element=>{
     const box=element.getBoundingClientRect();
     return {left:box.left,right:box.right,top:box.top,bottom:box.bottom,width:innerWidth,height:innerHeight};
@@ -54,7 +55,7 @@ test('provider key and URL are remembered only after explicit opt-in',async({pag
   await editor.locator('#api-key').fill(key);
   const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('dusk-provider-settings')));
   expect(stored).toMatchObject({key,url,provider:'custom'});expect(stored.expiresAt).toBeGreaterThan(Date.now());
-  await page.reload();await page.getByRole('button',{name:'Open project',exact:true}).click();
+  await page.reload();await page.locator('.project-card').first().click();
   await expect(editor.locator('#api-key')).toHaveValue(key);
   await editor.locator('#model-import').click();
   await expect(editor.locator('#provider-base-url')).toHaveValue(url);
