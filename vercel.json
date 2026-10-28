@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
-  "git": { "deploymentEnabled": { "master": false, "staging": false } },
+  "git": { "deploymentEnabled": { "master": true, "staging": false } },
   "functions": { "api/reader.js": { "includeFiles": "dist/index.html", "maxDuration": 30 } },
   "redirects": [
     { "source": "/editor", "destination": "/home", "permanent": false },

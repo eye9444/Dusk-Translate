@@ -1,5 +1,23 @@
 # Staging and Release Workflow
 
+## Current UI release path
+
+For UI-only updates and browser fixes that do not require database changes, use
+the existing Vercel Git integration: review the preview, pass the required PR
+checks, then merge the approved changes into `master`. Vercel deploys production
+from `master`; verify the live deployment afterward. Prior creator approval does
+not need another preview round when the approved UI has not changed.
+
+The custom production workflow below is now **manual only**. Do not run it for
+ordinary UI updates. It requires separately configured credentials and applies
+database migrations. New database-dependent features must have their migrations
+reviewed and applied before shipping the application changes that depend on them.
+Merging migration files does not apply them through the Vercel Git integration.
+Create version tags and GitHub releases only after verifying the live version.
+
+The sections below describe the optional managed staging/migration workflow, not
+requirements for publishing an already-approved UI update.
+
 ## Environments
 
 | Environment | Branch | Data | Purpose |
