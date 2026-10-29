@@ -1,7 +1,7 @@
 // Touch uses two nearby taps so browsing a cover never opens a book accidentally.
 export function bindProjectSurface(surface, open, { gallery = false } = {}) {
   let lastTap = null, pointer = null;
-  const controls = 'button,a,input,select,textarea,summary,[contenteditable]';
+  const controls = 'button,a,input,select,textarea,summary,progress,[contenteditable]';
   surface.tabIndex = 0;
   surface.onpointerdown = event => {
     surface.classList.toggle('is-touch', event.pointerType === 'touch');

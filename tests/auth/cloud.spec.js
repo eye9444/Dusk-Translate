@@ -1,7 +1,9 @@
 import {test,expect} from '@playwright/test';
+import {LATEST_RELEASE_ID} from '../../web/src/releases.js';
 const user={id:'44444444-4444-4444-8444-444444444444',email:'cloud@example.test',aud:'authenticated',role:'authenticated'};
 function session(){const b64=x=>Buffer.from(JSON.stringify(x)).toString('base64url');return {access_token:`${b64({alg:'HS256',typ:'JWT'})}.${b64({sub:user.id,exp:Math.floor(Date.now()/1000)+3600})}.test`,refresh_token:'cloud-test-refresh',token_type:'bearer',expires_in:3600,user};}
 async function backend(context,state){
+  await context.route('**/api/account-preferences',route=>route.fulfill({json:{lastSeenRelease:LATEST_RELEASE_ID}}));
   await context.route('https://dusk-test.supabase.co/**',async route=>{
     const req=route.request(),url=new URL(req.url()),method=req.method();
     if(url.pathname.endsWith('/token'))return route.fulfill({json:session()});

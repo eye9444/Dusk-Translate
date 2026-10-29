@@ -319,12 +319,12 @@ test('feedback asks guests to sign in and supports an optional screenshot',async
   await expect(page.locator('#feedback-dialog')).toHaveCount(1);
   await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
 });
-test('new projects expose only the nineteen supported production language routes',async({page})=>{
+test('new projects expose only the twenty-five supported production language routes',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();
-  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
-  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
+  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English','Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
   await page.locator('#new-source-language').selectOption('en');
-  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
   await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
   await page.locator('#new-source-language').selectOption('de');
   await expect(page.locator('#new-target-language option')).toHaveText(['English']);

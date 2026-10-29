@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { epubLanguageCode } from './languages.js';
 
 const MAX_EXPANDED_BYTES = 500 * 1024 * 1024;
 const BLOCK_TAGS = 'address,article,blockquote,dd,div,dl,dt,figcaption,figure,h1,h2,h3,h4,h5,h6,header,li,main,nav,ol,p,pre,section,table,td,th,tr,ul';
@@ -71,7 +72,7 @@ export async function parseEpubSource(file) {
   const opfEntry = zip.file(opfPath);
   if (!opfEntry) throw new Error('EPUB package could not be found.');
   const opf = parseXml(await opfEntry.async('string'), 'EPUB package');
-  const packageLanguage=(opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'').trim().toLowerCase().split(/[-_]/)[0];
+  const packageLanguage=epubLanguageCode(opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'');
   const opfDirectory = opfPath.includes('/') ? opfPath.slice(0, opfPath.lastIndexOf('/')) : '';
   const titles = await navigationTitles(opf, zip, opfDirectory);
   const items = new Map([...opf.getElementsByTagName('item')].map(item => [item.getAttribute('id'), item]));
@@ -106,7 +107,7 @@ export async function detectEpubLanguage(file) {
   const opfPath=archivePath(container.getElementsByTagName('rootfile')[0]?.getAttribute('full-path'));
   const opfEntry=zip.file(opfPath);if(!opfEntry)return '';
   const opf=parseXml(await opfEntry.async('string'),'EPUB package');
-  return (opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'').trim().toLowerCase().split(/[-_]/)[0];
+  return epubLanguageCode(opf.getElementsByTagName('dc:language')[0]?.textContent||opf.getElementsByTagName('language')[0]?.textContent||'');
 }
 
 export async function parseSourceFile(file) {

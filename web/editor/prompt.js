@@ -1,6 +1,6 @@
 // Shared by the hosted editor and deterministic prompt-contract tests.
 globalThis.DuskDefaultMasterPrompt = function ({ style = '', sourceLanguage = 'ja', targetLanguage = 'en' } = {}) {
-  const names={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish',it:'Italian',pt:'Portuguese'};
+  const names={ja:'Japanese',en:'English',vi:'Vietnamese',ru:'Russian',de:'German',es:'Spanish',it:'Italian',pt:'Portuguese',ko:'Korean','zh-Hans':'Simplified Chinese'};
   const sourceName=names[sourceLanguage]||'source-language';
   const targetName=names[targetLanguage]||'target-language';
   return `Translate the identified ${sourceName} target passage into ${targetName}.

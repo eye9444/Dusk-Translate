@@ -10,7 +10,7 @@ const run=new AsyncFunction('context',`
   const {local,remote,setLoading,request,libraryRequest}=context;
   const user={id:'owner'}, libraryOwner='owner', owner=()=>libraryOwner;
   let cached=[],projects=[],invitations=[];
-  const status=()=>{},render=()=>{},scheduleWhatsNew=()=>{},errorMessage=String;
+  const status=()=>{},render=()=>{},scheduleWhatsNew=()=>{},maybeOfferLanguageSetup=()=>{},errorMessage=String;
   const $=()=>({}), libraryView='projects';
   const donations={update:()=>{}}, readerOpen=false, active=null;
   ${body}

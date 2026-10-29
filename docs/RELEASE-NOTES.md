@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Added Korean and Simplified Chinese as targets for Japanese/English and as sources for English, bringing the route count to 25. EPUB metadata preserves the Simplified Chinese script tag.
+- Added a default translation-pair dropdown in Account preferences, saved to account metadata for signed-in users and browser storage for guests. New accounts are offered language setup on their first sign-in; existing projects retain their own pair.
+- Rendered chapter progress explicitly in orange, without hover highlighting or click activation. Added community icon links to the hero, Libron for selected labels, and separate README/social artwork.
+- Deferred desktop-app exploration without reserving v2 for it. Added creator review requirements for commit wording and new-version announcements.
+
 - Project cards in grid and list views and the Continue bar now open the project when clicked, with keyboard access and a subtle hover enlargement.
 - On touchscreens, double-tap a project surface to open it. A single tap on a gallery cover reveals its actions; explicit action buttons still work with one tap.
 - Cover images now retain full opacity, with a separate acrylic overlay and slight backdrop blur tuned independently for light and dark themes.

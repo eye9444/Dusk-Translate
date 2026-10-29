@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com">
-    <img src="web/public/brand/novel-suite-preview.png" alt="DuskTranslate novel translation suite in Eclipse mode" width="100%" />
+    <img src="web/public/brand/novel-suite-readme.png" alt="DuskTranslate novel translation suite with Japanese and English pages orbiting its planet" width="100%" />
   </a>
 </p>
 
@@ -40,16 +40,19 @@ Self-hosted deployments require the feedback ticket, reader chapter state, and f
 
 You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
 
-DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, and Portuguese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
+DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported target language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, and Simplified Chinese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
+
+Upcoming in this preview: Korean and Simplified Chinese routes, an account-saved default translation pair, and a language-choice prompt for new accounts. No desktop release is scheduled or tied to v2; development remains focused on the web app.
 
 All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 
 ## Current Web Release
 
 - Import EPUB, TXT, JSON project, and backup files
-- Translate Japanese into English, Vietnamese, Russian, German, Spanish, Italian, or Portuguese
-- Translate English into Vietnamese, Russian, German, Spanish, Italian, or Portuguese
-- Translate Vietnamese, Russian, German, Spanish, Italian, or Portuguese into English
+- Translate Japanese into English, Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese
+- Translate English into Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese
+- Translate Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese into English
+- Set a default translation pair in Account preferences; signed-in choices follow your account and guest choices stay on this browser
 - Compare the source and editable translation side by side
 - Maintain a project glossary for names and preferred terminology
 - Save projects locally or sync them to a private signed-in library
@@ -80,7 +83,7 @@ DuskTranslate is a client-side JavaScript application built with **Vite** and de
 
 Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
 
-Changes move through feature previews and the permanent staging environment before a protected release PR reaches `master`. Production is first deployed without its public domains, smoke-tested, and only then promoted. A new package version receives its matching tag and GitHub Release after the promoted site passes its public smoke test. See the [staging and release workflow](docs/RELEASE-WORKFLOW.md).
+Changes are reviewed in feature previews before an approved PR reaches `master`, where the Vercel Git integration deploys production. Eye chooses the wording before major commits and pushes, and reviews the What's New draft before a new version is published. The optional migration workflow is manual. See the [release workflow](docs/RELEASE-WORKFLOW.md) and [What's New template](docs/WHATS-NEW-TEMPLATE.md).
 
 Only product features and bug fixes warrant version changes. Visual and aesthetic updates ship silently within the existing version, without a new tag, release, or What's New popup. The in-app What's New history contains feature updates only; bug-fix details belong in the GitHub release notes. When correcting announcement history, preserve account acknowledgements so users are not notified again about older features.
 

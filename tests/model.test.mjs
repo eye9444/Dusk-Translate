@@ -25,12 +25,17 @@ test('language pairs default safely and reject unsupported production routes',()
   assert.equal(supported.sourceLanguage,'en');assert.equal(supported.targetLanguage,'ru');
   const italian=cleanSnapshot({novel,translations:{},sourceLanguage:'ja',targetLanguage:'it'});
   assert.equal(italian.sourceLanguage,'ja');assert.equal(italian.targetLanguage,'it');
-  for(const sourceLanguage of ['vi','ru','de','es','it','pt']){
+  for(const sourceLanguage of ['vi','ru','de','es','it','pt','ko','zh-Hans']){
     const reverse=cleanSnapshot({novel,translations:{},sourceLanguage,targetLanguage:'en'});
     assert.equal(reverse.sourceLanguage,sourceLanguage);assert.equal(reverse.targetLanguage,'en');
   }
   const unsupported=cleanSnapshot({novel,translations:{},sourceLanguage:'de',targetLanguage:'ja'});
   assert.equal(unsupported.sourceLanguage,'de');assert.equal(unsupported.targetLanguage,'en');
+  for(const sourceLanguage of ['ja','en'])for(const targetLanguage of ['ko','zh-Hans']){
+    const saved=cleanSnapshot({novel,translations:{one:'translated'},sourceLanguage,targetLanguage});
+    const restored=cleanSnapshot(JSON.parse(JSON.stringify(saved)));
+    assert.equal(restored.sourceLanguage,sourceLanguage);assert.equal(restored.targetLanguage,targetLanguage);assert.equal(restored.translations.one,'translated');
+  }
 });
 test('upload boundaries are enforced',()=>{
   assert.throws(()=>validateFile({name:'book.exe',size:10}));
