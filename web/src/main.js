@@ -5,7 +5,9 @@ import './launch.css';
 import './gallery.css';
 import './motion.css';
 import { showEditorPreferences } from './editor-preferences.js';
+import { readLanguagePreference, storeLanguagePreference, needsLanguageSetup } from './language-preferences.js';
 import { createCoverGallery } from './project-covers.js';
+import { bindProjectSurface } from './library-interactions.js';
 import { createFeedbackHub } from './feedback-hub.js';
 import { changeChapters } from './chapter-actions.js';
 import { commitQueue } from './quota-client.js';
@@ -54,6 +56,24 @@ authReturn.searchParams.forEach((value,key)=>authParams.set(key,value));
 const isAuthReturn = ['code','error','error_description','error_code','access_token'].some(key=>authParams.has(key));
 let authBusy = false;
 let user = null, projects = [], invitations = [], active = null, working = false;
+const languageSetupOffered=new Set();
+function showAccountPreferences(onboarding=false){
+  const identity=user?.id;
+  return showEditorPreferences({languagePair:readLanguagePreference(user),onboarding,saveLanguages:async pair=>{
+    if(identity){
+      if(user?.id!==identity)throw new Error('Account changed.');
+      const {data,error}=await cloud.auth.updateUser({data:{translation_language_pair:pair,dusk_language_setup_pending:false}});
+      if(error)throw error;
+      if(user?.id!==identity)throw new Error('Account changed.');
+      user=data.user;
+      try{storeLanguagePreference(user,pair);}catch{}
+    }else storeLanguagePreference(null,pair);
+  }});
+}
+function maybeOfferLanguageSetup(){
+  if(!needsLanguageSetup(user)||languageSetupOffered.has(user.id)||active||readerOpen||$('library').hidden||document.querySelector('dialog[open]'))return;
+  languageSetupOffered.add(user.id);showAccountPreferences(true);
+}
 let generation = 0, persisted = 0, saveTask = null, saveTimer = null, saveError = '', streaming = false;
 let authMode = 'signin', manage = null, releaseLock = null, lockRequest = null, lockReleaseTask = Promise.resolve(), feedbackAdmin = false;
 let recoveryEmail = '', captchaToken = '', turnstileWidget = null, turnstileScript = null;
@@ -643,6 +663,11 @@ for(const [label,url,path] of [
   svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');shape.setAttribute('d',path);svg.append(shape);link.append(svg);contact.append(link);
 }
 $('feedback-title').after(contact);
+const communityLinks=el('nav','feedback-contacts welcome-socials');communityLinks.setAttribute('aria-label','Community links');
+communityLinks.append(...[...contact.children].map(link=>link.cloneNode(true)));
+const github=el('a','');github.href='https://github.com/eye9444/Dusk-Translate';github.target='_blank';github.rel='noopener noreferrer';github.title='DuskTranslate on GitHub';github.setAttribute('aria-label',github.title);
+github.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.5 11.5 0 0 0-3.6 22.4c.6.1.8-.2.8-.6v-2.1c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.3 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.1c0 .4.2.7.8.6A11.5 11.5 0 0 0 12 .7Z"/></svg>';
+communityLinks.append(github);document.querySelector('.welcome-links').after(communityLinks);
 const myTickets=button('My tickets',openFeedbackHub);myTickets.type='button';$('feedback-form').querySelector('.dialog-actions').prepend(myTickets);
 $('feedback-inbox').onclick=openFeedbackHub;
 setInterval(()=>{if(!document.hidden)void refreshTicketBadge();},30000);
@@ -726,6 +751,7 @@ async function refresh() {
     // The loader is reference-counted: superseded requests must release their slot too.
     setLoading(false);
     if (request === libraryRequest) donations.update(!$('library').hidden && !readerOpen && !active);
+    if(request===libraryRequest)maybeOfferLanguageSetup();
   }
 }
 function render() {
@@ -754,6 +780,8 @@ function render() {
     $('resume-languages').textContent=`${LANGUAGES[languages.sourceLanguage].nativeName} → ${LANGUAGES[languages.targetLanguage].nativeName}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
+    $('resume-strip').setAttribute('aria-label',`Continue ${recent.title}. Press Enter to open project.`);
+    bindProjectSurface($('resume-strip'),()=>openProject(recent.id));
     coverGallery.attach($('resume-strip'),recent,{className:'resume-cover',decorative:true});
   }
   $('count').textContent = String(view.length); $('projects').replaceChildren();
@@ -794,10 +822,9 @@ function render() {
       const caption=el('div','gallery-caption'),heading=el('div','gallery-heading'),extra=el('div','gallery-extra');
       const title=card.querySelector('h3');heading.append(title);
       const extraInner=el('div','gallery-extra-inner');extraInner.append(...card.childNodes);extra.append(extraInner);caption.append(heading,extra);card.append(caption);
-      card.tabIndex=0;card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
-      card.addEventListener('click',event=>{if(!event.target.closest('button,a,input,select,textarea'))openProject(p.id);});
-      card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openProject(p.id);}});
     }
+    card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
+    bindProjectSurface(card,()=>openProject(p.id),{gallery:$('projects').classList.contains('gallery-view')});
     coverGallery.attach(card,p);
   });
 }
@@ -826,6 +853,11 @@ function renderInvitationInbox() {
   });
 }
 $('filter').onchange = render; $('search').oninput = render; $('refresh').onclick = refresh;
+document.addEventListener('pointerdown',event=>{
+  for(const card of document.querySelectorAll('.project-card.is-expanded')){
+    if(!card.contains(event.target)){card.classList.remove('is-expanded');card.setAttribute('aria-expanded','false');}
+  }
+});
 function setCollection(value){libraryView='projects';$('filter').value=value;$('search').value='';render();}
 $('nav-active').onclick=()=>setCollection('active');
 $('nav-archived').onclick=()=>setCollection('archived');
@@ -857,13 +889,14 @@ function renderTargetLanguages(preferred){
   $('new-target-language').replaceChildren(...targets.map(code=>{const option=document.createElement('option');option.value=code;option.textContent=languageName(code);return option;}));
   $('new-target-language').value=selected;
 }
-$('new-source-language').onchange=()=>{languageSelectionTouched=true;renderTargetLanguages();};
+$('new-source-language').onchange=()=>{languageSelectionTouched=true;renderTargetLanguages($('new-target-language').value);};
 $('new-target-language').onchange=()=>{languageSelectionTouched=true;};
 renderSourceLanguages();
 function showProjectDialog(importing = false) {
   importingProject = importing;
   $('project-form').reset(); $('new-error').textContent='';
-  languageSelectionTouched=false;$('new-source-language').value='ja';renderTargetLanguages('en');$('new-languages').hidden=importing;
+  const preferred=readLanguagePreference(user);
+  languageSelectionTouched=false;$('new-source-language').value=preferred.sourceLanguage;renderTargetLanguages(preferred.targetLanguage);$('new-languages').hidden=importing;
   $('new-language-help').textContent='The language pair cannot be changed after translation begins.';
   $('project-dialog-eyebrow').textContent = importing ? 'RESTORE A PROJECT' : 'A NEW CHAPTER';
   $('project-dialog-title').textContent = importing ? 'Import a project' : 'Start a project';
@@ -897,7 +930,7 @@ $('new-file').onchange = async () => {
   try{
     const detected=await detectEpubLanguage(file);
     if(!languageSelectionTouched&&Object.hasOwn(TRANSLATION_TARGETS,detected)){
-      $('new-source-language').value=detected;renderTargetLanguages();
+      const target=$('new-target-language').value;$('new-source-language').value=detected;renderTargetLanguages(target);
       $('new-language-help').textContent=`Source suggested from the EPUB: ${languageName(detected)}. The pair cannot be changed after translation begins.`;
     }
   }catch{/* Source parsing reports actionable errors during project creation. */}
@@ -1450,7 +1483,7 @@ function formatStorage(bytes) {
   const rounded=unit===0||value>=100?Math.round(value):Number(value.toFixed(1));
   return `${rounded} ${units[unit]}`;
 }
-const preferencesButton=button('Editor preferences',showEditorPreferences);
+const preferencesButton=button('Editor preferences',()=>showAccountPreferences());
 preferencesButton.type='button';document.querySelector('.account-actions').prepend(preferencesButton);
 const seatButton=button('Choose active collaborators',async()=>{
   if(!sharingProject)return;const project=sharingProject;
@@ -1946,7 +1979,7 @@ $('auth-form').onsubmit=async e=>{
     const email=$('email').value.trim(),password=$('password').value;
     if(['update','recover','recoveryUpdate'].includes(authMode)&&password!==$('confirm-password').value)throw new Error('The new passwords do not match.');
     const redirectTo=location.origin+'/'; let result;
-    if(authMode==='signup') result=await cloud.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,captchaToken}});
+    if(authMode==='signup') result=await cloud.auth.signUp({email,password,options:{emailRedirectTo:redirectTo,captchaToken,data:{dusk_language_setup_pending:true}}});
     else if(authMode==='reset') result=await cloud.auth.resetPasswordForEmail(email,{redirectTo,captchaToken});
     else if(authMode==='recover'){
       result=await cloud.auth.verifyOtp({email:recoveryEmail,token:$('recovery-code').value.trim(),type:'recovery'});
@@ -1970,6 +2003,7 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('recoveryUpdate'),0);
     if(user?.id!==next?.id){
+      document.querySelector('#editor-preferences-dialog')?.close();
       $('whats-new-dialog').close();
       $('feedback-inbox-dialog').close();$('feedback-inbox-list').replaceChildren();$('feedback-dialog').close();
       releaseNoticeCheckedFor='';releaseNoticeScheduledFor='';
@@ -1978,6 +2012,7 @@ if(cloud){
       if(active){$('editor').src='about:blank';active=null;void releaseProjectLock();$('workspace').hidden=true;$('library').hidden=false;document.body.classList.remove('workspace-open');}
       if (!next) navigate('/', true);
       user=next;setTimeout(refresh,0);
+    }else if(event==='USER_UPDATED'&&next){user=next;
     }
   });
   // The SDK exchanges PKCE codes once during initialization, including recovery links.

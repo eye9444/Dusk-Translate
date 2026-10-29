@@ -122,14 +122,16 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await expect(page.locator('#resume-strip .resume-cover img')).toBeVisible();
   await page.getByRole('button',{name:'Grid view'}).click();
   await expect(page.locator('.project-card')).toHaveCSS('border-radius','10px');
-  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
-  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.58');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','none');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','1');
+  const lightOverlay=await page.locator('.project-cover').evaluate(node=>getComputedStyle(node,'::after').backgroundImage);
   await page.getByRole('button',{name:'Use dark theme'}).click();
-  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.26');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','1');
+  expect(await page.locator('.project-cover').evaluate(node=>getComputedStyle(node,'::after').backgroundImage)).not.toBe(lightOverlay);
   await page.getByRole('button',{name:'Use light theme'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.getByRole('button',{name:'List view'}).click();
-  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','none');
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.getByRole('button',{name:'Gallery view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','none');
@@ -139,6 +141,47 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.setViewportSize({width:390,height:844});
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+test('grid, list and continue surfaces open by click and keyboard',async({page})=>{
+  await create(page,'Clickable book');await leave(page);
+  for(const layout of ['Grid view','List view']){
+    await page.getByRole('button',{name:layout,exact:true}).click();
+    await page.locator('.project-card h3').click();
+    await expect(page.locator('#editor')).toBeVisible();await leave(page);
+  }
+  await page.locator('#resume-title').click();await expect(page.locator('#editor')).toBeVisible();await leave(page);
+  await page.locator('#resume-strip').focus();await page.keyboard.press('Enter');
+  await expect(page.locator('#editor')).toBeVisible();
+});
+test.describe('touch library controls',()=>{
+  test.use({hasTouch:true,isMobile:true,viewport:{width:390,height:844}});
+  test('gallery action buttons work with one tap without opening the book',async({page})=>{
+    await create(page,'Rename by touch');await leave(page);
+    const card=page.locator('.project-card').first();await card.scrollIntoViewIfNeeded();
+    await card.tap({position:{x:12,y:12}});
+    await card.getByRole('button',{name:'Rename',exact:true}).tap();
+    await expect(page.locator('#manage-dialog')).toBeVisible();
+    await expect(page.locator('#editor')).toBeHidden();
+  });
+  test('one tap reveals gallery controls; two taps open each project surface',async({page})=>{
+    await create(page,'Tap book');await leave(page);
+    for(const layout of ['Gallery view','Grid view','List view']){
+      await page.getByRole('button',{name:layout,exact:true}).tap();
+      const card=page.locator('.project-card').first();
+      await card.scrollIntoViewIfNeeded();
+      const box=await card.boundingBox();
+      if(layout==='Gallery view')await expect(card.getByRole('button',{name:'Open project',exact:true})).toBeHidden();
+      await page.touchscreen.tap(box.x+12,box.y+12);
+      await expect(page.locator('#library')).toBeVisible();
+      if(layout==='Gallery view')await expect(card).toHaveClass(/is-expanded/);
+      await page.touchscreen.tap(box.x+12,box.y+12);
+      await expect(page.locator('#editor')).toBeVisible();await leave(page);
+    }
+    const resume=page.locator('#resume-strip');
+    await resume.scrollIntoViewIfNeeded();const box=await resume.boundingBox();
+    await page.touchscreen.tap(box.x+12,box.y+12);await expect(page.locator('#library')).toBeVisible();
+    await page.touchscreen.tap(box.x+12,box.y+12);await expect(page.locator('#editor')).toBeVisible();
+  });
 });
 test('gallery fits four covers, reveals actions and opens by card click',async({page},testInfo)=>{
   await page.addInitScript(()=>localStorage.setItem('theme','eclipse'));
@@ -153,13 +196,14 @@ test('gallery fits four covers, reveals actions and opens by card click',async({
   await page.screenshot({path:testInfo.outputPath('gallery-four.png')});
   await cards.first().hover();await expect(cards.first().getByRole('button',{name:'Open project',exact:true})).toBeVisible();
   await page.screenshot({path:testInfo.outputPath('gallery-hover.png')});
-  await page.setViewportSize({width:390,height:844});
   await expect(page.locator('.gallery-toggle')).toHaveCount(0);
   await expect(cards.first().getByRole('button',{name:'Delete',exact:true})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await cards.first().getByRole('button',{name:'Rename',exact:true}).click();await expect(page.locator('#manage-dialog')).toBeVisible();
   await expect(page.locator('#library')).toBeVisible();await page.locator('#manage-dialog [data-close]').click();
   await cards.first().locator('h3').click();await expect(page.frameLocator('#editor').locator('#src-txt')).not.toBeEmpty();
+  await leave(page);await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('gallery retains caption-based shading across window sizes and hover',async({page})=>{
   await create(page,'Resize cover');await leave(page);
@@ -275,12 +319,12 @@ test('feedback asks guests to sign in and supports an optional screenshot',async
   await expect(page.locator('#feedback-dialog')).toHaveCount(1);
   await expect(page.locator('#feedback-screenshot')).toHaveAttribute('accept','image/png,image/jpeg,image/webp');
 });
-test('new projects expose only the nineteen supported production language routes',async({page})=>{
+test('new projects expose only the twenty-five supported production language routes',async({page})=>{
   await page.goto('/');await page.getByRole('button',{name:'+ New project'}).click();
-  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
-  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
+  await expect(page.locator('#new-source-language option')).toHaveText(['Japanese','English','Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['English','Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
   await page.locator('#new-source-language').selectOption('en');
-  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese']);
+  await expect(page.locator('#new-target-language option')).toHaveText(['Vietnamese','Russian','German','Spanish','Italian','Portuguese','Korean','Simplified Chinese']);
   await expect(page.locator('#new-target-language option[value="ja"]')).toHaveCount(0);
   await page.locator('#new-source-language').selectOption('de');
   await expect(page.locator('#new-target-language option')).toHaveText(['English']);

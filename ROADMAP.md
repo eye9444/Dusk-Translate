@@ -2,6 +2,8 @@
 
 ## Context
 
+Current direction (2026-10-29): keep improving the web novel translation suite. A desktop app is deferred for exploration later, with no promised date or version number. Version 2 is not reserved for a desktop launch. The older proposals below are a planning backlog, not current release commitments or active paid tiers.
+
 DuskTranslate is a Japanese-to-English chapter-by-chapter translation tool. The current web release (v0.2.0) has a solid foundation with import/export, translation, glossary, find-and-replace, consistency checking, cloud sync, and EPUB reader. This plan covers the next wave of features for the **free tier** that materially improve the translator and proofreader workflow, organized by priority and implementation phase.
 
 ## Immediate Reliability Work — Shipped

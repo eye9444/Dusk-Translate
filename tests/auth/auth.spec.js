@@ -68,8 +68,9 @@ test('signed-in readers see the creator letter and older feature notes',async({p
   const dialog=page.locator('#whats-new-dialog');
   await expect(dialog).toBeVisible();
   await page.setViewportSize({width:390,height:844});
-  await expect(dialog.locator('.release-letter')).toHaveCount(6);
-  await expect(dialog.locator('.release-signature')).toHaveText('Eye, creator of DuskTranslate');
+  const creatorLetter=dialog.locator('article').filter({has:page.getByRole('heading',{name:"I'm making DuskTranslate free"})});
+  await expect(creatorLetter.locator('.release-letter')).toHaveCount(6);
+  await expect(creatorLetter.locator('.release-signature')).toHaveText('Eye, creator of DuskTranslate');
   await expect(dialog).toContainText('Portuguese');
   await expect(dialog).toContainText('Italian joins the translation room');
   expect(await dialog.evaluate(node=>node.scrollWidth<=node.clientWidth+1)).toBe(true);
