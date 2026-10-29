@@ -1,5 +1,10 @@
 // In-app announcements are for product features, not fixes or visual polish.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-10-29-library-controls',date:'2026-10-29',title:'The rest of the card has a job now',items:Object.freeze([
+    'Click anywhere on a project card or the Continue bar to open your book. Yes, the whole thing. Making you aim for one tiny button was apparently a choice I made.',
+    'On a touchscreen, double-tap a card or the Continue bar to open it. Tap a gallery cover once to reveal its actions. Scrolling through your books should not count as volunteering to edit one.',
+    'The action buttons still do what they say with one tap. Rename means rename, which is a reassuringly low bar to clear.',
+  ])}),
   Object.freeze({id:'2026-10-26-reverse-routes',date:'2026-10-26',title:'More books can make their way into English',items:Object.freeze([
     'You can now translate Vietnamese, Russian, German, Spanish, Italian, and Portuguese novels into English. The existing Japanese and English routes are still there.',
     'The EPUB reader now has its own light and dark mode button. It follows the same theme as the rest of DuskTranslate and remembers your choice after a reload.',

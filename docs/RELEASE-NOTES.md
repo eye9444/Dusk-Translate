@@ -1,5 +1,12 @@
 # Release Notes
 
+## Unreleased
+
+- Project cards in grid and list views and the Continue bar now open the project when clicked, with keyboard access and a subtle hover enlargement.
+- On touchscreens, double-tap a project surface to open it. A single tap on a gallery cover reveals its actions; explicit action buttons still work with one tap.
+- Cover images now retain full opacity, with a separate acrylic overlay and slight backdrop blur tuned independently for light and dark themes.
+- What's New copy uses a more personal voice with mild jokes about the app's quirks. Visual changes remain part of the existing version; choose the next version when publishing these interaction features.
+
 ## 0.9.1 - 2026-10-26
 
 - Added Vietnamese, Russian, German, Spanish, Italian, and Portuguese to English translation routes, bringing the supported production route count to 19.

@@ -6,6 +6,7 @@ import './gallery.css';
 import './motion.css';
 import { showEditorPreferences } from './editor-preferences.js';
 import { createCoverGallery } from './project-covers.js';
+import { bindProjectSurface } from './library-interactions.js';
 import { createFeedbackHub } from './feedback-hub.js';
 import { changeChapters } from './chapter-actions.js';
 import { commitQueue } from './quota-client.js';
@@ -754,6 +755,8 @@ function render() {
     $('resume-languages').textContent=`${LANGUAGES[languages.sourceLanguage].nativeName} → ${LANGUAGES[languages.targetLanguage].nativeName}`;
     $('resume-detail').textContent=`Last edited ${new Date(recent.updatedAt).toLocaleDateString()} · ${recent.fileName.split('.').pop().toUpperCase()}`;
     $('resume-project').onclick=()=>openProject(recent.id);
+    $('resume-strip').setAttribute('aria-label',`Continue ${recent.title}. Press Enter to open project.`);
+    bindProjectSurface($('resume-strip'),()=>openProject(recent.id));
     coverGallery.attach($('resume-strip'),recent,{className:'resume-cover',decorative:true});
   }
   $('count').textContent = String(view.length); $('projects').replaceChildren();
@@ -794,10 +797,9 @@ function render() {
       const caption=el('div','gallery-caption'),heading=el('div','gallery-heading'),extra=el('div','gallery-extra');
       const title=card.querySelector('h3');heading.append(title);
       const extraInner=el('div','gallery-extra-inner');extraInner.append(...card.childNodes);extra.append(extraInner);caption.append(heading,extra);card.append(caption);
-      card.tabIndex=0;card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
-      card.addEventListener('click',event=>{if(!event.target.closest('button,a,input,select,textarea'))openProject(p.id);});
-      card.addEventListener('keydown',event=>{if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();openProject(p.id);}});
     }
+    card.setAttribute('aria-label',`${p.title}. Press Enter to open project.`);
+    bindProjectSurface(card,()=>openProject(p.id),{gallery:$('projects').classList.contains('gallery-view')});
     coverGallery.attach(card,p);
   });
 }
@@ -826,6 +828,11 @@ function renderInvitationInbox() {
   });
 }
 $('filter').onchange = render; $('search').oninput = render; $('refresh').onclick = refresh;
+document.addEventListener('pointerdown',event=>{
+  for(const card of document.querySelectorAll('.project-card.is-expanded')){
+    if(!card.contains(event.target)){card.classList.remove('is-expanded');card.setAttribute('aria-expanded','false');}
+  }
+});
 function setCollection(value){libraryView='projects';$('filter').value=value;$('search').value='';render();}
 $('nav-active').onclick=()=>setCollection('active');
 $('nav-archived').onclick=()=>setCollection('archived');

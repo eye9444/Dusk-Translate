@@ -2,13 +2,17 @@
 #projects.gallery-view .project-card{position:relative;overflow:hidden;min-width:0;min-height:0;padding:0;aspect-ratio:3/4;display:block}
 .project-card{position:relative;overflow:hidden}.project-card>.project-cover{position:absolute;inset:-5px;z-index:0;overflow:hidden;pointer-events:none;background:var(--panel)}
 .project-card>.project-cover>span,.project-card>.project-cover>small{display:none}
-.project-card>.project-cover img{width:100%;height:100%;object-fit:cover;object-position:center 28%;opacity:.58;filter:blur(1.5px);transform:scale(1.02)}
-body.eclipse .project-card>.project-cover img{opacity:.26}
+.project-card>.project-cover img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 28%;opacity:1;filter:none}
+/* Acrylic belongs above the artwork, rather than bleaching the image itself. */
+:root{--cover-acrylic:linear-gradient(100deg,rgba(247,249,248,.48),rgba(247,249,248,.18) 38%,rgba(247,249,248,.03));--cover-blur:1px}
+body.eclipse{--cover-acrylic:linear-gradient(100deg,rgba(12,12,12,.76),rgba(12,12,12,.6) 38%,rgba(12,12,12,.42));--cover-blur:1.5px}
+#projects:not(.gallery-view) .project-cover:has(img)::after,.resume-cover:has(img)::after{content:'';position:absolute;inset:0;background:var(--cover-acrylic);backdrop-filter:blur(var(--cover-blur));-webkit-backdrop-filter:blur(var(--cover-blur));pointer-events:none}
+.resume-strip .resume-cover img,body.eclipse .resume-strip .resume-cover img{opacity:1;filter:none;transform:none;display:block}
 #projects:not(.gallery-view) .project-card>:not(.project-cover){position:relative;z-index:1}
 .gallery-view .project-cover{position:absolute;inset:0;z-index:0;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:24px;aspect-ratio:auto;border:0;border-radius:0;margin:0;background:linear-gradient(145deg,#423226,#17130f);color:#eee3d5;overflow:hidden}
 .gallery-view .project-cover>span{font:28px/1.3 Georgia,serif;padding:24px;overflow-wrap:anywhere}
 .gallery-view .project-cover>small{display:block;text-transform:uppercase;letter-spacing:.16em;opacity:.6}
-.gallery-view .project-cover img,body.eclipse .gallery-view .project-cover img{width:100%;height:100%;object-fit:cover;object-position:center;opacity:1;filter:none;transform:none}
+.gallery-view .project-cover img{width:100%;height:100%;object-fit:cover;object-position:center;opacity:1;filter:none;transform:none}
 .gallery-view .project-cover>span{display:none}
 .gallery-caption{position:absolute;bottom:0;left:0;right:0;max-height:100%;overflow:auto;padding:56px 18px 18px;background:linear-gradient(transparent,rgba(0,0,0,.72) 48px,rgba(0,0,0,.94));color:#fff;scrollbar-width:thin;scrollbar-color:#ad8c70 transparent}
 .gallery-heading{display:flex;align-items:center;gap:8px}
@@ -21,10 +25,11 @@ body.eclipse .project-card>.project-cover img{opacity:.26}
 .gallery-view .gallery-extra .card-actions button{color:#fff;background:#ffffff14;border-color:#ffffff30;font-size:11px;padding:8px}
 .gallery-view .gallery-extra .card-actions button.primary{background:#b94c2f;border-color:#b94c2f}
 .gallery-view .gallery-extra .card-actions button:disabled{opacity:.45}
-@media(hover:hover) and (pointer:fine){.gallery-view .project-card:hover .gallery-extra,.gallery-view .project-card:focus-within .gallery-extra{grid-template-rows:1fr;padding-top:14px;opacity:1;visibility:visible;transform:none}}
-.gallery-view .project-card{cursor:pointer}
-.gallery-view .project-card:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-@media(hover:none),(max-width:800px){.gallery-view .gallery-extra{grid-template-rows:1fr;padding-top:14px;opacity:1;visibility:visible;transform:none}}
+@media(hover:hover) and (pointer:fine){.gallery-view .project-card:not(.is-touch):hover .gallery-extra,.gallery-view .project-card:not(.is-touch):focus-within .gallery-extra{grid-template-rows:1fr;padding-top:14px;opacity:1;visibility:visible;transform:none}}
+.project-card:not(.invitation-card),.resume-strip{cursor:pointer;touch-action:manipulation}
+.project-card:focus-visible,.resume-strip:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.gallery-view .project-card.is-expanded .gallery-extra{grid-template-rows:1fr;padding-top:14px;opacity:1;visibility:visible;transform:none}
+@media(hover:none),(pointer:coarse){.gallery-view .project-card:focus-within:not(.is-expanded) .gallery-extra{grid-template-rows:0fr;padding-top:0;opacity:0;visibility:hidden;transform:translateY(8px)}}
 @media(max-width:1100px){#projects.gallery-view{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}}
 @media(max-width:800px){#projects.gallery-view{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){#projects.gallery-view{grid-template-columns:1fr}}
