@@ -123,7 +123,10 @@ test('gallery displays an EPUB cover and remembers the layout',async({page})=>{
   await page.getByRole('button',{name:'Grid view'}).click();
   await expect(page.locator('.project-card')).toHaveCSS('border-radius','10px');
   await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
+  await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.58');
+  await page.getByRole('button',{name:'Use dark theme'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('opacity','0.26');
+  await page.getByRole('button',{name:'Use light theme'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toBeVisible();
   await page.getByRole('button',{name:'List view'}).click();
   await expect(page.getByAltText('Cover of Cover book')).toHaveCSS('filter','blur(1.5px)');
