@@ -16,6 +16,8 @@ Eye, creator of DuskTranslate
 
 ## Review Before Publishing
 
+First give Eye the complete change list since the previous release, including features, fixes, visual changes, and workflow changes. State which changes are already live and which are still pending. This review list is broader than the feature-only in-app announcement.
+
 Show Eye the filled-in draft and ask: "What would you like changed in this What's New entry before I publish it?"
 
 Ask separately for the preferred major commit/push message. Wait for his wording before committing or pushing.

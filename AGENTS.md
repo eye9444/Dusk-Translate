@@ -1,5 +1,6 @@
 # Working With Eye
 
+- Before asking Eye to edit commit wording or What's New, first give the complete human-readable change list for that commit or release. For releases, compare with the previous released version and distinguish already-live updates from changes awaiting publication.
 - Before a major commit or any push, show the proposed commit message and ask Eye what wording he wants. Wait for his answer before committing or pushing. Approval of a preview is not approval of the next commit message.
 - Before publishing a new version, show the concrete What's New draft using `docs/WHATS-NEW-TEMPLATE.md` and ask what he wants changed. Confirm the release wording before publishing.
 - Write in Eye's personal voice. Mild, self-directed or app-directed jokes are welcome; do not mock users, hide limitations, or claim unshipped features.

@@ -12,15 +12,18 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 0.9.1" src="https://img.shields.io/badge/web_release-v0.9.1-17120f?style=for-the-badge" />
+  <img alt="Web release 2.0.0" src="https://img.shields.io/badge/web_release-v2.0.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
 
-### Version 0.9.1
+### Version 2.0.0
 
-- Translate Vietnamese, Russian, German, Spanish, Italian, or Portuguese novels into English. The built-in EPUB reader now includes its own accessible light/dark switch, synced with the rest of the app.
+- Translate Korean and Simplified Chinese novels into English, or translate Japanese and English into either language. There are now 25 supported routes.
+- Choose your usual language pair in Account preferences. New projects start with that pair; signed-in preferences follow your account, and new registrations are offered language setup.
+- Click a project card or the Continue bar to open it. On touchscreens, double-tap to open and tap a gallery cover once to reveal its actions. Explicit action buttons still work with one tap.
+- The built-in EPUB reader includes an accessible light/dark switch, synced with the rest of the app.
 
 - Account now offers Editor preferences for spellcheck and optional device storage of API keys and URLs. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
 
@@ -42,7 +45,7 @@ You can use the local library without an account, or sign in with Google or emai
 
 DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported target language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, and Simplified Chinese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
 
-Upcoming in this preview: Korean and Simplified Chinese routes, an account-saved default translation pair, and a language-choice prompt for new accounts. No desktop release is scheduled or tied to v2; development remains focused on the web app.
+Version 2.0.0 is a web release. Desktop-app exploration remains deferred while development focuses on the site.
 
 All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 

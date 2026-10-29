@@ -1,6 +1,6 @@
 # Release Notes
 
-## Unreleased
+## 2.0.0 - 2026-10-29
 
 - Added Korean and Simplified Chinese as targets for Japanese/English and as sources for English, bringing the route count to 25. EPUB metadata preserves the Simplified Chinese script tag.
 - Added a default translation-pair dropdown in Account preferences, saved to account metadata for signed-in users and browser storage for guests. New accounts are offered language setup on their first sign-in; existing projects retain their own pair.
@@ -10,7 +10,9 @@
 - Project cards in grid and list views and the Continue bar now open the project when clicked, with keyboard access and a subtle hover enlargement.
 - On touchscreens, double-tap a project surface to open it. A single tap on a gallery cover reveals its actions; explicit action buttons still work with one tap.
 - Cover images now retain full opacity, with a separate acrylic overlay and slight backdrop blur tuned independently for light and dark themes.
-- What's New copy uses a more personal voice with mild jokes about the app's quirks. Visual changes remain part of the existing version; choose the next version when publishing these interaction features.
+- Fixed Continue-bar artwork bleeding into its border during hover scaling; enlarged the hero social-link buttons.
+- Locked chapter navigation while a translation is running.
+- No new database migration is required. This is a web release; desktop-app work remains deferred.
 
 ## 0.9.1 - 2026-10-26
 

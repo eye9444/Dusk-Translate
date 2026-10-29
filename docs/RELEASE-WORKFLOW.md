@@ -2,7 +2,7 @@
 
 ## Current UI release path
 
-Before major commits or pushes, ask Eye for the commit wording and wait for his answer. Before a new version release, fill in `WHATS-NEW-TEMPLATE.md`, show the draft, and ask what he wants changed before publishing. Record the chosen wording; do not treat approval of a UI preview as approval of a commit message or release announcement.
+Before requesting wording, give Eye the complete change list for the commit or release, distinguishing already-live updates from pending changes. Before major commits or pushes, ask Eye for the commit wording and wait for his answer. Before a new version release, fill in `WHATS-NEW-TEMPLATE.md`, show the draft, and ask what he wants changed before publishing. Record the chosen wording; do not treat approval of a UI preview as approval of a commit message or release announcement.
 
 For UI-only updates and browser fixes that do not require database changes, use
 the existing Vercel Git integration: review the preview, pass the required PR
