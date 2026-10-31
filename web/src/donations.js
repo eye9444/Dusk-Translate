@@ -9,6 +9,9 @@ export function createDonations() {
   dialog.innerHTML = `<h2 id="support-title">Help keep DuskTranslate afloat</h2>
     <p>Enjoying the novel translation suite? Optional donations help cover hosting and development. All current features are free to use.</p>
     <p class="field-hint">Donations are coming soon while payment setup is being verified. There is no payment link or QR code yet.</p>
+    <p>No payment needed to help out: contribute code or ideas on GitHub, star the repository, or watch it to follow the project.</p>
+    <p>I'm currently working on optimising the site and cleaning up the codebase. Apparently the code needs housekeeping too.</p>
+    <p><a class="button-link" href="https://github.com/eye9444/Dusk-Translate" target="_blank" rel="noopener noreferrer">Support on GitHub</a></p>
     <p class="field-hint">You can also help by sharing DuskTranslate or sending feedback. AI-provider charges still apply when you use your own API key.</p>
     <button type="button" data-close>Close</button>`;
   const notice = document.createElement('aside');
