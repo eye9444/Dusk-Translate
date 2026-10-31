@@ -15,6 +15,7 @@ import { createSpendingNotice } from './spending-notice.js';
 import { createUpgradeDialog, showQuotaDialog } from './upgrade-dialog.js';
 import { describeEntitlements, FEATURE_TIERS, TIER_LABELS } from './entitlements.js';
 import './reader.css';
+import './responsive.css';
 import { createPricingPage } from './pricing.js';
 import { cloud, local, remote, googleAvailable, authStorage } from './store.js';
 import { renderGoogleCredentialButton } from './google-identity.js';
