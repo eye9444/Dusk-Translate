@@ -2,6 +2,7 @@
 export const RELEASES=Object.freeze([
   Object.freeze({id:'2026-10-29-v200',date:'2026-10-29',title:'Desloppification and more WN support!',paragraphs:Object.freeze([
     "Hey everyone, ok nvm am too bored, here's the patch notes.",
+    "Quick update: I'm currently working on optimising the site and cleaning up the codebase. Apparently the code needs housekeeping too. This work is still in progress, not a promise that everything is suddenly faster.",
   ]),items:Object.freeze([
     "Major UI/UX changes to home and hero screen. There was too much stuff that the AI added that didn't make much sense and I never changed before since I was focused on the actual toolkit. They are less cluttered than your room now.",
     'Click anywhere on a project card or the Continue bar to open your book, they also look less ugly now. Turns out the rest of the card can do something besides take up space.',
