@@ -12,3 +12,8 @@
 .support-notice .support-dismiss { position: absolute; right: 5px; top: 5px; padding: 4px 9px; }
 .support-dialog { max-width: min(480px, calc(100vw - 48px)); }
 .support-dialog p { line-height: 1.7; }
+.support-links { display:flex; flex-wrap:wrap; gap:12px; margin:20px 0; }
+.support-links a { display:inline-flex; align-items:center; justify-content:center; width:52px; height:52px; flex:none; border:1px solid var(--border); border-radius:10px; background:var(--aged); color:var(--ink); }
+.support-links a:hover { color:var(--accent); border-color:var(--accent); }
+.support-links a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.support-links svg { width:28px; height:28px; fill:currentColor; }
