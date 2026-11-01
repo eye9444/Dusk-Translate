@@ -102,6 +102,13 @@ body{display:flex;flex-direction:column;overflow:hidden}
 .controls{max-height:30dvh;overflow:auto;flex:none}
 .provider-feedback{flex-basis:100%}
 @media(min-width:851px){.layout{grid-template-columns:clamp(150px,16vw,230px) minmax(0,1fr)}}
+@media(min-width:1551px){
+  .key-bar,.host-header-actions,.provider-controls{flex-wrap:nowrap}
+  .provider-controls{flex:1 1 auto;overflow:hidden}
+  .provider-field{flex:0 0 auto}
+  .provider-key-field .key-input-wrap,.provider-model-field .model-picker{flex:0 0 var(--provider-control-width);width:var(--provider-control-width)}
+  .provider-feedback{flex:1 1 0;overflow:hidden}
+}
 @media(max-width:850px){
   .panes{grid-template-columns:minmax(0,1fr)}
   .provider-disclosure .mobile-disclosure-content{max-height:40dvh;overflow:auto}
