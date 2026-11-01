@@ -14,11 +14,11 @@ export function createReaderComments({root,content,remote,getUser,signIn,onInval
    catch(error){status.textContent=error.message;throw error;}
  }
  async function refresh(){
-   if(!token)return;
+   if(!token)return 'stale';
    const stamp=++generation;
    try{
      const data=await remote.readerComments(token,chapterId);
-     if(stamp!==generation)return;
+     if(stamp!==generation)return 'stale';
      form.hidden=false;
      version=data.version;status.textContent=data.enabled?'Select a passage to anchor your comment, or comment on the chapter.':'The owner has disabled new comments.';
      input.disabled=!data.enabled||!version;form.querySelector('button').disabled=!data.enabled||!version;
@@ -42,7 +42,8 @@ export function createReaderComments({root,content,remote,getUser,signIn,onInval
        if(comment.canDelete){const remove=node('button','Delete');remove.type='button';remove.onclick=()=>write('delete',{id:comment.id}).catch(()=>{});article.append(remove);}
        list.append(article);
      }
-   }catch(error){if(stamp!==generation)return;status.textContent=error.message;form.hidden=true;list.replaceChildren();onInvalid(error);}
+     return 'rendered';
+   }catch(error){if(stamp!==generation)return 'stale';status.textContent=error.message;form.hidden=true;list.replaceChildren();onInvalid(error);return 'failed';}
  }
  form.onsubmit=async event=>{
    event.preventDefault();if(!getUser()){signIn();return;}
@@ -51,7 +52,7 @@ export function createReaderComments({root,content,remote,getUser,signIn,onInval
    catch{}finally{button.disabled=false;}
  };
  return {
-   async open(nextToken,nextChapter){clearInterval(timer);token=nextToken;chapterId=nextChapter;quote='';input.value='';root.querySelector('[data-selection]').textContent='Comments without a selection refer to this chapter.';root.hidden=!token;form.hidden=false;if(!token)return;const openedToken=token,openedChapter=chapterId;await refresh();if(token===openedToken&&chapterId===openedChapter)timer=setInterval(refresh,30000);},
+   async open(nextToken,nextChapter){clearInterval(timer);token=nextToken;chapterId=nextChapter;quote='';input.value='';root.querySelector('[data-selection]').textContent='Comments without a selection refer to this chapter.';root.hidden=!token;form.hidden=false;if(!token)return 'stale';const openedToken=token,openedChapter=chapterId;const result=await refresh();if(result!=='stale'&&token===openedToken&&chapterId===openedChapter)timer=setInterval(refresh,30000);return result;},
    close(){generation++;clearInterval(timer);token=null;root.hidden=true;list.replaceChildren();},
  };
 }

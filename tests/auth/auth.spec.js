@@ -67,6 +67,12 @@ test('signed-in readers see the creator letter and older feature notes',async({p
   await page.locator('#whats-new').click();
   const dialog=page.locator('#whats-new-dialog');
   await expect(dialog).toBeVisible();
+  const latest=dialog.locator('article').first();
+  await expect(latest.getByRole('heading')).toHaveText('Local notes, clearer errors, and some housekeeping');
+  await expect(latest.locator('li')).toHaveCount(3);
+  await expect(latest.locator('.release-letter').last()).toContainText('not a claim that the whole site is suddenly faster');
+  await expect(latest.locator('p').last()).toHaveClass('release-signature');
+  expect(await latest.evaluate(node=>Boolean(node.querySelector('ul').compareDocumentPosition(node.querySelectorAll('.release-letter')[1])&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true);
   await page.setViewportSize({width:390,height:844});
   const creatorLetter=dialog.locator('article').filter({has:page.getByRole('heading',{name:"I'm making DuskTranslate free"})});
   await expect(creatorLetter.locator('.release-letter')).toHaveCount(6);

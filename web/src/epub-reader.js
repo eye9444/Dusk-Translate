@@ -51,41 +51,6 @@ function cleanText(value) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function markupParagraphs(markup) {
-  const doc = new DOMParser().parseFromString(markup, 'application/xhtml+xml');
-  const root = doc.querySelector('body') || doc.documentElement;
-  const paragraphs = [];
-  let buffer = '';
-
-  const flush = () => {
-    const text = cleanText(buffer);
-    if (text) paragraphs.push(text);
-    buffer = '';
-  };
-  const walk = node => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      buffer += node.nodeValue || '';
-      return;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const tag = node.localName.toLowerCase();
-    if (SKIP_TAGS.has(tag)) return;
-    if (tag === 'img') {
-      const alt = cleanText(node.getAttribute('alt') || '');
-      if (alt) buffer += `[${alt}]`;
-      return;
-    }
-    if (BLOCK_TAGS.has(tag)) flush();
-    if (tag === 'br') flush();
-    for (const child of node.childNodes) walk(child);
-    if (BLOCK_TAGS.has(tag) || tag === 'br') flush();
-  };
-
-  walk(root);
-  flush();
-  return paragraphs;
-}
-
 function imageMimeType(path) {
   const extension = path.split('.').pop()?.toLowerCase();
   return ({ jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', avif:'image/avif', svg:'image/svg+xml' })[extension] || 'application/octet-stream';
@@ -148,11 +113,6 @@ async function readerBlocks(markup, chapterPath, zip, state) {
   };
   await walk(root); flush();
   return blocks;
-}
-
-function firstHeading(paragraphs, fallback) {
-  const heading = paragraphs.find(text => text.length <= 180);
-  return heading || fallback;
 }
 
 function sectionHeading(markup, paragraphs) {

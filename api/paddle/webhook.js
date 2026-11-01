@@ -39,7 +39,6 @@ export default async function handler(request, response) {
   } catch (error) {
     // Do not log SDK request objects, authorization headers, or customer payloads.
     console.error('Paddle webhook verification or persistence failed.');
-    // Any non-2xx response asks Paddle to retry an at-least-once delivery.
     response.status(500).json({ error: 'Webhook processing failed.' });
   }
 }

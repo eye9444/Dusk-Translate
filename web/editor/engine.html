@@ -325,9 +325,9 @@ select { font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 600; p
 let novel = null, cur = 0, translations = {}, partialResumes = {}, busy = false;
 let abortCtrl = null, watchdog = null;
 let hidden = false;
-let epubZip = null;
+let epubZip = null; // Original archive for EPUB resources and chapter actions.
 let devMode = false;
-let devLog = []; // stores API log entries when dev mode is on // stores the original JSZip object for epub round-trip
+let devLog = []; // API diagnostics collected only while dev mode is enabled.
 
 const PROVIDER_STORAGE_KEY='dusk-provider-settings';
 function readRememberedProviderSettings(){

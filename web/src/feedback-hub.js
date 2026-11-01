@@ -1,17 +1,19 @@
-export function createFeedbackHub({remote,dialog,isAdmin,onChange=()=>{}}){
+export function createFeedbackHub({remote,dialog,isAdmin,onChange=()=>{},onOpen=()=>{}}){
   const node=(tag,text='')=>{const element=document.createElement(tag);element.textContent=text;return element;};
   const list=dialog.querySelector('#feedback-inbox-list'),status=dialog.querySelector('#feedback-inbox-status');
   const filter=node('select');filter.setAttribute('aria-label','Filter tickets');
   for(const value of ['all','new','accepted','standby','rejected']){const option=node('option',value==='all'?'All tickets':value);option.value=value;filter.append(option);}
   status.after(filter);let request=0;
   filter.onchange=()=>open();
-  async function open(){
+  async function open(initialTickets){
+    onOpen();
     const current=++request;list.replaceChildren();status.textContent='Loading tickets...';
     dialog.querySelector('.eyebrow').textContent=isAdmin()?'FOUNDER INBOX':'YOUR REPORTS';
     dialog.querySelector('h2').textContent='Feedback Hub';
     if(!dialog.open)dialog.showModal();
     try{
-      const tickets=await remote.feedbackTickets();if(current!==request||!dialog.open)return;
+      // The host may supply its authorised preflight result; later opens and filters still fetch afresh.
+      const tickets=initialTickets===undefined?await remote.feedbackTickets():initialTickets;if(current!==request||!dialog.open)return;
       status.textContent=`${tickets.length} tickets (most recently updated first)`;
       for(const ticket of tickets.filter(ticket=>filter.value==='all'||ticket.status===filter.value)){
         const card=node('details'),summary=node('summary',`${ticket.unread?'New activity · ':''}${ticket.status} · ${ticket.description.slice(0,90)}`);card.className='feedback-item';

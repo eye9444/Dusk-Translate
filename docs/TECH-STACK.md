@@ -1,12 +1,12 @@
 # DuskTranslate Tech Stack and File Guide
 
-This document describes the active `master` branch. Historical standalone HTML builds are preserved on the [`legacy-standalone`](https://github.com/eye9444/Dusk-Translate/tree/legacy-standalone) branch and are not part of the hosted application's active source tree.
+This guide describes the hosted website and selected source files. Historical standalone HTML builds are preserved on the [`legacy-standalone`](https://github.com/eye9444/Dusk-Translate/tree/legacy-standalone) branch and are not the hosted application's source of truth.
 
 ## Architecture at a Glance
 
-DuskTranslate is primarily a client-side web application. Vite builds static HTML, CSS, JavaScript, and generated editor assets into `dist/`; Vercel serves that directory. There is no custom application server.
+DuskTranslate is primarily a client-side web application. Vite builds static HTML, CSS, JavaScript and generated editor assets into `dist/`. Vercel serves those assets and the serverless handlers in `api/`; there is no long-running application server in this repository.
 
-The browser owns the interactive application state. Device-only projects use IndexedDB. Signed-in projects use Supabase Auth, PostgreSQL, and private Storage. The embedded translation editor runs in a same-origin iframe and exchanges project snapshots with the library shell through `postMessage`. Translation requests are made directly from the browser to Google AI Studio or OpenRouter with the provider key entered for that editor session.
+The browser owns interactive application state. Guest and account-local projects use IndexedDB. Cloud projects use Supabase Auth, PostgreSQL and private Storage. The translation editor runs in a same-origin iframe and exchanges snapshots with the host through `postMessage`. Translation requests go directly from the browser to Google AI Studio, OpenRouter, OpenAI, Claude or a compatible HTTPS endpoint. Device key storage is optional and separate from project snapshots.
 
 ```text
 Browser shell (web/index.html + web/src/main.js)
@@ -16,7 +16,7 @@ Browser shell (web/index.html + web/src/main.js)
   `-- Same-origin translation iframe
         |-- Editor engine
         |-- Host adapter
-        `-- Google AI Studio or OpenRouter API
+        `-- Selected AI-provider API
 ```
 
 ## Technology Stack
@@ -28,17 +28,19 @@ Browser shell (web/index.html + web/src/main.js)
 | Application code | Modern JavaScript ES modules | Project state, persistence, authentication, EPUB processing, editor integration, and UI behavior |
 | Build tool | Vite 7 | Development server, module bundling, static-page inputs, and production output |
 | Archive processing | JSZip 3 | EPUB parsing, translated EPUB generation, and project backup ZIP handling |
-| Device persistence | IndexedDB | Project metadata, snapshots, and original uploaded files |
+| Device persistence | IndexedDB | Project metadata, snapshots, original files, local threads and document outbox |
 | Session preferences | localStorage and sessionStorage | Theme, layout, guest mode, reader font size, and remember-me behavior |
-| Accounts | Supabase Auth | Email/password and Google OAuth with PKCE |
-| Cloud database | Supabase PostgreSQL | Owner-scoped project metadata and translation snapshots |
+| Accounts | Supabase Auth and Google Identity Services | Email/password, email confirmation/recovery, Google ID-token exchange |
+| Cloud database | Supabase PostgreSQL | Authorised project metadata, snapshots, comments, workflow and document updates |
 | Cloud files | Supabase Storage | Private original books stored in an owner-scoped `books` bucket |
-| AI providers | Google Generative Language API and OpenRouter | Browser-originated chapter translation requests |
-| Hosting | Vercel | Static hosting, HTTPS, response headers, and deployment from the Vite build |
+| Shared documents | Yjs | Collaborative/local text, ruby and relative anchors |
+| Server previews | sharp and @xmldom/xmldom | EPUB cover extraction and social preview composition |
+| AI providers | Google AI Studio, OpenRouter, OpenAI, Claude, compatible HTTPS endpoints | Browser-originated model and translation requests |
+| Hosting | Vercel | Static assets, serverless API routes, response headers and Git-based deployment |
 | Unit testing | Node.js `node:test` | Snapshot, validation, storage-selection, and progress behavior |
 | Browser testing | Playwright | End-to-end UI, responsive, persistence, reader, export, and authentication behavior |
 | Database testing | PGlite | Local PostgreSQL-compatible verification of migrations and row-level security |
-| Typography | Manrope, Newsreader, and IBM Plex Mono | Interface, editorial headings, and technical metadata |
+| Typography | Manrope, Newsreader, IBM Plex Mono and Libron | Interface, headings, selected labels and reader text |
 | Brand asset | SVG | Resolution-independent eclipse mark used in navigation and as the favicon |
 
 ## Runtime Data Flow
@@ -50,15 +52,23 @@ Browser shell (web/index.html + web/src/main.js)
 5. The host sends the original file and sanitized snapshot to the same-origin editor iframe.
 6. The adapter sends edited snapshots back to the host. Autosave stores the snapshot locally and optionally synchronizes it to Supabase.
 7. The editor sends only an explicitly requested chapter and prompt to the selected AI provider. API keys are not included in project snapshots.
-8. The EPUB reader can open an arbitrary EPUB, a project's original book, or a temporary translated edition after every chapter is complete.
+8. The EPUB reader can open an arbitrary EPUB, a project's original book, or a translated edition when all selected chapters are complete.
+
+Web-novel snapshots can be read/exported without an original EPUB. Yjs updates and local drafts supplement snapshots; they are not interchangeable backups.
+
+## Languages and access
+
+`web/src/languages.js` defines 25 routes across ten languages: Japanese to all nine other supported languages; English to Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean and Simplified Chinese; and each of those eight languages to English. Preserve `zh-Hans` and project-specific language metadata. The route matrix is not all-to-all. Account/guest defaults affect new projects, and Japanese dictionary tooling is limited to Japanese-source projects.
+
+All current features are free. Cloud capacity limits and provider charges still apply. Product capabilities remain separate from account administration, project roles and storage ownership. Paddle UI/server code and sandbox tests remain for compatibility and isolated testing; this guide does not authorise billing removal or production paid gates.
 
 ## Security and Privacy Boundaries
 
-- AI-provider keys stay in editor memory and are excluded from snapshots, backups, IndexedDB records, and Supabase rows.
+- AI-provider keys are excluded from snapshots, backups, IndexedDB project records and Supabase rows. They normally stay in the editor session; explicit device storage uses localStorage with a 30-day expiry.
 - Imported titles, chapter identifiers, and source content are treated as untrusted text.
-- Supabase row-level security and Storage policies scope cloud content to the authenticated owner.
+- Supabase RLS, Storage policies and server checks restrict access to authorised owners, collaborators or reader-token holders.
 - Original files and snapshots are separated in IndexedDB so routine autosaves do not rewrite large EPUB blobs.
-- Uploads are limited to 20 MB and expanded EPUB/ZIP data is limited to 100 MB.
+- File validation uses a 50 MiB limit. EPUB/backup expansion checks use 500 MiB. The EPUB reader also enforces a 128 MiB streamed-processing budget, 8 MiB markup and 32 MiB image limits, plus traversal/reference limits. These checks apply at different stages; a file can meet one limit and fail another.
 - Vercel response headers restrict framing, browser permissions, referrers, content types, and allowed network origins.
 - The current application includes no advertising or behavioral analytics.
 
@@ -82,7 +92,7 @@ These paths are intentionally not tracked as active source files:
 
 #### `.env.example`
 
-A manually maintained, non-secret template listing the two public Vite variables required to connect a Supabase project. Developers copy these names into an ignored local environment file or Vercel settings.
+A non-secret template for public Supabase, Google, Turnstile and retained Paddle configuration, local-only mode and server-only credentials. Keep server secrets out of `VITE_*` variables; copy only authorised test values into ignored environment files.
 
 #### `.gitignore`
 
@@ -110,7 +120,7 @@ The Vercel deployment contract. It selects the Vite build, serves `dist/`, and d
 
 #### `vite.config.js`
 
-The Vite build configuration. It uses `web/` as the application root, writes to `dist/`, and explicitly includes the home, legal, cookie, and API-key guide pages as production entry points.
+The Vite build configuration. It uses `web/` as the application root, reads environment files from the repository root, writes to `dist/`, injects version/environment/commit metadata and includes the home, policy, features and API-key guide pages as entry points.
 
 ### `config/`
 
@@ -121,6 +131,10 @@ Configures the main browser suite. It builds and previews the production app on 
 #### `config/playwright.auth.config.js`
 
 Configures mocked Supabase account tests on port 4174. It supplies non-secret fixture environment values and runs the authentication scenarios under `tests/auth/` without contacting or mutating the production Supabase project.
+
+#### `config/playwright.modules.config.js`
+
+Runs browser module fixtures on port 4175. Run this suite after the other suites so builds and local servers do not compete for generated editor assets. The retained paid-testing config is separate and is not part of normal community-mode verification.
 
 ### `docs/`
 
@@ -134,7 +148,7 @@ The deployment and operations guide. It explains local startup, Supabase migrati
 
 #### `docs/TECH-STACK.md`
 
-This document. It is the exhaustive map of technologies, runtime flow, generated artifacts, security boundaries, and tracked source files.
+This document. It covers technologies, runtime flow, generated artifacts, security boundaries and selected source files. Use the repository tree for a complete file inventory.
 
 #### `docs/screenshots/welcome-desktop.png`
 
@@ -152,13 +166,15 @@ A Node.js build-preparation script. It reads the authored editor engine, applies
 
 #### `scripts/smoke-hosted.mjs`
 
-A Playwright production smoke test. It opens the live Vercel site, creates a synthetic device project, edits a translation, waits for autosave, reloads, resumes the project, and fails if the page emits JavaScript errors.
+A Playwright smoke test for an explicitly selected hosted URL. It creates a synthetic browser-local project, edits, saves, reloads and resumes, checking page errors. It defaults to production when no URL is supplied; use only an authorised target. It does not verify live cloud persistence or collaboration.
 
 ### `supabase/`
 
 #### `supabase/migrations/202609100001_projects.sql`
 
 The initial PostgreSQL/Supabase migration. It creates the `projects` table, owner/update index, revision trigger, private `books` Storage bucket, grants, validation constraints, row-level-security policies, and owner-scoped Storage policies.
+
+Current features require later migrations too. Keep historical migration files and compare the authorised environment's ledger before a reviewed deployment; this guide is not an instruction to replay or squash them. In particular, the duplicate `202610100001` version prefix requires lead review before migration tooling is used.
 
 ### `tests/`
 
@@ -176,7 +192,7 @@ A PGlite database test that adapts and runs the migration locally. It verifies o
 
 #### `tests/auth/auth.spec.js`
 
-Playwright scenarios for email signup, consent, rejected credentials, login/logout, password reset, same-tab Google PKCE, callback errors, remembered-session restoration in a fresh browser context, tab-only sessions, and responsive account dialogs.
+Playwright scenarios for email signup, consent, rejected credentials, login/logout, password recovery, Google ID-token exchange with nonce separation, legacy callback errors and responsive account dialogs. They use mocked services; a pass does not prove live identity-provider configuration.
 
 #### `tests/auth/cloud.spec.js`
 
@@ -214,7 +230,7 @@ A static Cookie Policy explaining that the app currently has no analytics or adv
 
 #### `web/guides/api-keys.html`
 
-A static setup guide for obtaining and safely using Google AI Studio and OpenRouter keys, including direct provider links, spending/restriction guidance, safety checks, and troubleshooting.
+A static guide to the supported providers, keys, compatible endpoints, spending limits and troubleshooting.
 
 ### `web/public/`
 
@@ -230,7 +246,7 @@ Shared styling for the policy and API-key pages. It provides typography, navigat
 
 #### `web/editor/engine.html`
 
-The self-contained translation engine source. It contains the chapter workspace markup and original CSS/JavaScript for EPUB/JSON/TXT parsing, chapter navigation, glossary editing, AI Studio/OpenRouter model calls and streaming, translation editing, export, theme switching, and developer diagnostics. The build script augments this file rather than serving it directly.
+The classic-script translation engine source. It contains workspace markup, original styles, import/navigation/editing logic, provider selection, chunked streaming, partial recovery and diagnostics. `providers.js` supplies additional browser transports and `prompt.js` supplies language-aware prompts. The build script augments the engine before hosting; its globals are also used by adapter/review/presence scripts.
 
 #### `web/editor/adapter.js`
 
@@ -244,7 +260,7 @@ The hosted editor override stylesheet. It removes duplicated standalone controls
 
 #### `web/src/main.js`
 
-The application coordinator. It controls themes, welcome/library rendering, filtering and layouts, project CRUD, IndexedDB/cloud selection, autosave and draft recovery, editor messages, backups, EPUB reader state and font controls, authentication dialogs, email flows, same-tab Google OAuth, and navigation safety.
+The application coordinator. It controls themes, welcome/library rendering, filtering/layouts, project lifecycle, local/cloud selection, autosave/recovery, editor messages, backups, reader state, authentication dialogs, email flows, Google credential exchange and navigation safeguards.
 
 #### `web/src/store.js`
 
@@ -260,7 +276,7 @@ A small Supabase-compatible storage adapter. It moves only provider session cred
 
 #### `web/src/epub-reader.js`
 
-Safe EPUB parsing and translated-edition generation. It normalizes archive paths, ignores active or non-text markup, extracts readable paragraphs from the EPUB spine, enforces expanded-size limits, injects completed translations as text-only XHTML, and converts page direction to left-to-right.
+Bounded EPUB reading and translated-edition generation. It resolves archive paths, constructs text/ruby/illustration blocks, rejects excessive processing, and builds translated XHTML with escaped text and published ruby. It also handles web-novel reader models and EPUB exports. Import parsing and server-side cover extraction are separate consumers with different limits.
 
 #### `web/src/style.css`
 

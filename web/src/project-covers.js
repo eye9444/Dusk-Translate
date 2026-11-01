@@ -26,6 +26,7 @@ export async function readEpubCover(file) {
 }
 
 export function createCoverGallery(loadFile){
+  // Each reset invalidates queued and in-flight covers from the previous library render.
   let observer,queue=[],running=0,epoch=0;const urls=new Set();
   const pump=()=>{while(running<2&&queue.length){const task=queue.shift();running++;task().finally(()=>{running--;pump();});}};
   return {

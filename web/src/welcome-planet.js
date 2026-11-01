@@ -5,7 +5,7 @@ export function createWelcomePlanet(stage, sequence) {
   const moons = [...stage.querySelectorAll('.moon-revolution')];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let angle=0, total=0, phase=Math.PI, pointer=null, lastX=0, lastMove=0, distance=0;
-  let velocity=0, previous=null, frame, timer, triggered=false, lastTurn=0, burstStarted=0;
+  let velocity=0, previous=null, frame, triggered=false, lastTurn=0, burstStarted=0;
   let returnFocus=null, inertStates=[];
   let touch=false, pendingTurn=0, dragWidth=200, visible=false;
   function wake() {
@@ -20,7 +20,7 @@ export function createWelcomePlanet(stage, sequence) {
   observer.observe(stage);
   document.addEventListener('visibilitychange',visibility);
   const closeSequence=()=>{
-    clearTimeout(timer); sequence.hidden=true;sequence.classList.remove('is-running');
+    sequence.hidden=true;sequence.classList.remove('is-running');
     sequence.querySelector('iframe').removeAttribute('src');
     for(const [child,inert] of inertStates)child.inert=inert;
     returnFocus?.focus({preventScroll:true});
@@ -120,5 +120,5 @@ export function createWelcomePlanet(stage, sequence) {
   document.addEventListener('keydown',escape);
   const handlers={pointerdown:down,pointermove:move,pointerup:release,pointercancel:release,keydown:key,selectstart:blockSelection,dragstart:blockSelection};
   for(const [name,handler] of Object.entries(handlers))stage.addEventListener(name,handler);
-  return {destroy(){observer.disconnect();document.removeEventListener('visibilitychange',visibility);cancelAnimationFrame(frame);clearTimeout(timer);document.removeEventListener('keydown',escape);sequence?.querySelector('button').removeEventListener('click',closeSequence);for(const [name,handler] of Object.entries(handlers))stage.removeEventListener(name,handler);}};
+  return {destroy(){observer.disconnect();document.removeEventListener('visibilitychange',visibility);cancelAnimationFrame(frame);document.removeEventListener('keydown',escape);sequence?.querySelector('button').removeEventListener('click',closeSequence);for(const [name,handler] of Object.entries(handlers))stage.removeEventListener(name,handler);}};
 }
