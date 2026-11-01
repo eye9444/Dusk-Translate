@@ -1,5 +1,23 @@
 # Release Notes
 
+## 2.1.0 - 2026-11-02
+
+### Fixes and maintenance
+
+- Routed signed-in local-project comments to the correct account-scoped IndexedDB records. Guest notes remain separate; no comments are implicitly migrated or uploaded. Preserved viewer restrictions and discarded stale reads/write completions after account or project changes.
+- Made reader render results explicit so failed access checks cannot be announced as ready. Preserved pre-render authorisation and prevented stale responses or EPUB preparation from changing a newer chapter or closed reader.
+- Reused the authorised Feedback Hub preflight response instead of requesting the same ticket list twice. Empty results, permission errors, fresh reopen/filter reads and founder fallback behaviour remain supported.
+- Guarded legacy founder-inbox reads, screenshot callbacks and deletion UI completions against sign-out, account changes, closed dialogs and superseding requests. Failed screenshot downloads remain retryable after report collapse; successful downloads clear the loading message while collapsed.
+- Removed two unused private reader helpers, an unused editor lookup and an unassigned planet timer with no-op cleanup. Retained exported/tested interfaces and active compatibility paths.
+- Updated current architecture, setup, stack and release guides; added mocked browser regressions for local comments, reader status and feedback lifecycle behaviour. Historical release records remain unchanged.
+
+### Updates already live since v2.0.0
+
+- Reflowed editor provider/tool controls, sized panes from available viewport height, and adapted library, hero, reader and dialog layouts for narrow, short and wide screens. Preserved the compact provider bar on wide desktops.
+- Added the GitHub contribution/star/watch option inside Support, with an update about ongoing optimisation and code cleanup. Payment links remain unavailable.
+
+No database migration, dependency upgrade, new language route or paid-access change is included. This release does not establish the cause of every historical lost-work report or guarantee recovery of previously unsaved work. Automated cloud-path verification uses mocks and local fixtures, not live Supabase acceptance.
+
 ## 2.0.0 - 2026-10-29
 
 - Added Korean and Simplified Chinese as targets for Japanese/English and as sources for English, bringing the route count to 25. EPUB metadata preserves the Simplified Chinese script tag.

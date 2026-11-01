@@ -19,9 +19,19 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
   resolvedLabel.append(resolved, document.createTextNode(' Show resolved'));
   const list = node('div', '', 'comments-list');
   panel.append(header, status, form, resolvedLabel, list); document.body.append(panel);
-  let project = null, anchor = null, threads = [], timer = null, request = 0, writing = false, loaded = false, fingerprint = '';
+  let project = null, projectUser = null, projectContext = 0, anchor = null, threads = [], timer = null, request = 0, writing = false, loaded = false, fingerprint = '';
   const me = () => getUser()?.id || 'guest';
-  const editable = () => project && project.accessRole !== 'viewer';
+  const isLocal = value => value.storage === 'local' || value.owner === 'guest';
+  const sameContext = (current, identity, context) => project === current && projectUser === identity && me() === identity && projectContext === context;
+  const accessible = () => project && projectUser === me() && (!isLocal(project) || project.owner === projectUser);
+  const editable = () => accessible() && project.accessRole !== 'viewer';
+  function setProject(next) {
+    if (project !== next || projectUser !== me()) {
+      projectContext++;request++;threads=[];input.value='';fingerprint='';loaded=false;writing=false;
+      list.replaceChildren();onThreads([]);
+    }
+    project=next;projectUser=me();
+  }
   const textFor = item => {
     const snapshot = getProject()?.snapshot;
     return item.pane === 'source' ? snapshot?.novel?.chapters.find(ch => ch.id === item.chapterId)?.text : snapshot?.translations?.[item.chapterId]?.replace(/…PARTIAL$/, '');
@@ -32,11 +42,12 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     return result.data;
   }
   async function refresh() {
-    if (!project || writing) return;
-    const current = project, version = ++request;
+    if (!accessible() || writing) return;
+    const current = project, identity = projectUser, context = projectContext, version = ++request;
     try {
-      const value = current.owner === 'guest' ? await local.comments('guest', current.id) : await rpc('list_project_comments', { target_project_id: current.id });
-      if (version !== request || project !== current) return;
+      // Local records stay under the current account's key; signing in does not upload guest threads.
+      const value = isLocal(current) ? await local.comments(identity, current.id) : await rpc('list_project_comments', { target_project_id: current.id });
+      if (version !== request || !sameContext(current, identity, context)) return;
       if (!Array.isArray(value)) throw new Error('Could not read project comments.');
       threads = value.filter(thread=>Array.isArray(thread.messages)&&thread.messages.length); loaded = true; status.textContent = '';
       onThreads(threads); submit.disabled = panel.hidden || !anchor || !editable();
@@ -44,7 +55,7 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
       // Avoid replacing focused reply fields on every polling tick.
       if (!panel.hidden && next !== fingerprint && !list.contains(document.activeElement)) { render(); fingerprint = next; }
     } catch (error) {
-      if (project !== current) return;
+      if (version !== request || !sameContext(current, identity, context)) return;
       loaded = false; fingerprint = ''; submit.disabled = true; status.textContent = error.message;
       list.replaceChildren(control('Retry loading comments', refresh));
     }
@@ -84,16 +95,16 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     if (writing || !editable() || !loaded) return;
     if (['create', 'reply', 'edit'].includes(action) && (!body?.trim() || body.length > 4000)) { status.textContent = 'Enter a comment of 1 to 4,000 characters.'; return; }
     writing = true; submit.disabled = true; status.textContent = 'Saving comment…';
-    const current = project;
+    const current = project, identity = projectUser, context = projectContext;
     try {
       const savedAnchor=action==='create'?makeAnchor(anchor):null;
-      if (current.owner !== 'guest') await rpc('write_project_comment', { target_project_id: current.id, action, target_id: targetId, comment_body: body, comment_anchor: savedAnchor });
+      if (!isLocal(current)) await rpc('write_project_comment', { target_project_id: current.id, action, target_id: targetId, comment_body: body, comment_anchor: savedAnchor });
       else {
         const next = structuredClone(threads), time = new Date().toISOString();
-        const message = () => ({ id: crypto.randomUUID(), author_id: 'guest', author_name: 'You', body: body.trim(), created_at: time });
+        const message = () => ({ id: crypto.randomUUID(), author_id: identity, author_name: 'You', body: body.trim(), created_at: time });
         if (action === 'create') {
           if (!anchor) throw new Error('Select text before posting.');
-          next.push({ id: crypto.randomUUID(), author_id: 'guest', anchor:savedAnchor, resolved: false, created_at: time, messages: [message()] });
+          next.push({ id: crypto.randomUUID(), author_id: identity, anchor:savedAnchor, resolved: false, created_at: time, messages: [message()] });
         } else if (['reply', 'resolve', 'reopen', 'delete-thread'].includes(action)) {
           const index = next.findIndex(thread => thread.id === targetId), thread = next[index];
           if (!thread) throw new Error('Thread no longer exists.');
@@ -110,14 +121,14 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
           else Object.assign(thread.messages.find(message => message.id === targetId), { body: body.trim(), edited_at: time });
         }
         if (next.length > 1000 || next.reduce((sum, thread) => sum + thread.messages.length, 0) > 5000) throw new Error('Project comment limit reached.');
-        await local.saveComments('guest', current.id, next);
+        await local.saveComments(identity, current.id, next);
       }
-      if (current !== project) return;
+      if (!sameContext(current, identity, context)) return;
       if (action === 'create') input.value = '';
       fingerprint = ''; writing = false;
       document.activeElement?.blur(); await refresh();
-    } catch (error) { if (current === project) status.textContent = error.message; }
-    finally { writing = false; submit.disabled = !loaded || !anchor || !editable(); }
+    } catch (error) { if (sameContext(current, identity, context)) status.textContent = error.message; }
+    finally { if (sameContext(current, identity, context)) { writing = false; submit.disabled = !loaded || !anchor || !editable(); } }
   }
   function close() { clearFocus(); panel.hidden = true; anchor=null; document.body.classList.remove('comments-open'); }
   resolved.onchange = render;
@@ -127,14 +138,15 @@ export function createComments({ cloud, local, getProject, getUser, focus, clear
     async open(selection) {
       const next = getProject();
       if (!next || next.accessRole === 'viewer') return;
-      if (project?.id !== next.id) { threads = []; input.value = ''; fingerprint = ''; loaded = false; }
-      project = next; anchor = selection || null; panel.hidden = false; document.body.classList.add('comments-open');
+      setProject(next);
+      if (!accessible()) { close();return; }
+      anchor = selection || null; panel.hidden = false; document.body.classList.add('comments-open');
       quote.textContent = anchor?.quote || 'Select text in either pane to start a thread.';
       input.disabled = !anchor; submit.disabled = true; status.textContent = 'Loading comments…';
       await refresh();
     },
-    async watch(next=getProject()) { if(!next)return;if(project?.id!==next.id){threads=[];fingerprint='';loaded=false;}project=next;await refresh();clearInterval(timer);timer=setInterval(refresh,5000); },
-    stop(){close();clearInterval(timer);timer=null;request++;project=null;threads=[];onThreads([]);},
+    async watch(next=getProject()) { if(!next)return;setProject(next);const identity=projectUser,context=projectContext;await refresh();if(!sameContext(next,identity,context))return;clearInterval(timer);timer=setInterval(refresh,5000); },
+    stop(){close();clearInterval(timer);timer=null;projectContext++;request++;project=null;projectUser=null;threads=[];writing=false;loaded=false;list.replaceChildren();onThreads([]);},
     close,
   };
 }

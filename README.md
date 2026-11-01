@@ -12,11 +12,20 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
-  <img alt="Web release 2.0.0" src="https://img.shields.io/badge/web_release-v2.0.0-17120f?style=for-the-badge" />
+  <img alt="Web release 2.1.0" src="https://img.shields.io/badge/web_release-v2.1.0-17120f?style=for-the-badge" />
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
 ## Open the Web App
+
+### Version 2.1.0
+
+- Fixed comments for signed-in, device-only projects without uploading or moving existing notes between accounts.
+- Preserved reader errors and prevented delayed responses from overwriting a newer chapter or closed reader.
+- Removed the duplicate Feedback Hub ticket-list request and guarded legacy inbox, screenshot and deletion completions against expired account/view contexts.
+- Restored screenshot retries and loading-message completion when reports are collapsed mid-download.
+- Removed unused private code and updated current architecture, setup and release guides. No dependency or database migration changes are required.
+- Includes the responsive layouts and GitHub support option already shipped within v2.0.0. See [release notes](docs/RELEASE-NOTES.md) for the full maintenance summary.
 
 ### Version 2.0.0
 
@@ -45,7 +54,7 @@ You can use the local library without an account, or sign in with Google or emai
 
 DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported target language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, and Simplified Chinese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
 
-Version 2.0.0 is a web release. Desktop-app exploration remains deferred while development focuses on the site.
+DuskTranslate remains a web application. Desktop-app exploration is deferred while development focuses on the site.
 
 All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 
@@ -90,7 +99,7 @@ Changes are reviewed in feature previews before an approved PR reaches `master`,
 
 Only product features and bug fixes warrant version changes. Visual and aesthetic updates ship silently within the existing version, without a new tag, release, or What's New popup. The in-app What's New history contains feature updates only; bug-fix details belong in the GitHub release notes. When correcting announcement history, preserve account acknowledgements so users are not notified again about older features.
 
-See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for the complete architecture, data flow, security boundaries, generated files, and a description of every tracked file.
+See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for architecture, data flow, security boundaries, generated files and selected source files.
 
 ## Responsive Interface
 
@@ -114,11 +123,12 @@ npm test
 npm run build
 npm run test:e2e
 npm run test:auth
+npm run test:modules
 ```
 
-Account and cloud-project features require Supabase environment variables. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for the deployment configuration.
+CI uses Node 22. Run the suites sequentially; browser, mocked-auth and module servers use ports 4173, 4174 and 4175. For a guest-only preview, use `VITE_LOCAL_ONLY=true npm run dev`. Do not export that flag globally when running mocked-auth tests. Vite serves the frontend; it does not execute Vercel's `api/` handlers. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for authorised test configuration.
 
-Community access requires migration `202610200001_community_access.sql` before deploying this release. It changes product entitlements, not administrative roles or existing subscriptions. Existing subscribers retain access to their billing portal and must cancel explicitly if desired.
+Free access is defined by the current application and the community-access schema. Current cloud features need the full reviewed migration chain, not only the initial projects migration. SQL committed to the repository is not applied by Vercel Git deployment. Existing billing records and subscription cancellation are separate from free product access; do not infer live subscription state from the source tree.
 
 Paid-plan testing is retained only for an isolated test database with `launch_configuration.community_access=false`, Paddle sandbox credentials, and a local Vite dev server with `VITE_PAID_TESTING=true`. Never disable community access in the production database for testing. Production checkout is blocked. See [community rollout notes](docs/COMMUNITY-ROLLOUT.md).
 

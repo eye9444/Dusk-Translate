@@ -4,6 +4,7 @@ import { createDocumentSeed, openSharedDocument, passage, replaceRange, anchorRa
 const POLL_INTERVAL = 5000;
 
 function commonEdit(previous, next) {
+  // Trim the unchanged edges to preserve CRDT anchors outside the edited range.
   let start=0;
   while(start<previous.length&&start<next.length&&previous[start]===next[start])start++;
   let oldEnd=previous.length,newEnd=next.length;
@@ -30,6 +31,7 @@ export async function startCollaboration({project,local,remote,onText,onRuby=()=
     for(const row of rows){
       if(applied.has(row.operationId))continue;
       Y.applyUpdate(doc,row.payload,remoteOrigin);applied.add(row.operationId);
+      // Poll inclusively at this timestamp; operation IDs deduplicate rows sharing it.
       if(!lastCreatedAt||row.createdAt>lastCreatedAt)lastCreatedAt=row.createdAt;
     }
   };

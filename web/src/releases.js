@@ -1,5 +1,12 @@
-// Feature announcements use the creator's final wording when supplied.
+// Announcements use the creator's final wording when supplied.
 export const RELEASES=Object.freeze([
+  Object.freeze({id:'2026-11-02-v210',date:'2026-11-02',title:'Local notes, clearer errors, and some housekeeping',paragraphs:Object.freeze([
+    "Hey everyone, here's v2.1. Mostly fixes and cleanup this time. The toolkit hasn't gained another row of buttons, which I think we can all appreciate.",
+  ]),items:Object.freeze([
+    "Comments now work on local books while you're signed in. They stay on your device under your account, and your existing guest notes aren't moved or uploaded.",
+    "The reader now keeps the actual error when a shared link can't be opened, instead of announcing \"Ready to read\" over it. Older responses also won't overwrite the chapter you've moved to.",
+    "Feedback Hub no longer asks for the same report list twice when you open it. Late responses won't bring old inbox data back after sign-out, and screenshots can retry properly if you collapse a report while they're loading.",
+  ]),signature:'Eye, creator of DuskTranslate',closing:"I've also cleaned up some unused code and updated the technical guides. This is part of the ongoing cleanup, not a claim that the whole site is suddenly faster."}),
   Object.freeze({id:'2026-10-29-v200',date:'2026-10-29',title:'Desloppification and more WN support!',paragraphs:Object.freeze([
     "Hey everyone, ok nvm am too bored, here's the patch notes.",
     "Quick update: I'm currently working on optimising the site and cleaning up the codebase. Apparently the code needs housekeeping too. This work is still in progress, not a promise that everything is suddenly faster.",

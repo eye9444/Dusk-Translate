@@ -2,6 +2,7 @@ import * as Y from 'yjs';
 import { openSharedDocument } from '../web/src/shared-document.js';
 
 export function validateDocumentUpdate(seed, updates, candidate, tier) {
+  // Rebuild canonical state before checking the candidate. A partial history can hide ruby edits.
   const doc=openSharedDocument(seed);
   try {
     for(const update of updates)Y.applyUpdate(doc,update);

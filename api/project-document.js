@@ -36,6 +36,7 @@ export default async function handler(request,response){
    const tier=await admin.rpc('account_tier',{target_user_id:user.id,target_environment:getPaddleEnvironment()});
    if(tier.error)throw tier.error;
    validateDocumentUpdate(bytes(document.data.seed),updates,bytes(body.payload),tier.data);
+   // The RPC rejects a changed revision so validation cannot authorise an update against stale state.
    const saved=await admin.rpc('append_checked_document',{actor:user.id,target_project:body.projectId,operation_id:body.operationId,
      update_bytes:body.payload,expected_revision:document.data.update_revision,validated_tier:tier.data});
    if(saved.error)throw saved.error;

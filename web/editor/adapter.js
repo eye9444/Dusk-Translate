@@ -192,7 +192,6 @@ const makeDisclosure = (label, className) => {
   details.append(summary, content); return { details, content };
 };
 const [keyLabel, keyInputWrap, modelLabel, modelPicker, keyStatus] = Array.from(keyBar.children);
-const modelSelect = modelPicker.querySelector('#model-select');
 keyLabel.htmlFor='api-key'; modelLabel.htmlFor='model-select'; keyStatus.setAttribute('role','status');
 const providerField = (className, label, control) => {
   const field=document.createElement('div'); field.className=`provider-field ${className}`; field.append(label,control); return field;

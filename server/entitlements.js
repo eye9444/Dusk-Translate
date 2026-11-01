@@ -37,6 +37,7 @@ export async function getAccountEntitlements(userId, admin = getSupabaseAdmin())
   }
   const mapping = new Map(prices.map(price => [price.price_id, price.tier]));
   const paidTier = resolveTier(subscriptions, mapping);
+  // Free product access changes capabilities; subscription details still support billing management.
   const tier = communityAccess || superUser || betaAccess ? 'advanced' : paidTier;
   const subscription = subscriptions.find(item => mapping.get(item.price_id) === tier
     && ['active', 'trialing'].includes(item.status)) || subscriptions[0] || null;

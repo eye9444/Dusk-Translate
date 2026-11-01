@@ -279,6 +279,7 @@ async function billingRequest(path, method = 'GET', body) {
 const confirmSpending = createSpendingNotice({getUser:()=>user,request:billingRequest});
 const showUpgrade = createUpgradeDialog({createCheckout:priceId=>billingRequest('/api/paddle/checkout','POST',{priceId})});
 async function currentEntitlements(project=active) {
+  // Project rights include owner capacity and shared prompts; account rights alone cannot replace them.
   const data=project&&isCloud(project)
     ? await remote.entitlements(project.id)
     : user ? await billingRequest('/api/paddle/status') : {tier:COMMUNITY_ACCESS?'advanced':'free'};
@@ -579,11 +580,24 @@ function showFeedback(){
   if(!user){showAuth();return;}
   $('feedback-error').textContent='';$('feedback-description').value='';$('feedback-screenshot').value='';updateFeedbackCount();$('feedback-dialog').showModal();
 }
+let feedbackInboxGeneration=0,feedbackInboxViewGeneration=0;
+function beginFeedbackInboxView(){
+  feedbackInboxViewGeneration=++feedbackInboxGeneration;
+  return feedbackInboxViewGeneration;
+}
+$('feedback-inbox-dialog').addEventListener('close',()=>{
+  // A queued close belongs to the last shown view, not a newer pending open.
+  if(!$('feedback-inbox-dialog').open&&feedbackInboxViewGeneration===feedbackInboxGeneration)feedbackInboxGeneration++;
+});
 async function showFeedbackInbox(){
-  if(!feedbackAdmin)return;
-  $('feedback-inbox-list').replaceChildren();$('feedback-inbox-status').textContent='Loading feedback...';$('feedback-inbox-dialog').showModal();
+  if(!user||!feedbackAdmin)return;
+  const identity=user.id,generation=beginFeedbackInboxView(),dialog=$('feedback-inbox-dialog');
+  const isCurrent=()=>user?.id===identity&&feedbackAdmin&&generation===feedbackInboxGeneration&&dialog.open;
+  $('feedback-inbox-list').replaceChildren();$('feedback-inbox-status').textContent='Loading feedback...';
+  if(!dialog.open)dialog.showModal();
   try{
     const items=await remote.feedbackInbox();
+    if(!isCurrent())return;
     $('feedback-inbox-status').textContent=items.length?`${items.length} report${items.length===1?'':'s'}`:'No feedback yet.';
     for(const item of items){
       const card=el('details','feedback-item'),summary=el('summary','',`${item.feedback_type.toUpperCase()} · ${item.description.slice(0,90)}`);
@@ -592,16 +606,32 @@ async function showFeedbackInbox(){
         const image=el('img','feedback-preview');image.alt='Screenshot attached to this report';image.hidden=true;
         const message=el('p','field-hint','');card.append(message,image);
         let loading=false;
-        card.addEventListener('toggle',async()=>{if(!card.open||image.hasAttribute('src')||loading)return;loading=true;message.textContent='Loading screenshot...';try{image.src=await remote.feedbackScreenshotUrl(item.screenshot_path);image.hidden=false;image.onload=()=>message.textContent='';image.onerror=()=>{image.removeAttribute('src');image.hidden=true;message.textContent='Screenshot could not load. Close and reopen this report to retry.';};}catch(error){message.textContent=errorMessage(error);}finally{loading=false;}});
+        card.addEventListener('toggle',async()=>{
+          if(!isCurrent()||!card.open||image.hasAttribute('src')||loading)return;
+          loading=true;message.textContent='Loading screenshot...';
+          try{
+            const url=await remote.feedbackScreenshotUrl(item.screenshot_path);
+            if(!isCurrent()||!card.isConnected||!card.open)return;
+            // Collapse does not end this view; finish loading or clear a failed source so reopening can retry.
+            image.onload=()=>{if(isCurrent()&&card.isConnected)message.textContent='';};
+            image.onerror=()=>{
+              if(!isCurrent()||!card.isConnected)return;
+              image.removeAttribute('src');image.hidden=true;message.textContent='Screenshot could not load. Close and reopen this report to retry.';
+            };
+            image.src=url;image.hidden=false;
+          }catch(error){if(isCurrent()&&card.isConnected&&card.open)message.textContent=errorMessage(error);}
+          finally{loading=false;}
+        });
       }
       const remove=button('Delete report',async()=>{
+        if(!isCurrent())return;
         if(!confirm('Delete this feedback report from your inbox?'))return;
         remove.disabled=true;
-        try{await remote.deleteFeedback(item.id,item.screenshot_path);card.remove();const count=$('feedback-inbox-list').childElementCount;$('feedback-inbox-status').textContent=count?`${count} reports`:'No feedback yet.';}catch(error){$('feedback-inbox-status').textContent=errorMessage(error);remove.disabled=false;}
+        try{await remote.deleteFeedback(item.id,item.screenshot_path);if(!isCurrent())return;card.remove();const count=$('feedback-inbox-list').childElementCount;$('feedback-inbox-status').textContent=count?`${count} reports`:'No feedback yet.';}catch(error){if(!isCurrent())return;$('feedback-inbox-status').textContent=errorMessage(error);remove.disabled=false;}
       });card.append(remove);
       $('feedback-inbox-list').append(card);
     }
-  }catch(error){$('feedback-inbox-status').textContent=errorMessage(error);}
+  }catch(error){if(isCurrent())$('feedback-inbox-status').textContent=errorMessage(error);}
 }
 $('feedback').onclick=showFeedback;
 $('whats-new').onclick=()=>showWhatsNew(false);
@@ -617,10 +647,15 @@ async function showWhatsNew(automatic=false){
     const article=el('article','release-note');
     article.append(el('p','eyebrow',release.date),el('h3','',release.title));
     for(const paragraph of release.paragraphs||[])article.append(el('p','release-letter',paragraph));
-    if(release.signature)article.append(el('p','release-signature',release.signature));
+    if(release.signature&&!release.closing)article.append(el('p','release-signature',release.signature));
     const ul=document.createElement('ul');
     for(const item of release.items)ul.append(el('li','',item));
-    article.append(ul);list.append(article);
+    article.append(ul);
+    if(release.closing){
+      article.append(el('p','release-letter',release.closing));
+      if(release.signature)article.append(el('p','release-signature',release.signature));
+    }
+    list.append(article);
   }
   $('whats-new-dialog').showModal();
   if(!automatic)return;
@@ -647,12 +682,17 @@ async function refreshTicketBadge(){
     $('feedback-inbox').hidden=false;$('feedback-inbox').textContent=`Feedback Hub${count?` (${count} unread)`:''}`;
   }catch{}finally{ticketRefreshPending=false;}
 }
-const feedbackHub=createFeedbackHub({remote,dialog:$('feedback-inbox-dialog'),isAdmin:()=>feedbackAdmin,onChange:refreshTicketBadge});
+const feedbackHub=createFeedbackHub({remote,dialog:$('feedback-inbox-dialog'),isAdmin:()=>feedbackAdmin,onChange:refreshTicketBadge,onOpen:beginFeedbackInboxView});
 async function openFeedbackHub(){
   if(!user){showAuth();return;}
+  const identity=user.id,generation=++feedbackInboxGeneration;
   $('feedback-dialog').close();
-  try{await remote.feedbackTickets();await feedbackHub.open();}
-  catch(error){if(feedbackAdmin)await showFeedbackInbox();else status(`Tickets are not available yet: ${errorMessage(error)}`);}
+  try{
+    const tickets=await remote.feedbackTickets();
+    if(user?.id!==identity||generation!==feedbackInboxGeneration)return;
+    await feedbackHub.open(tickets);
+  }
+  catch(error){if(user?.id!==identity||generation!==feedbackInboxGeneration)return;if(feedbackAdmin)await showFeedbackInbox();else status(`Tickets are not available yet: ${errorMessage(error)}`);}
 }
 const contact=document.createElement('p');contact.className='feedback-contacts';
 for(const [label,url,path] of [
@@ -1077,14 +1117,24 @@ function setReaderFontSize(value) {
   $('reader-font-value').textContent = `${size} px`;
 }
 async function renderReader() {
-  if (!readerBook) return;
+  // Callers may update controls only after a current, authorised render.
+  if (!readerBook) return 'stale';
   const renderGeneration=++readerRenderGeneration;
-  const chapter = readerBook.chapters[readerChapter];
+  const book=readerBook,token=sharedReaderToken,chapter=book.chapters[readerChapter];
+  const isCurrent=()=>renderGeneration===readerRenderGeneration&&readerBook===book&&sharedReaderToken===token;
+  // Invalidate the previous chapter's comment requests before awaiting access to the next one.
+  publicComments.close();
   if(sharedReaderToken){
+    // Confirm access before showing cached text. Revoking a share link must also block chapter navigation.
     $('reader-content').replaceChildren();
-    try{await remote.readerComments(sharedReaderToken,chapter.id);}
-    catch(error){$('reader-status').textContent=errorMessage(error);publicComments.close();return;}
-    if(renderGeneration!==readerRenderGeneration||!readerBook)return;
+    $('reader-status').textContent='Checking reader access...';
+    try{await remote.readerComments(token,chapter.id);}
+    catch(error){
+      if(!isCurrent())return 'stale';
+      $('reader-chapter-title').textContent='Reader access could not be confirmed';
+      $('reader-status').textContent=errorMessage(error);return 'failed';
+    }
+    if(!isCurrent())return 'stale';
   }
   $('reader-title').textContent = readerBook.title;
   $('reader-chapter-count').textContent = `Section ${String(readerChapter).padStart(2, '0')} of ${readerBook.chapters.length}`;
@@ -1099,9 +1149,9 @@ async function renderReader() {
     return renderRubyParagraph(block);
   }));
   $('reader-chapters').replaceChildren(...readerBook.chapters.map((item, index) => {
-    const chapterButton = button(`${String(index).padStart(2, '0')}  ${item.title}`, () => {
+    const chapterButton = button(`${String(index).padStart(2, '0')}  ${item.title}`, async () => {
       readerChapter = index;
-      renderReader();
+      if(await renderReader()!=='rendered')return;
       $('reader-page').scrollTo({ top: 0, behavior: 'smooth' });
       $('reader-page').focus({ preventScroll: true });
     });
@@ -1111,10 +1161,16 @@ async function renderReader() {
     return chapterButton;
   }));
   setReaderFontSize(readerFontSize());
-  if(sharedReaderToken)await publicComments.open(sharedReaderToken,chapter.id);
-  else publicComments.close();
+  if(token){
+    const result=await publicComments.open(token,chapter.id);
+    if(!isCurrent())return 'stale';
+    if(result!=='rendered')return result;
+  }
+  $('reader-status').textContent='Ready to read';
+  return 'rendered';
 }
 function prepareReader(title, edition, preserveReturn = false) {
+  readerRenderGeneration++;publicComments.close();
   if (!preserveReturn) readerReturn = $('welcome').hidden ? 'library' : 'welcome';
   readerOpen = true; readerBook = null; readerChapter = 0;
   $('welcome').hidden = true; $('library').hidden = true; $('reader').hidden = false;
@@ -1129,17 +1185,28 @@ function prepareReader(title, edition, preserveReturn = false) {
 }
 async function presentReader(file, fileName, edition, project = null, preserveReturn = false) {
   prepareReader(project?.title || fileName.replace(/\.epub$/i, ''), edition, preserveReturn);
+  const preparedGeneration=readerRenderGeneration;
+  let book=null;
   readerProject = project;
   setLoading(true, 'Preparing reader…');
   try {
-    readerBook = await readEpub(file, fileName); await renderReader();
+    book=await readEpub(file, fileName);
+    if(preparedGeneration!==readerRenderGeneration){
+      book.chapters.flatMap(chapter=>chapter.blocks||[]).filter(block=>block.type==='image').forEach(block=>URL.revokeObjectURL(block.src));
+      return 'stale';
+    }
+    readerBook=book;
+    const result=await renderReader();
+    if(result!=='rendered')return result;
     $('reader-editor').hidden = !project;
-    $('reader-status').textContent = 'Ready to read';
     $('reader-page').focus({ preventScroll: true });
+    return 'rendered';
   } catch (error) {
+    if(book?readerBook!==book:preparedGeneration!==readerRenderGeneration)return 'stale';
     $('reader-chapter-title').textContent = 'This EPUB could not be opened.';
     $('reader-status').textContent = 'Reader error';
     $('reader-content').append(el('p', '', errorMessage(error)));
+    return 'failed';
   } finally { setLoading(false); }
 }
 async function openReader(id, edition = 'original', updateRoute = true) {
@@ -1152,9 +1219,11 @@ async function openReader(id, edition = 'original', updateRoute = true) {
     if (!project?.file) throw new Error('This project file is unavailable.');
     if(isEpub(project)){
       const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot,projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,snapshot):projectFile;
-      await presentReader(file,project.fileName,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION',project);
+      if(await presentReader(file,project.fileName,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION',project)==='stale')return;
     }else{
-      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot;prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,snapshot,edition);await renderReader();$('reader-editor').hidden=false;$('reader-status').textContent='Ready to read';
+      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot;prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,snapshot,edition);
+      if(await renderReader()!=='rendered')return;
+      $('reader-editor').hidden=false;
     }
     if (updateRoute) navigate(projectRoute('/reader', id, edition));
     status('');
@@ -1170,8 +1239,8 @@ async function openSharedReader(token) {
     sharedReaderToken=token;
     const project=await remote.openPublicReader(token);
     if (!project.file) throw new Error('This shared project file is unavailable.');
-    if(isEpub(project)){let file=project.file,edition='SHARED ORIGINAL EDITION';try{file=await buildTranslatedEpub(project.file,project.snapshot);edition='SHARED TRANSLATED EDITION';}catch{}await presentReader(file,project.fileName,edition);}
-    else{prepareReader(project.title,'SHARED EDITION');readerProject=project;try{readerBook=snapshotReaderBook(project.title,project.snapshot,'translated');}catch{readerBook=snapshotReaderBook(project.title,project.snapshot,'original');}await renderReader();$('reader-status').textContent='Ready to read';}
+    if(isEpub(project)){let file=project.file,edition='SHARED ORIGINAL EDITION';try{file=await buildTranslatedEpub(project.file,project.snapshot);edition='SHARED TRANSLATED EDITION';}catch{}return await presentReader(file,project.fileName,edition);}
+    else{prepareReader(project.title,'SHARED EDITION');readerProject=project;try{readerBook=snapshotReaderBook(project.title,project.snapshot,'translated');}catch{readerBook=snapshotReaderBook(project.title,project.snapshot,'original');}return await renderReader();}
   } catch (error) {
     prepareReader('Shared EPUB', 'SHARED EDITION');
     $('reader-chapter-title').textContent='This reader link is unavailable.';
@@ -1196,7 +1265,7 @@ $('reader-open-file').onclick = chooseReaderFile;
 $('reader-file').onchange = async () => {
   const file = $('reader-file').files[0];
   if (!file) return;
-  try { validateFile(file); await presentReader(file, file.name, 'STANDALONE EPUB', null, readerOpen); navigate('/reader'); }
+  try { validateFile(file); if(await presentReader(file, file.name, 'STANDALONE EPUB', null, readerOpen)!=='stale')navigate('/reader'); }
   catch (error) { prepareReader(file.name, 'STANDALONE EPUB', readerOpen); $('reader-chapter-title').textContent='This EPUB could not be opened.'; $('reader-status').textContent='Reader error'; $('reader-content').append(el('p', '', errorMessage(error))); }
 };
 $('reader-back').onclick = leaveReader;
@@ -1218,6 +1287,7 @@ async function flush() {
   saveTask = (async () => {
     try {
       while (active === project && persisted !== generation) {
+        // Only acknowledge this version. Edits made during the upload need another save.
         const version = generation;
         const copy = { ...project, snapshot:cleanSnapshot(project.snapshot), updatedAt:new Date().toISOString(), dirty:isCloud() };
         announceSave(isCloud() ? 'Saving to cloud…' : 'Saving on device…');
@@ -1236,6 +1306,7 @@ async function flush() {
   })();
   await saveTask; saveTask=null;
 }
+// Keep browser writes ordered so an older draft cannot overwrite a newer edit.
 let draftQueue = Promise.resolve();
 let pendingCollaborativeEdits = [];
 
@@ -2004,6 +2075,7 @@ if(cloud){
     if(next||event==='SIGNED_OUT'){guestMode=false;sessionStorage.removeItem('dusk-guest');}
     if(event==='PASSWORD_RECOVERY')setTimeout(()=>showAuth('recoveryUpdate'),0);
     if(user?.id!==next?.id){
+      feedbackInboxGeneration++;
       document.querySelector('#editor-preferences-dialog')?.close();
       $('whats-new-dialog').close();
       $('feedback-inbox-dialog').close();$('feedback-inbox-list').replaceChildren();$('feedback-dialog').close();
