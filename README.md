@@ -56,7 +56,7 @@ DuskTranslate is a novel translation suite with AI-powered machine translation (
 
 DuskTranslate remains a web application. Desktop-app exploration is deferred while development focuses on the site.
 
-All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional donations will support hosting and development; the payment link is not yet available. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
+All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional [PayPal donations](https://paypal.me/eye9444) help support hosting and development; any amount helps. You can also contribute, star, or watch this repository. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
 
 ## Current Web Release
 

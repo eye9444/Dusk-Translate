@@ -6,7 +6,14 @@ test('community pricing route opens optional support without loading checkout', 
   await page.goto('/pricing');
   await expect(page.locator('.support-dialog')).toBeVisible();
   await expect(page.locator('#pricing')).toBeHidden();
-  await expect(page.locator('.support-dialog')).toContainText('coming soon');
+  const dialog=page.locator('.support-dialog');
+  await expect(dialog).toContainText('Any amount helps');
+  await expect(dialog).not.toContainText('coming soon');
+  const paypal=dialog.getByRole('link',{name:'Donate via PayPal'});
+  await expect(paypal).toHaveAttribute('href','https://paypal.me/eye9444');
+  await expect(paypal).toHaveAttribute('target','_blank');
+  await expect(paypal).toHaveAttribute('rel','noopener noreferrer');
+  await expect(paypal.locator('svg')).toBeVisible();
   expect(requests.some(url=>url.includes('cdn.paddle.com'))).toBe(false);
 });
 
@@ -25,10 +32,28 @@ test('donation notice is home-only, dismissible, and shown once per session',asy
   const github = page.locator('.support-dialog').getByRole('link', {name:'Support on GitHub'});
   await expect(github).toHaveAttribute('href','https://github.com/eye9444/Dusk-Translate');
   await expect(github).toHaveAttribute('rel','noopener noreferrer');
+  await expect(github.locator('svg')).toBeVisible();
   await expect(page.locator('.support-dialog')).toContainText('star the repository');
   await expect(page.locator('.support-dialog')).toContainText('optimising the site');
   await page.locator('.support-dialog [data-close]').click();
   await expect(page.locator('.support-dialog')).toBeHidden();
+});
+
+for(const theme of ['dusk','eclipse'])test(`support icons remain accessible on mobile in ${theme}`,async({page},testInfo)=>{
+  await page.addInitScript(theme=>localStorage.setItem('theme',theme),theme);
+  await page.setViewportSize({width:320,height:568});
+  await page.goto('/pricing');
+  const dialog=page.locator('.support-dialog');
+  for(const name of ['Donate via PayPal','Support on GitHub']){
+    const link=dialog.getByRole('link',{name});
+    await link.scrollIntoViewIfNeeded();
+    await expect(link).toBeInViewport();
+    await link.focus();await expect(link).toBeFocused();
+    const box=await link.boundingBox();expect(box.width).toBeGreaterThanOrEqual(44);expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await dialog.evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
+  await page.screenshot({path:testInfo.outputPath(`support-${theme}.png`)});
+  await page.keyboard.press('Escape');await expect(dialog).toBeHidden();
 });
 
 test('donation notice expires after ten seconds and Sure opens its panel',async({page})=>{
