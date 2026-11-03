@@ -2,13 +2,11 @@
 
 <p align="center">
   <a href="https://www.dusktranslate.com">
-    <img src="web/public/brand/novel-suite-readme.png" alt="DuskTranslate novel translation suite with Japanese and English pages orbiting its planet" width="100%" />
+    <img src="web/public/brand/novel-suite-readme.png" alt="DuskTranslate novel translation suite" width="100%" />
   </a>
 </p>
 
-<p align="center">
-  <strong>A novel translation suite: AI-powered MTL, editing, and team review in one place.</strong>
-</p>
+<p align="center"><strong>Your novel translation suite for MTL, editing, review, and EPUB export.</strong></p>
 
 <p align="center">
   <a href="https://www.dusktranslate.com"><img alt="Open DuskTranslate" src="https://img.shields.io/badge/open-DuskTranslate-ff713b?style=for-the-badge" /></a>
@@ -16,107 +14,34 @@
   <img alt="Hosted on Vercel" src="https://img.shields.io/badge/hosted_on-Vercel-000000?style=for-the-badge&logo=vercel" />
 </p>
 
-## Open the Web App
+## What It Does
 
-### Version 2.1.0
+DuskTranslate is a browser-based workspace for translating and managing novels. Import EPUB, TXT, JSON, or saved project files, generate an MTL draft with your own provider key, edit chapter by chapter, and export the result as TXT or EPUB.
 
-- Fixed comments for signed-in, device-only projects without uploading or moving existing notes between accounts.
-- Preserved reader errors and prevented delayed responses from overwriting a newer chapter or closed reader.
-- Removed the duplicate Feedback Hub ticket-list request and guarded legacy inbox, screenshot and deletion completions against expired account/view contexts.
-- Restored screenshot retries and loading-message completion when reports are collapsed mid-download.
-- Removed unused private code and updated current architecture, setup and release guides. No dependency or database migration changes are required.
-- Includes the responsive layouts and GitHub support option already shipped within v2.0.0. See [release notes](docs/RELEASE-NOTES.md) for the full maintenance summary.
+- Japanese, English, Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, and Simplified Chinese routes, including supported source-to-English workflows
+- Side-by-side source and translation editing with glossary and custom prompt support
+- Local projects through IndexedDB, or private cloud projects when signed in
+- Built-in EPUB reader, backups, public reader links, and EPUB/TXT export
+- Optional team review stages for translators, proof-readers, quality checkers, and leads
+- Google AI Studio, OpenRouter, OpenAI, Claude, and compatible HTTPS providers
 
-### Version 2.0.0
-
-- Translate Korean and Simplified Chinese novels into English, or translate Japanese and English into either language. There are now 25 supported routes.
-- Choose your usual language pair in Account preferences. New projects start with that pair; signed-in preferences follow your account, and new registrations are offered language setup.
-- Click a project card or the Continue bar to open it. On touchscreens, double-tap to open and tap a gallery cover once to reveal its actions. Explicit action buttons still work with one tap.
-- The built-in EPUB reader includes an accessible light/dark switch, synced with the rest of the app.
-
-- Account now offers Editor preferences for spellcheck and optional device storage of API keys and URLs. Settings are remembered on this browser and stay in sync with the editor controls, without affecting collaborators.
-
-- Public reader links now include the book title and embedded EPUB cover in social link previews. Books without a supported cover use text-only previews. Existing links work unchanged; external services may cache older previews.
-
-- Choose Gallery in your library to browse by EPUB cover. Covers load as you scroll; books without a supported embedded cover show a title placeholder. Grid and list views remain available.
-- Chapter actions now open in a compact right-click menu beside the cursor, not a modal. Use Select chapters or Select all chapters for bulk operations; deletion still asks for confirmation. Keyboard users can open the menu with Shift+F10 and navigate with arrow keys.
-
-- Right-click a chapter (or focus it and press Shift+F10) for bulk completion, unfinished status, and confirmed deletion. Normal clicks still open chapters. Empty translations cannot be marked complete. The uploaded original is retained; deleted EPUB sections and optionally their unused images are removed from translated exports.
-- Feedback Hub supports private reporter/founder conversations, accepted/standby/rejected queues, detailed rejection reasons, and unread notifications while the site is open. Contact Eye on [Reddit](https://www.reddit.com/user/eye9444/) or [Discord](https://discord.gg/48btenHty2).
-- Account cards show cloud project and storage usage instead of subscription status in community mode.
-- Local collaboration writes no longer wait for network uploads. Startup replays pending edits before showing shared text, and EPUB export saves a local draft before building.
-
-Self-hosted deployments require the feedback ticket, reader chapter state, and feedback status message length migrations. See [release notes](docs/RELEASE-NOTES.md).
-
-**[Launch DuskTranslate](https://www.dusktranslate.com)** in a modern browser. No installation or downloaded HTML release is required.
-
-You can use the local library without an account, or sign in with Google or email to maintain private cloud projects across sessions. AI-provider credentials remain in the current editor session by default; users may explicitly remember them on their own device for 30 days, but they are never stored with an account or project.
-
-DuskTranslate is a novel translation suite with AI-powered machine translation (MTL) at its center. Japanese-to-English is its primary route, with Japanese translating into every supported target language and English translating to and from Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, and Simplified Chinese. Organize source chapters, generate an MTL draft, refine terminology, review together, and export the result.
-
-DuskTranslate remains a web application. Desktop-app exploration is deferred while development focuses on the site.
-
-All current features are free, including custom prompts, advanced editing tools, and staged team review. Optional [PayPal donations](https://paypal.me/eye9444) help support hosting and development; any amount helps. You can also contribute, star, or watch this repository. AI-provider charges still apply to your own keys. Cloud capacity remains bounded at 200 projects, 5 GB, and 10 people per project; no app-imposed daily translation-character limit applies in community mode.
-
-## Current Web Release
-
-- Import EPUB, TXT, JSON project, and backup files
-- Translate Japanese into English, Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese
-- Translate English into Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese
-- Translate Vietnamese, Russian, German, Spanish, Italian, Portuguese, Korean, or Simplified Chinese into English
-- Set a default translation pair in Account preferences; signed-in choices follow your account and guest choices stay on this browser
-- Compare the source and editable translation side by side
-- Maintain a project glossary for names and preferred terminology
-- Save projects locally or sync them to a private signed-in library
-- Rename, archive, restore, back up, and resume projects
-- Read standalone EPUBs, source books, and completed translated books in the built-in reader
-- Export translated work as TXT or EPUB
-- Use Google AI Studio, OpenRouter, OpenAI, Claude, or a compatible HTTPS endpoint with your own API key
-- Assign Translator, Proof-reader, Quality Checker, and Lead roles in optional team review stages
-- Compare source text, base MTL, and submitted revisions before approving a final chapter
-- Replace the translation master prompt with shared or personal instructions
-- See release notes once per account and revisit them from the library
-- Scan selectable Japanese source text with Yomitan using the documented iframe setting
-- Work on desktop or mobile in light or Eclipse themes
-- Spin the animated landing-page planet and discover its hidden time-acceleration sequence
+Japanese-to-English is the primary route. Translation requests use the provider and API key selected by the user; provider charges still apply. Current features are free, and optional [PayPal support](https://paypal.me/eye9444) helps cover hosting and development.
 
 ## Typical Workflow
 
-1. Open the website and create a project from an EPUB, TXT, or saved project file.
-2. Enter a supported provider key, choose its model, and optionally remember the provider settings on your trusted device.
-3. Translate one chapter at a time, edit the output, and maintain glossary terms as needed.
-4. Return to the saved project later, read it in the built-in reader, or export the completed translation.
+1. Create a project from an EPUB, TXT, JSON, or backup file.
+2. Choose a supported source and target language, provider, and model.
+3. Translate chapters, refine the output, and maintain terminology in the glossary.
+4. Save locally or sync privately, review the work, then export or share it through a reader link.
 
-Need a provider key? The app links directly to its **[API key setup guide](https://www.dusktranslate.com/guides/api-keys.html)** from the translation workspace.
-
-## Tech Stack
-
-DuskTranslate is a client-side JavaScript application built with **Vite** and deployed on **Vercel**. It uses **Supabase Auth, PostgreSQL, and Storage** for optional accounts and cloud projects, **IndexedDB** for the device library, and **JSZip** for EPUB and backup processing. Translation requests go directly from the browser to the selected provider using the supplied key. Provider credentials are session-only by default, with an explicit 30-day device-storage option for trusted personal devices.
-
-Testing uses the Node.js test runner, **Playwright**, and **PGlite**. The interface is authored with semantic HTML, modular CSS, native browser APIs, and accessible keyboard controls rather than a component framework.
-
-Changes are reviewed in feature previews before an approved PR reaches `master`, where the Vercel Git integration deploys production. Eye chooses the wording before major commits and pushes, and reviews the What's New draft before a new version is published. The optional migration workflow is manual. See the [release workflow](docs/RELEASE-WORKFLOW.md) and [What's New template](docs/WHATS-NEW-TEMPLATE.md).
-
-Only product features and bug fixes warrant version changes. Visual and aesthetic updates ship silently within the existing version, without a new tag, release, or What's New popup. The in-app What's New history contains feature updates only; bug-fix details belong in the GitHub release notes. When correcting announcement history, preserve account acknowledgements so users are not notified again about older features.
-
-See **[Tech Stack and File Guide](docs/TECH-STACK.md)** for architecture, data flow, security boundaries, generated files and selected source files.
-
-## Responsive Interface
-
-The website is available on desktop and mobile. The intended way to use DuskTranslate is on a pc, however it can still be used with all its capabilities on mobile.
-
-<p align="center">
-  <img src="docs/screenshots/welcome-mobile.png" alt="DuskTranslate signed-out welcome screen on mobile" width="320" />
-</p>
-
-## Run the Website Locally
+## Run Locally
 
 ```bash
 npm ci
 npm run dev
 ```
 
-The development server prepares the embedded editor and starts Vite locally. Use these commands to verify a change before deployment:
+Useful checks:
 
 ```bash
 npm test
@@ -126,40 +51,25 @@ npm run test:auth
 npm run test:modules
 ```
 
-CI uses Node 22. Run the suites sequentially; browser, mocked-auth and module servers use ports 4173, 4174 and 4175. For a guest-only preview, use `VITE_LOCAL_ONLY=true npm run dev`. Do not export that flag globally when running mocked-auth tests. Vite serves the frontend; it does not execute Vercel's `api/` handlers. See **[Hosted Setup](docs/HOSTED-SETUP.md)** for authorised test configuration.
-
-Free access is defined by the current application and the community-access schema. Current cloud features need the full reviewed migration chain, not only the initial projects migration. SQL committed to the repository is not applied by Vercel Git deployment. Existing billing records and subscription cancellation are separate from free product access; do not infer live subscription state from the source tree.
-
-Paid-plan testing is retained only for an isolated test database with `launch_configuration.community_access=false`, Paddle sandbox credentials, and a local Vite dev server with `VITE_PAID_TESTING=true`. Never disable community access in the production database for testing. Production checkout is blocked. See [community rollout notes](docs/COMMUNITY-ROLLOUT.md).
-
-To refresh the README screenshots in Eclipse mode, run the preview server and then:
+For a guest-only local preview:
 
 ```bash
-npm run screenshots:readme
+VITE_LOCAL_ONLY=true npm run dev
 ```
 
-## Active Project Structure
+## Project Layout
 
-- `web/` contains the hosted application, editor integration, EPUB reader, legal pages, and styles.
-- `config/` contains Playwright configuration for browser and mocked-auth verification.
-- `tests/` contains unit, browser, authentication, and row-level-security tests.
-- `supabase/` contains the cloud-project schema and access policies.
-- `scripts/` prepares and validates the web application.
-- `docs/` contains architecture and deployment documentation.
+- `web/` - hosted application, editor, reader, and styles
+- `api/` and `server/` - hosted API and server-side access logic
+- `tests/` - unit, browser, authentication, and security tests
+- `supabase/` - database migrations and access policies
+- `scripts/` - build and validation helpers
+- `docs/` - architecture, setup, and release documentation
 
-## Legacy Standalone Builds
+## Privacy
 
-Historical HTML builds are retained on the **[`legacy-standalone` branch](https://github.com/eye9444/Dusk-Translate/tree/legacy-standalone/releases)** and in the [`v0.1.0` release](https://github.com/eye9444/Dusk-Translate/releases/tag/v0.1.0). They are no longer the primary product or recommended way to use DuskTranslate. The default branch now contains only the hosted application and its supporting files.
+Account storage is optional. Projects are stored locally unless cloud sync is chosen, and provider API keys are not saved with project or account data by default. See the [Privacy Policy](https://www.dusktranslate.com/privacy.html), [Terms](https://www.dusktranslate.com/terms.html), and [Cookie Policy](https://www.dusktranslate.com/cookies.html).
 
-## Privacy and Security
+## License
 
-DuskTranslate does not include advertising or behavioral analytics. Account storage is optional, cloud projects are protected per user, and provider API keys are not saved with project or account data.
-
-- [Privacy Policy](https://www.dusktranslate.com/privacy.html)
-- [Terms and Conditions](https://www.dusktranslate.com/terms.html)
-- [Cookie Policy](https://www.dusktranslate.com/cookies.html)
-- [Architecture](docs/ARCHITECTURE.md)
-
-## Status
-
-The hosted web release is under active development. The current focus is reliability across project saving, chapter translation, EPUB reading and export, authentication, and responsive use.
+No license has been selected for this repository yet. Until a license is added, reuse and redistribution are not granted by default.
