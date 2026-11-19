@@ -33,6 +33,20 @@ for(const viewport of [{width:1440,height:1000},{width:390,height:844}]) {
   });
 }
 
+test('translation pane scrolls independently to the end on desktop',async({page})=>{
+  await page.setViewportSize({width:1920,height:1080});
+  const editor=await editorWithLongText(page);
+  const translation=editor.locator('#tl-out');
+  await translation.fill('Translated paragraph.\n\n'.repeat(30)+'End of translation.');
+  await expect(editor.locator('#host-linked-scroll')).toHaveAttribute('aria-pressed','false');
+  await translation.evaluate(node=>{node.scrollTop=0;node.blur();});
+  await translation.hover();
+  await page.mouse.wheel(0,2400);
+  await expect.poll(()=>translation.evaluate(node=>node.scrollTop)).toBeGreaterThan(0);
+  await expect.poll(()=>translation.evaluate(node=>node.scrollHeight-node.clientHeight-node.scrollTop)).toBeLessThan(2);
+  expect(await editor.locator('#src-txt').evaluate(node=>node.scrollTop)).toBe(0);
+});
+
 test('quota meter distinguishes local work and shows completed, reserved, and remaining usage',async({page})=>{
   const editor=await editorWithLongText(page);
   const meter=editor.locator('#host-quota-meter');
