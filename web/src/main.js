@@ -228,11 +228,20 @@ function textExport(snapshot) {
     return translation ? [`${'─'.repeat(60)}\n[${chapter.id}]\n${'─'.repeat(60)}\n\n${translation}`] : [];
   }).join('\n\n');
 }
-async function workflowExportSnapshot(project){
+async function workflowExportSnapshot(project,{forReader=false}={}){
   if(!project||!isCloud(project))return project?.snapshot;
   const state=await remote.workflow(project.id);
   if(!state.config?.enabled)return project.snapshot;
-  return {...project.snapshot,translations:await remote.workflowPublished(project.id)};
+  const snapshot={...project.snapshot,translations:await remote.workflowPublished(project.id)};
+  if(forReader){
+    const excluded=new Set(snapshot.exportExcluded||[]);
+    const selected=(snapshot.novel?.chapters||[]).filter(chapter=>!excluded.has(chapter.id));
+    if(!selected.length)throw new Error('Select at least one chapter in Export settings before opening the translation.');
+    if(selected.some(chapter=>!snapshot.translations?.[chapter.id]?.trim())){
+      throw new Error('Publish every selected chapter in Team workflow before opening the translation. The library counts completed drafts, including unpublished ones.');
+    }
+  }
+  return snapshot;
 }
 function showExportSettings() {
   if (!active?.snapshot?.novel) return;
@@ -1218,10 +1227,10 @@ async function openReader(id, edition = 'original', updateRoute = true) {
     const project = await loadProject(id);
     if (!project?.file) throw new Error('This project file is unavailable.');
     if(isEpub(project)){
-      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot,projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,snapshot):projectFile;
+      const snapshot=edition==='translated'?await workflowExportSnapshot(project,{forReader:true}):project.snapshot,projectFile=await projectFileWithReplacements(project),file=edition==='translated'?await buildTranslatedEpub(projectFile,snapshot):projectFile;
       if(await presentReader(file,project.fileName,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION',project)==='stale')return;
     }else{
-      const snapshot=edition==='translated'?await workflowExportSnapshot(project):project.snapshot;prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,snapshot,edition);
+      const snapshot=edition==='translated'?await workflowExportSnapshot(project,{forReader:true}):project.snapshot;prepareReader(project.title,edition==='translated'?'TRANSLATED EDITION':'ORIGINAL EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,snapshot,edition);
       if(await renderReader()!=='rendered')return;
       $('reader-editor').hidden=false;
     }

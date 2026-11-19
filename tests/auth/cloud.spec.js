@@ -10,6 +10,8 @@ async function backend(context,state){
     if(url.pathname.endsWith('/user'))return route.fulfill({json:user});
     if(url.pathname.endsWith('/settings'))return route.fulfill({json:{external:{google:true,email:true}}});
     if(url.pathname.endsWith('/logout'))return route.fulfill({status:204});
+    if(url.pathname.endsWith('/rpc/workflow_dashboard'))return route.fulfill({json:{config:{enabled:Boolean(state.workflowEnabled)}}});
+    if(url.pathname.endsWith('/rpc/workflow_published_translations'))return route.fulfill({json:{}});
     if(url.pathname.includes('/storage/v1/object/')){
       if(method==='POST'){state.uploaded=req.postDataBuffer().toString().includes('Original test chapter');return route.fulfill({json:{Key:'books/test'}});}
       return route.fulfill({contentType:'text/plain',body:state.source});
@@ -51,6 +53,17 @@ test('cloud saves original, translation, glossary and position across a fresh br
     await expect(second.frameLocator('#editor').locator('#api-key')).toHaveValue('');
   }finally{await other.close();}
 });
+test('private translation reader explains why completed team drafts are not readable yet',async({page,context})=>{
+  const id='12345678-1234-4234-8234-123456789abc';
+  const state={source:'Original text',workflowEnabled:true,row:{
+    id,owner_id:user.id,title:'Team book',file_name:'book.epub',file_path:`${user.id}/${id}/original`,
+    snapshot:{novel:{chapters:[{id:'one',text:'Original text'}]},translations:{one:'Complete draft'}},
+  }};
+  await backend(context,state);await signin(page);
+  await page.goto(`/reader?project=${id}&edition=translated`);
+  await expect(page.locator('#library-status')).toContainText('Publish every selected chapter in Team workflow');
+});
+
 test('failed cloud sync retains a resumable local draft and can retry',async({page,context})=>{
   const state={source:'Original test chapter'};await backend(context,state);await signin(page);
   const editor=page.frameLocator('#editor');
