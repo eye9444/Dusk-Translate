@@ -1,5 +1,9 @@
 # Release Notes
 
+## Bug fixes
+
+- **BF-001:** Public reader links now show only the translated edition. If a translated export cannot be prepared, the reader reports the failure instead of silently showing the original book.
+
 ## 2.1.0 - 2026-11-02
 
 ### Fixes and maintenance
