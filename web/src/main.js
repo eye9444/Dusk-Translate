@@ -1239,12 +1239,12 @@ async function openSharedReader(token) {
     sharedReaderToken=token;
     const project=await remote.openPublicReader(token);
     if (!project.file) throw new Error('This shared project file is unavailable.');
-    if(isEpub(project)){let file=project.file,edition='SHARED ORIGINAL EDITION';try{file=await buildTranslatedEpub(project.file,project.snapshot);edition='SHARED TRANSLATED EDITION';}catch{}return await presentReader(file,project.fileName,edition);}
-    else{prepareReader(project.title,'SHARED EDITION');readerProject=project;try{readerBook=snapshotReaderBook(project.title,project.snapshot,'translated');}catch{readerBook=snapshotReaderBook(project.title,project.snapshot,'original');}return await renderReader();}
+    if(isEpub(project)){const file=await buildTranslatedEpub(project.file,project.snapshot);return await presentReader(file,project.fileName,'SHARED TRANSLATED EDITION');}
+    else{prepareReader(project.title,'SHARED TRANSLATED EDITION');readerProject=project;readerBook=snapshotReaderBook(project.title,project.snapshot,'translated');return await renderReader();}
   } catch (error) {
     prepareReader('Shared EPUB', 'SHARED EDITION');
     $('reader-chapter-title').textContent='This reader link is unavailable.';
-    $('reader-status').textContent='Reader error';
+    $('reader-status').textContent=errorMessage(error);
     $('reader-content').append(el('p', '', errorMessage(error)));
   } finally { opening = false; setLoading(false); }
 }
