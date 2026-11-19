@@ -4,7 +4,8 @@ import JSZip from 'jszip';
 const token='12345678-1234-4234-8234-123456789abc';
 const chapters=['one','two','three'].map(id=>({id,title:`Chapter ${id}`,text:`Passage ${id}`,xhtmlPath:`${id}.xhtml`}));
 
-async function setupReader(page,{epub=false,failInitial=false,failComments=false}={}){
+async function setupReader(page,{epub=false,failInitial=false,failComments=false,translated=true}={}){
+  const translations=translated?Object.fromEntries(chapters.map(({id})=>[id,'Translation '+id])):{};
   const zip=new JSZip();
   zip.file('META-INF/container.xml','<container><rootfiles><rootfile full-path="book.opf"/></rootfiles></container>');
   zip.file('book.opf',`<package><metadata><title>Test book</title></metadata><manifest>${chapters.map(ch=>`<item id="${ch.id}" href="${ch.xhtmlPath}" media-type="application/xhtml+xml"/>`).join('')}</manifest><spine>${chapters.map(ch=>`<itemref idref="${ch.id}"/>`).join('')}</spine></package>`);
@@ -13,7 +14,7 @@ async function setupReader(page,{epub=false,failInitial=false,failComments=false
   const state={calls:[],failure:failInitial?'Reader link revoked or suspended':null,hold:null,holdAt:1,held:null,release:null};
   await page.route('https://dusk-test.supabase.co/**',async route=>{
     const url=new URL(route.request().url());
-    if(url.pathname.endsWith('/rpc/open_public_reader_link'))return route.fulfill({json:[{project_id:'book',title:'Test book',file_name:epub?'book.epub':'book.txt',file_path:'owner/book/original',snapshot:{novel:{projectType:'web-novel',chapters},translations:{}}}]});
+    if(url.pathname.endsWith('/rpc/open_public_reader_link'))return route.fulfill({json:[{project_id:'book',title:'Test book',file_name:epub?'book.epub':'book.txt',file_path:'owner/book/original',snapshot:{novel:{projectType:'web-novel',chapters},translations}}]});
     if(url.pathname.includes('/storage/v1/object/'))return route.fulfill({body:file,contentType:epub?'application/epub+zip':'text/plain'});
     if(url.pathname.endsWith('/rpc/list_reader_comments')){
       const chapter=route.request().postDataJSON().target_chapter;
@@ -28,6 +29,12 @@ async function setupReader(page,{epub=false,failInitial=false,failComments=false
   await page.goto(`/reader?share=${token}`);
   return state;
 }
+
+for(const epub of [false,true])test('untranslated share never displays the original (EPUB: '+epub+')',async({page})=>{
+  await setupReader(page,{epub,translated:false});
+  await expect(page.locator('#reader-status')).toContainText('Finish every selected chapter');
+  await expect(page.locator('#reader-content')).not.toContainText('Passage one');
+});
 
 for(const epub of [false,true])test(`initial ${epub?'EPUB':'web-novel'} access failure is not announced as ready`,async({page},testInfo)=>{
   await setupReader(page,{epub,failInitial:true});
@@ -62,12 +69,12 @@ for(const lateFailure of [null,'Late access failure'])test(`late ${lateFailure?'
   await expect.poll(()=>state.held).toBe('two');
   await expect(page.locator('#reader-content')).toBeEmpty();
   await page.getByRole('button',{name:'Read section 2: Chapter three',exact:true}).click();
-  await expect(page.locator('#reader-content')).toContainText('Passage three');
+  await expect(page.locator('#reader-content')).toContainText('Translation three');
   const response=page.waitForResponse(response=>response.url().endsWith('/rpc/list_reader_comments')&&response.request().postDataJSON().target_chapter==='two');
   state.release(lateFailure);await (await response).finished();
   await page.evaluate(()=>new Promise(requestAnimationFrame));
   await expect(page.locator('#reader-chapter-title')).toHaveText('Chapter three');
-  await expect(page.locator('#reader-content')).toContainText('Passage three');
+  await expect(page.locator('#reader-content')).toContainText('Translation three');
   await expect(page.locator('#reader-status')).toHaveText('Ready to read');
   await expect(page.locator('#reader-comments')).toBeVisible();
 });
@@ -89,7 +96,7 @@ test('old comment-view failure cannot invalidate a chapter awaiting authorisatio
   await expect(page.locator('#reader-status')).not.toHaveText('Old comment access failed');
   await expect(page.locator('#reader-content')).toBeEmpty();
   releaseAccess(null);
-  await expect(page.locator('#reader-content')).toContainText('Passage three');
+  await expect(page.locator('#reader-content')).toContainText('Translation three');
   await expect(page.locator('#reader-status')).toHaveText('Ready to read');
 });
 
